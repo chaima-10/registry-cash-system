@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  role      Role     @default(cashier)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id            Int          @id @default(autoincrement())
+  barcode       String       @unique
+  name          String
+  price         Decimal      @db.Decimal(10, 2)
+  stockQuantity Int          @default(0)
+  
+  // Relations
+  categoryId    Int?
+  category      Category?    @relation(fields: [categoryId], references: [id])
+  
+  subcategoryId Int?
+  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id])
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Category {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  subcategories Subcategory[]
+  products      Product[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Subcategory {
+  id            Int       @id @default(autoincrement())
+  name          String
+  
+  categoryId    Int
+  category      Category  @relation(fields: [categoryId], references: [id])
+  
+  products      Product[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum Role {
+  admin
+  cashier
+}

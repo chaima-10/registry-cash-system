@@ -1,0 +1,20 @@
+{
+    "name": "registry-cash-system-desktop",
+    "version": "1.0.0",
+    "description": "Electron wrapper for Registry Cash System",
+    "main": "electron/main.js",
+    "scripts": {
+        "start": "electron .",
+        "dev:frontend": "cd frontend && npm run dev",
+        "dev:backend": "cd backend && npm run dev",
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"wait-on http://localhost:5173 && npm start\""
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "electron": "^31.0.0",
+        "wait-on": "^7.2.0"
+    }
+}
