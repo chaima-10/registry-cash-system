@@ -26,7 +26,7 @@ function AppRoutes() {
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/products" element={<Products />} />
-                <Route path="/users" element={<div className="text-white">User Management Coming Soon</div>} />
+                <Route path="/users" element={<Users />} />
                 <Route path="/pos" element={<div className="text-white">POS Terminal Coming Soon</div>} />
                 <Route path="/settings" element={<div className="text-white">Settings Coming Soon</div>} />
             </Route>
