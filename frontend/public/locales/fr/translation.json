@@ -1,0 +1,14 @@
+{
+    "welcome": "Bienvenue dans le système de caisse",
+    "settings": "Paramètres",
+    "language": "Langue",
+    "english": "Anglais",
+    "french": "Français",
+    "arabic": "Arabe",
+    "dashboard": "Tableau de bord",
+    "products": "Produits",
+    "categories": "Catégories",
+    "users": "Utilisateurs",
+    "login": "Connexion",
+    "logout": "Déconnexion"
+}

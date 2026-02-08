@@ -1,0 +1,14 @@
+{
+    "welcome": "Welcome to Registry Cash System",
+    "settings": "Settings",
+    "language": "Language",
+    "english": "English",
+    "french": "French",
+    "arabic": "Arabic",
+    "dashboard": "Dashboard",
+    "products": "Products",
+    "categories": "Categories",
+    "users": "Users",
+    "login": "Login",
+    "logout": "Logout"
+}

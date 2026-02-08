@@ -5,6 +5,8 @@ import {
     FiHome, FiBox, FiUsers, FiLogOut, FiMenu, FiX, FiShoppingCart, FiSettings
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from './LanguageSwitcher';
 
 const SidebarItem = ({ to, icon: Icon, label, collapsed }) => (
     <NavLink
@@ -33,6 +35,7 @@ const SidebarItem = ({ to, icon: Icon, label, collapsed }) => (
 );
 
 const Layout = () => {
+    const { t } = useTranslation();
     const { logout, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -44,11 +47,11 @@ const Layout = () => {
     };
 
     const menuItems = [
-        { to: '/', icon: FiHome, label: 'Dashboard' },
-        { to: '/pos', icon: FiShoppingCart, label: 'POS Terminal' },
-        { to: '/products', icon: FiBox, label: 'Products' },
-        { to: '/users', icon: FiUsers, label: 'Users' },
-        { to: '/settings', icon: FiSettings, label: 'Settings' },
+        { to: '/', icon: FiHome, label: t('dashboard') },
+        { to: '/pos', icon: FiShoppingCart, label: 'POS Terminal' }, // Add translation key later
+        { to: '/products', icon: FiBox, label: t('products') },
+        { to: '/users', icon: FiUsers, label: t('users') },
+        { to: '/settings', icon: FiSettings, label: t('settings') },
     ];
 
     const getPageTitle = () => {
@@ -62,7 +65,7 @@ const Layout = () => {
             <motion.aside
                 animate={{ width: collapsed ? 80 : 280 }}
                 transition={{ duration: 0.3, type: "spring", stiffness: 100 }}
-                className="h-full bg-gray-900 border-r border-gray-800 flex flex-col relative z-20"
+                className="h-full bg-gray-900 border-e border-gray-800 flex flex-col relative z-20"
             >
                 {/* Logo Area */}
                 <div className="h-20 flex items-center justify-between px-6 border-b border-gray-800">
@@ -117,7 +120,7 @@ const Layout = () => {
                 <header className="h-20 border-b border-gray-800/50 px-8 flex items-center justify-between bg-gray-900/50 backdrop-blur-sm sticky top-0 z-10">
                     <h1 className="text-2xl font-bold text-gray-100">{getPageTitle()}</h1>
                     <div className="flex items-center gap-4">
-                        {/* Add Search/Notifications here later */}
+                        <LanguageSwitcher />
                         <div className="text-sm text-gray-500">v1.0.0</div>
                     </div>
                 </header>
