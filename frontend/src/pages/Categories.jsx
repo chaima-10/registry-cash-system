@@ -3,7 +3,10 @@ import { FiFolderPlus, FiFolder, FiChevronRight, FiChevronDown, FiPlus } from 'r
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAllCategories, createCategory, createSubcategory } from '../api/categories';
 
+import { useTranslation } from 'react-i18next';
+
 const CategoryItem = ({ category, onAddSub }) => {
+    const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     return (
         <div className="mb-2">
@@ -14,7 +17,7 @@ const CategoryItem = ({ category, onAddSub }) => {
                 <span className="text-white font-medium flex-1">{category.name}</span>
                 <button onClick={(e) => { e.stopPropagation(); onAddSub(category.id); }}
                     className="opacity-0 group-hover:opacity-100 p-2 text-xs bg-blue-600 rounded-lg text-white hover:bg-blue-700 transition-all flex items-center gap-1">
-                    <FiPlus /> Sub
+                    <FiPlus /> {t('sub')}
                 </button>
             </div>
             <AnimatePresence>
@@ -33,7 +36,7 @@ const CategoryItem = ({ category, onAddSub }) => {
                                 </div>
                             ))
                         ) : (
-                            <div className="text-gray-600 text-sm italic">No subcategories</div>
+                            <div className="text-gray-600 text-sm italic">{t('noSubcategories')}</div>
                         )}
                     </motion.div>
                 )}
@@ -43,6 +46,7 @@ const CategoryItem = ({ category, onAddSub }) => {
 };
 
 const Categories = () => {
+    const { t } = useTranslation();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -96,17 +100,17 @@ const Categories = () => {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">Categories</h2>
+                <h2 className="text-2xl font-bold text-white">{t('categories')}</h2>
                 <button onClick={handleAddCategory} className="flex items-center gap-2 px-4 py-2 bg-blue-600 rounded-xl text-white font-medium hover:bg-blue-700 transition-colors">
-                    <FiFolderPlus /> New Category
+                    <FiFolderPlus /> {t('newCategory')}
                 </button>
             </div>
 
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
                 {loading ? (
-                    <div className="text-gray-500">Loading...</div>
+                    <div className="text-gray-500">{t('loading')}</div>
                 ) : categories.length === 0 ? (
-                    <div className="text-gray-500">No categories found. Create one!</div>
+                    <div className="text-gray-500">{t('noCategoriesFound')}</div>
                 ) : (
                     categories.map(cat => (
                         <CategoryItem key={cat.id} category={cat} onAddSub={handleAddSubcategory} />
@@ -124,17 +128,17 @@ const Categories = () => {
                             className="bg-gray-900 border border-gray-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl"
                         >
                             <h3 className="text-xl font-bold text-white mb-4">
-                                {modalType === 'category' ? 'New Category' : 'New Subcategory'}
+                                {modalType === 'category' ? t('newCategory') : t('newSubcategory')}
                             </h3>
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Name</label>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">{t('name')}</label>
                                     <input autoFocus type="text" className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white outline-none focus:border-blue-500"
                                         value={name} onChange={e => setName(e.target.value)} required />
                                 </div>
                                 <div className="flex justify-end gap-2">
-                                    <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
-                                    <button type="submit" className="px-4 py-2 bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700">Create</button>
+                                    <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-gray-400 hover:text-white">{t('cancel')}</button>
+                                    <button type="submit" className="px-4 py-2 bg-blue-600 rounded-lg text-white font-medium hover:bg-blue-700">{t('create')}</button>
                                 </div>
                             </form>
                         </motion.div>

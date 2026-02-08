@@ -3,7 +3,10 @@ import { FiPlus, FiUser, FiUserCheck, FiShield } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { registerUser } from '../api/auth';
 
+import { useTranslation } from 'react-i18next';
+
 const Users = () => {
+    const { t } = useTranslation();
     const [formData, setFormData] = useState({ username: '', password: '', role: 'cashier' });
     const [message, setMessage] = useState(null);
 
@@ -21,14 +24,14 @@ const Users = () => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white">User Management</h2>
+            <h2 className="text-2xl font-bold text-white">{t('userManagement')}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Register Form */}
                 <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-3 bg-blue-500/20 rounded-lg text-blue-400"><FiUserCheck size={24} /></div>
-                        <h3 className="text-xl font-bold text-white">Register New User</h3>
+                        <h3 className="text-xl font-bold text-white">{t('registerNewUser')}</h3>
                     </div>
 
                     {message && (
@@ -39,7 +42,7 @@ const Users = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Username</label>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">{t('username')}</label>
                             <div className="relative">
                                 <FiUser className="absolute left-3 top-3 text-gray-500" />
                                 <input required type="text" className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500"
@@ -48,27 +51,27 @@ const Users = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Password</label>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">{t('password')}</label>
                             <input required type="password" className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500"
                                 value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Role</label>
+                            <label className="block text-sm font-medium text-gray-400 mb-1">{t('role')}</label>
                             <div className="flex gap-4">
                                 <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
                                     <input type="radio" name="role" value="cashier" checked={formData.role === 'cashier'} onChange={e => setFormData({ ...formData, role: 'cashier' })} />
-                                    Cashier
+                                    {t('cashier')}
                                 </label>
                                 <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
                                     <input type="radio" name="role" value="admin" checked={formData.role === 'admin'} onChange={e => setFormData({ ...formData, role: 'admin' })} />
-                                    <span className="flex items-center gap-1 text-purple-400"><FiShield size={14} /> Admin</span>
+                                    <span className="flex items-center gap-1 text-purple-400"><FiShield size={14} /> {t('admin')}</span>
                                 </label>
                             </div>
                         </div>
 
                         <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all">
-                            Create Account
+                            {t('createAccount')}
                         </button>
                     </form>
                 </div>
@@ -76,8 +79,8 @@ const Users = () => {
                 {/* User List Info (Placeholder) */}
                 <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col justify-center items-center text-center text-gray-500">
                     <FiUser size={48} className="mb-4 opacity-20" />
-                    <p>A full user list table typically requires a dedicated GET /users endpoint.</p>
-                    <p className="text-sm mt-2">Currently, you can use the form on the left to create users.</p>
+                    <p>{t('userListInfo')}</p>
+                    <p className="text-sm mt-2">{t('userListInfo2')}</p>
                 </div>
             </div>
         </div>

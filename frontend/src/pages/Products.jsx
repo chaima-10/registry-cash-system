@@ -4,7 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
 import { getAllCategories } from '../api/categories';
 
+import { useTranslation } from 'react-i18next';
+
 const Products = () => {
+    const { t } = useTranslation();
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -97,12 +100,12 @@ const Products = () => {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">Product Management</h2>
+                <h2 className="text-2xl font-bold text-white">{t('productManagement')}</h2>
                 <button
                     onClick={() => handleOpenModal()}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-lg shadow-blue-500/30"
                 >
-                    <FiPlus /> Add Product
+                    <FiPlus /> {t('addProduct')}
                 </button>
             </div>
 
@@ -111,7 +114,7 @@ const Products = () => {
                 <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                     type="text"
-                    placeholder="Search by name or barcode..."
+                    placeholder={t('searchPlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-gray-900 border border-gray-800 rounded-xl text-gray-300 focus:outline-none focus:border-blue-500 transition-colors"
@@ -124,19 +127,19 @@ const Products = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-800/50 text-gray-400 border-b border-gray-800">
-                                <th className="p-4 font-medium">Barcode</th>
-                                <th className="p-4 font-medium">Name</th>
-                                <th className="p-4 font-medium">Category</th>
-                                <th className="p-4 font-medium">Stock</th>
-                                <th className="p-4 font-medium text-right">Price</th>
-                                <th className="p-4 font-medium text-center">Actions</th>
+                                <th className="p-4 font-medium">{t('barcode')}</th>
+                                <th className="p-4 font-medium">{t('name')}</th>
+                                <th className="p-4 font-medium">{t('category')}</th>
+                                <th className="p-4 font-medium">{t('stock')}</th>
+                                <th className="p-4 font-medium text-right">{t('price')}</th>
+                                <th className="p-4 font-medium text-center">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800">
                             {loading ? (
-                                <tr><td colSpan="6" className="p-8 text-center text-gray-500">Loading products...</td></tr>
+                                <tr><td colSpan="6" className="p-8 text-center text-gray-500">{t('loadingProducts')}</td></tr>
                             ) : filteredProducts.length === 0 ? (
-                                <tr><td colSpan="6" className="p-8 text-center text-gray-500">No products found</td></tr>
+                                <tr><td colSpan="6" className="p-8 text-center text-gray-500">{t('noProductsFound')}</td></tr>
                             ) : (
                                 filteredProducts.map(product => (
                                     <tr key={product.id} className="hover:bg-gray-800/30 transition-colors">
@@ -186,56 +189,56 @@ const Products = () => {
                             className="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
                         >
                             <div className="p-6 border-b border-gray-800 flex justify-between items-center">
-                                <h3 className="text-xl font-bold text-white">{isEditing ? 'Edit Product' : 'Add New Product'}</h3>
+                                <h3 className="text-xl font-bold text-white">{isEditing ? t('editProduct') : t('addNewProduct')}</h3>
                                 <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white"><FiX size={24} /></button>
                             </div>
                             <form onSubmit={handleSubmit} className="p-6 space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-400 mb-1">Barcode</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">{t('barcode')}</label>
                                         <input required type="text" className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white focus:border-blue-500 outline-none"
                                             value={formData.barcode} onChange={e => setFormData({ ...formData, barcode: e.target.value })} disabled={isEditing} />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-400 mb-1">Stock</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">{t('stock')}</label>
                                         <input required type="number" className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white focus:border-blue-500 outline-none"
                                             value={formData.stockQuantity} onChange={e => setFormData({ ...formData, stockQuantity: e.target.value })} />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Product Name</label>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">{t('productName')}</label>
                                     <input required type="text" className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white focus:border-blue-500 outline-none"
                                         value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-400 mb-1">Price ($)</label>
+                                    <label className="block text-sm font-medium text-gray-400 mb-1">{t('price')} ($)</label>
                                     <input required type="number" step="0.01" className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white focus:border-blue-500 outline-none"
                                         value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-400 mb-1">Category</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">{t('category')}</label>
                                         <select className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white focus:border-blue-500 outline-none"
                                             value={formData.categoryId} onChange={e => setFormData({ ...formData, categoryId: e.target.value, subcategoryId: '' })}>
-                                            <option value="">Select Category</option>
+                                            <option value="">{t('selectCategory')}</option>
                                             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-400 mb-1">Subcategory</label>
+                                        <label className="block text-sm font-medium text-gray-400 mb-1">{t('subcategory')}</label>
                                         <select className="w-full bg-gray-800 border border-gray-700 rounded-lg p-2 text-white focus:border-blue-500 outline-none"
                                             value={formData.subcategoryId} onChange={e => setFormData({ ...formData, subcategoryId: e.target.value })} disabled={!formData.categoryId}>
-                                            <option value="">Select Subcategory</option>
+                                            <option value="">{t('selectSubcategory')}</option>
                                             {getSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
                                     </div>
                                 </div>
 
                                 <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all">
-                                    {isEditing ? 'Update Product' : 'Create Product'}
+                                    {isEditing ? t('updateProduct') : t('createProduct')}
                                 </button>
                             </form>
                         </motion.div>

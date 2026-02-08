@@ -19,21 +19,24 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
     </motion.div>
 );
 
+import { useTranslation } from 'react-i18next';
+
 const Dashboard = () => {
+    const { t } = useTranslation();
     return (
         <div className="space-y-6">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Total Revenue" value="$12,543.00" change={12.5} icon={FiDollarSign} color="bg-green-500" />
-                <StatCard title="Total Orders" value="156" change={8.2} icon={FiShoppingBag} color="bg-blue-500" />
-                <StatCard title="Active Users" value="12" change={-2.4} icon={FiUsers} color="bg-purple-500" />
-                <StatCard title="Inventory Value" value="$45,230.00" change={5.1} icon={FiActivity} color="bg-orange-500" />
+                <StatCard title={t('totalRevenue')} value="$12,543.00" change={12.5} icon={FiDollarSign} color="bg-green-500" />
+                <StatCard title={t('totalOrders')} value="156" change={8.2} icon={FiShoppingBag} color="bg-blue-500" />
+                <StatCard title={t('activeUsers')} value="12" change={-2.4} icon={FiUsers} color="bg-purple-500" />
+                <StatCard title={t('inventoryValue')} value="$45,230.00" change={5.1} icon={FiActivity} color="bg-orange-500" />
             </div>
 
             {/* Recent Activity Section (Placeholder) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">Recent Transactions</h3>
+                    <h3 className="text-lg font-bold text-white mb-4">{t('recentTransactions')}</h3>
                     <div className="space-y-4">
                         {[1, 2, 3].map(i => (
                             <div key={i} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-xl">
@@ -43,7 +46,7 @@ const Dashboard = () => {
                                     </div>
                                     <div>
                                         <p className="text-white font-medium">Order #{1000 + i}</p>
-                                        <p className="text-sm text-gray-500">Just now</p>
+                                        <p className="text-sm text-gray-500">{t('justNow')}</p>
                                     </div>
                                 </div>
                                 <span className="text-white font-bold">$125.00</span>
@@ -53,14 +56,14 @@ const Dashboard = () => {
                 </div>
 
                 <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">Stock Alerts</h3>
+                    <h3 className="text-lg font-bold text-white mb-4">{t('stockAlerts')}</h3>
                     <div className="space-y-4">
                         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">
                             <div>
-                                <p className="text-red-400 font-medium">Low Stock: Coca Cola</p>
-                                <p className="text-sm text-red-500/70">Only 5 items remaining</p>
+                                <p className="text-red-400 font-medium">{t('lowStock')}: Coca Cola</p>
+                                <p className="text-sm text-red-500/70">Only 5 {t('itemsRemaining')}</p>
                             </div>
-                            <button className="px-3 py-1 bg-red-500/20 text-red-300 text-sm rounded-lg hover:bg-red-500/30">Restock</button>
+                            <button className="px-3 py-1 bg-red-500/20 text-red-300 text-sm rounded-lg hover:bg-red-500/30">{t('restock')}</button>
                         </div>
                     </div>
                 </div>
