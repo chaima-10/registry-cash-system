@@ -30,3 +30,22 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-600;
 }
+
+/* Print Styles for Receipt */
+@media print {
+
+  /* Hide everything by default when printing */
+  body>*:not(#root) {
+    display: none !important;
+  }
+
+  /* Ensure only receipt-container is visible */
+  .receipt-container {
+    display: block !important;
+  }
+
+  /* Remove page margins */
+  @page {
+    margin: 0;
+  }
+}
