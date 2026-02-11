@@ -16,6 +16,7 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Users from './pages/Users';
 import Categories from './pages/Categories';
+import POS from './pages/POS';
 
 function AppRoutes() {
     return (
@@ -27,7 +28,7 @@ function AppRoutes() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/users" element={<Users />} />
-                <Route path="/pos" element={<div className="text-white">POS Terminal Coming Soon</div>} />
+                <Route path="/pos" element={<POS />} />
                 <Route path="/settings" element={<div className="text-white">Settings Coming Soon</div>} />
             </Route>
         </Routes>

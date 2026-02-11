@@ -83,7 +83,7 @@ router.post('/login', authController.login);
  *       401:
  *         description: Unauthorized
  */
-router.get('/profile', authMiddleware, authController.getProfile);
+router.get('/profile', authMiddleware.protect, authController.getProfile);
 
 /**
  * @swagger

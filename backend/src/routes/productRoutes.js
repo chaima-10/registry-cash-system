@@ -4,7 +4,7 @@ const productController = require('../controllers/productController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // All product routes protected by auth
-router.use(authMiddleware);
+router.use(authMiddleware.protect);
 
 /**
  * @swagger

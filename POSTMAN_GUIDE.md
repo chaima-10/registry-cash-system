@@ -91,3 +91,26 @@
 ## 6. Swagger Documentation
 - You can also test everything natively in your browser!
 - Go to: http://localhost:5000/api-docs
+
+## 7. Cart Management (Cashier)
+**Add Item to Cart**
+- **Method:** POST
+- **URL:** `{{url}}/cart`
+- **Body:** `{ "productId": 1, "quantity": 1 }`
+
+**Get Cart**
+- **Method:** GET
+- **URL:** `{{url}}/cart`
+
+**Update Quantity**
+- **Method:** PUT
+- **URL:** `{{url}}/cart/{{itemId}}`
+- **Body:** `{ "quantity": 5 }`
+
+**Remove Item**
+- **Method:** DELETE
+- **URL:** `{{url}}/cart/{{itemId}}`
+
+**Clear Cart**
+- **Method:** DELETE
+- **URL:** `{{url}}/cart`
