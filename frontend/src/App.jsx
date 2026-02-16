@@ -18,6 +18,9 @@ import Users from './pages/Users';
 import Categories from './pages/Categories';
 import POS from './pages/POS';
 
+import ProfilePage from './pages/ProfilePage';
+import SettingsPage from './pages/SettingsPage';
+
 function AppRoutes() {
     return (
         <Routes>
@@ -29,7 +32,8 @@ function AppRoutes() {
                 <Route path="/products" element={<Products />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/pos" element={<POS />} />
-                <Route path="/settings" element={<div className="text-white">Settings Coming Soon</div>} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
             </Route>
         </Routes>
     );

@@ -65,5 +65,13 @@
     "signInAccess": "Sign in to access the POS System",
     "enterUsername": "Enter your username",
     "signInAction": "Sign In",
-    "loginFailed": "Login failed"
+    "loginFailed": "Login failed",
+    "fullName": "Full Name",
+    "salary": "Salary",
+    "workingDays": "Working Days",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "editUser": "Edit User",
+    "deleteUserConfirm": "Are you sure you want to delete this user?"
 }
