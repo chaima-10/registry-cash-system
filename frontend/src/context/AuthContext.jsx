@@ -26,12 +26,10 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (username, password) => {
         const data = await loginUser({ username, password });
-        // Assuming loginUser sets localStorage as updated in previous steps, 
-        // but better to handle state here too for consistency if API just returns token
         if (data.token) {
-            // Double check API consistency, assuming api/auth.js handles localStorage
-            const userData = await getProfile(); // Fetch full profile
+            const userData = await getProfile();
             setUser(userData);
+            applyTheme(userData.theme);
         }
         return data;
     };
@@ -39,10 +37,40 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         logoutUser();
         setUser(null);
+        applyTheme('light'); // Revert to default or keep last preference? 'light' is safe.
+        localStorage.removeItem('theme');
     };
 
+    const updateUser = (updatedData) => {
+        setUser(prev => ({ ...prev, ...updatedData }));
+        if (updatedData.theme) {
+            applyTheme(updatedData.theme);
+        }
+    };
+
+    const applyTheme = (theme) => {
+        if (!theme) return;
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(theme);
+        localStorage.setItem('theme', theme);
+    };
+
+    // Initialize theme on load
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+    }, []);
+
+    // Sync theme when user loads
+    useEffect(() => {
+        if (user?.theme) {
+            applyTheme(user.theme);
+        }
+    }, [user]);
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, applyTheme }}>
             {!loading && children}
         </AuthContext.Provider>
     );
