@@ -5,7 +5,8 @@
     "main": "src/server.js",
     "scripts": {
         "start": "node src/server.js",
-        "dev": "nodemon src/server.js"
+        "dev": "nodemon src/server.js",
+        "kill-port": "node kill_port.js"
     },
     "keywords": [],
     "author": "",
