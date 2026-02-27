@@ -1,3 +1,2 @@
--- theme column already included in initial migration
--- This migration is intentionally empty
-SELECT 1;
+-- AlterTable: Add theme column to User (simple, no index drops)
+ALTER TABLE `User` ADD COLUMN `theme` VARCHAR(191) NOT NULL DEFAULT 'light';

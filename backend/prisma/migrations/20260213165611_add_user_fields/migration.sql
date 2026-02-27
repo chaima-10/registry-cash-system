@@ -1,3 +1,4 @@
+-- Restore original initial migration (User/Sale/Cart/Product/Category/Subcategory tables)
 -- CreateTable
 CREATE TABLE `User` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
@@ -7,7 +8,6 @@ CREATE TABLE `User` (
     `role` ENUM('admin', 'cashier') NOT NULL DEFAULT 'cashier',
     `salary` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     `workingDays` VARCHAR(191) NOT NULL DEFAULT '',
-    `theme` VARCHAR(191) NOT NULL DEFAULT 'light',
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -67,7 +67,6 @@ CREATE TABLE `Product` (
     `name` VARCHAR(191) NOT NULL,
     `price` DECIMAL(10, 2) NOT NULL,
     `stockQuantity` INTEGER NOT NULL DEFAULT 0,
-    `remise` DECIMAL(5, 2) NOT NULL DEFAULT 0,
     `categoryId` INTEGER NULL,
     `subcategoryId` INTEGER NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),

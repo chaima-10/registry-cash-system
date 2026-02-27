@@ -1,3 +1,2 @@
--- remise column already included in initial migration
--- This migration is intentionally empty
-SELECT 1;
+-- AlterTable: Add remise column to Product (simple, no index drops)
+ALTER TABLE `Product` ADD COLUMN `remise` DECIMAL(5, 2) NOT NULL DEFAULT 0;
