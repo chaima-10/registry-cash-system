@@ -5,8 +5,10 @@ import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '.
 import { processCheckout } from '../api/sales';
 import PaymentModal from '../components/PaymentModal';
 import Receipt from '../components/Receipt';
+import { useTranslation } from 'react-i18next';
 
 const POS = () => {
+    const { t } = useTranslation();
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState({ items: [], totalAmount: 0 });
     const [searchTerm, setSearchTerm] = useState('');
@@ -38,7 +40,7 @@ const POS = () => {
             const updatedCart = await addToCart(product.id, 1);
             setCart(updatedCart);
         } catch (error) {
-            alert(error.response?.data?.message || "Failed to add to cart");
+            alert(error.response?.data?.message || t('failedAddToCart'));
         }
     };
 
@@ -47,7 +49,7 @@ const POS = () => {
             const updatedCart = await updateCartItem(itemId, newQuantity);
             setCart(updatedCart);
         } catch (error) {
-            alert(error.response?.data?.message || "Failed to update quantity");
+            alert(error.response?.data?.message || t('failedUpdateQuantity'));
         }
     };
 
@@ -56,24 +58,24 @@ const POS = () => {
             const updatedCart = await removeFromCart(itemId);
             setCart(updatedCart);
         } catch (error) {
-            alert(error.response?.data?.message || "Failed to remove item");
+            alert(error.response?.data?.message || t('failedRemoveItem'));
         }
     };
 
     const handleClearCart = async () => {
-        if (window.confirm("Are you sure you want to clear the cart?")) {
+        if (window.confirm(t('clearCartConfirm'))) {
             try {
                 await clearCart();
                 setCart({ items: [], totalAmount: 0 });
             } catch (error) {
-                alert(error.response?.data?.message || "Failed to clear cart");
+                alert(error.response?.data?.message || t('failedClearCart'));
             }
         }
     };
 
     const handleCheckout = () => {
         if (!cart.items || cart.items.length === 0) {
-            alert('Cart is empty!');
+            alert(t('cartIsEmpty'));
             return;
         }
         setShowPaymentModal(true);
@@ -83,11 +85,11 @@ const POS = () => {
         try {
             const response = await processCheckout(paymentMethod);
             setShowPaymentModal(false);
-            setCompletedSale(response.sale); // Store the sale data for printing
-            alert('Payment successful!');
-            await fetchData(); // Refresh data
+            setCompletedSale(response.sale);
+            alert(t('paymentSuccessful'));
+            await fetchData();
         } catch (error) {
-            alert(error.response?.data?.message || 'Payment failed');
+            alert(error.response?.data?.message || t('paymentFailed'));
         }
     };
 
@@ -108,13 +110,13 @@ const POS = () => {
             <div className="w-2/3 p-6 flex flex-col border-r border-gray-800">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold flex items-center gap-2">
-                        <FiMonitor /> POS Terminal
+                        <FiMonitor /> {t('posTerminal')}
                     </h2>
                     <div className="relative w-1/2">
                         <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Scan barcode or search..."
+                            placeholder={t('scanBarcodeOrSearch')}
                             className="w-full pl-12 pr-4 py-3 bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
@@ -124,9 +126,9 @@ const POS = () => {
 
                 <div className="flex-1 overflow-y-auto pr-2 grid grid-cols-3 gap-4 pb-20">
                     {loading ? (
-                        <p className="col-span-3 text-center text-gray-500 mt-10">Loading products...</p>
+                        <p className="col-span-3 text-center text-gray-500 mt-10">{t('loadingProducts')}</p>
                     ) : filteredProducts.length === 0 ? (
-                        <p className="col-span-3 text-center text-gray-500 mt-10">No products found.</p>
+                        <p className="col-span-3 text-center text-gray-500 mt-10">{t('noProductsFound')}</p>
                     ) : (
                         filteredProducts.map(product => (
                             <div
@@ -142,7 +144,7 @@ const POS = () => {
                                 <div className="flex justify-between items-center">
                                     <span className="text-blue-400 font-bold">${Number(product.price).toFixed(2)}</span>
                                     <span className={`text-xs px-2 py-1 rounded ${product.stockQuantity > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-                                        {product.stockQuantity} in stock
+                                        {product.stockQuantity > 0 ? `${product.stockQuantity} ${t('inStock')}` : t('outOfStock')}
                                     </span>
                                 </div>
                             </div>
@@ -155,9 +157,9 @@ const POS = () => {
             <div className="w-1/3 bg-gray-800 flex flex-col shadow-2xl z-10">
                 <div className="p-6 border-b border-gray-700 bg-gray-800/50 backdrop-blur">
                     <h2 className="text-xl font-bold flex items-center gap-2">
-                        <FiShoppingCart /> Current Order
+                        <FiShoppingCart /> {t('currentOrder')}
                     </h2>
-                    <p className="text-sm text-gray-400 mt-1">{cart.items?.length || 0} items</p>
+                    <p className="text-sm text-gray-400 mt-1">{cart.items?.length || 0} {t('items')}</p>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -189,18 +191,18 @@ const POS = () => {
                     {(!cart.items || cart.items.length === 0) && (
                         <div className="h-full flex flex-col items-center justify-center text-gray-500 opacity-50">
                             <FiShoppingCart size={48} className="mb-4" />
-                            <p>Cart is empty</p>
+                            <p>{t('cartIsEmpty')}</p>
                         </div>
                     )}
                 </div>
 
                 <div className="p-6 bg-gray-900 border-t border-gray-700">
                     <div className="flex justify-between items-center mb-4 text-gray-400">
-                        <span>Subtotal</span>
+                        <span>{t('subtotal')}</span>
                         <span>${Number(cart.totalAmount).toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center mb-6 text-2xl font-bold text-white">
-                        <span>Total</span>
+                        <span>{t('total')}</span>
                         <span>${Number(cart.totalAmount).toFixed(2)}</span>
                     </div>
 
@@ -210,10 +212,10 @@ const POS = () => {
                                 onClick={handleClearCart}
                                 className="py-4 rounded-xl bg-gray-800 hover:bg-red-500/20 text-red-400 font-bold transition-all border border-gray-700"
                             >
-                                Cancel
+                                {t('clear')}
                             </button>
                             <button className="py-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-500/20 transition-all" onClick={handleCheckout}>
-                                Pay Now
+                                {t('payNow')}
                             </button>
                         </div>
 
@@ -223,7 +225,7 @@ const POS = () => {
                                 className="w-full py-4 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2"
                             >
                                 <FiPrinter size={20} />
-                                Print Ticket
+                                {t('printTicket')}
                             </button>
                         )}
                     </div>

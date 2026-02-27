@@ -112,5 +112,17 @@
     "failedToUpdate": "فشل التحديث",
     "deleteConfirm": "هل أنت متأكد أنك تريد حذف \"{{name}}\"؟",
     "failedToDelete": "فشل الحذف",
-    "settingsComingSoon": "صفحة الإعدادات قريباً..."
+    "settingsComingSoon": "صفحة الإعدادات قريباً...",
+    "switchToLight": "التبديل إلى الوضع الفاتح",
+    "switchToDark": "التبديل إلى الوضع الداكن",
+    "systemLanguage": "لغة العرض",
+    "selectPreferredLanguage": "اختر لغتك المفضلة",
+    "themeMode": "وضع العرض",
+    "lightMode": "الوضع الفاتح",
+    "darkMode": "الوضع الداكن",
+    "viewProfile": "عرض الملف الشخصي",
+    "myProfile": "ملفي الشخصي",
+    "profile": "الملف الشخصي",
+    "clear": "مسح",
+    "outOfStock": "نفد المخزون"
 }

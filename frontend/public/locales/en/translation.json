@@ -112,5 +112,17 @@
     "failedAddToCart": "Failed to add to cart",
     "failedUpdateQuantity": "Failed to update quantity",
     "failedRemoveItem": "Failed to remove item",
-    "failedClearCart": "Failed to clear cart"
+    "failedClearCart": "Failed to clear cart",
+    "switchToLight": "Switch to Light",
+    "switchToDark": "Switch to Dark",
+    "systemLanguage": "Display Language",
+    "selectPreferredLanguage": "Select your preferred language",
+    "themeMode": "Theme Mode",
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "viewProfile": "View Profile",
+    "myProfile": "My Profile",
+    "profile": "Profile",
+    "clear": "Clear",
+    "outOfStock": "Out of stock"
 }

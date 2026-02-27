@@ -112,5 +112,17 @@
     "failedToUpdate": "Échec de la mise à jour",
     "deleteConfirm": "Êtes-vous sûr de vouloir supprimer \"{{name}}\" ?",
     "failedToDelete": "Échec de la suppression",
-    "settingsComingSoon": "Page des paramètres à venir bientôt..."
+    "settingsComingSoon": "Page des paramètres à venir bientôt...",
+    "switchToLight": "Passer au Clair",
+    "switchToDark": "Passer au Sombre",
+    "systemLanguage": "Langue d'affichage",
+    "selectPreferredLanguage": "Sélectionnez votre langue préférée",
+    "themeMode": "Mode d'affichage",
+    "lightMode": "Mode clair",
+    "darkMode": "Mode sombre",
+    "viewProfile": "Voir le profil",
+    "myProfile": "Mon profil",
+    "profile": "Profil",
+    "clear": "Vider",
+    "outOfStock": "Rupture de stock"
 }
