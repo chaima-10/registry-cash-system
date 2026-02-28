@@ -42,10 +42,13 @@ export const AuthProvider = ({ children }) => {
     };
 
     const updateUser = (updatedData) => {
-        setUser(prev => ({ ...prev, ...updatedData }));
-        if (updatedData.theme) {
-            applyTheme(updatedData.theme);
-        }
+        setUser(prev => {
+            const newUser = prev ? { ...prev, ...updatedData } : null;
+            if (updatedData.theme) {
+                applyTheme(updatedData.theme);
+            }
+            return newUser;
+        });
     };
 
     const applyTheme = (theme) => {
@@ -56,21 +59,42 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('theme', theme);
     };
 
-    // Initialize theme on load
+    const toggleTheme = async () => {
+        const currentTheme = user?.theme || localStorage.getItem('theme') || 'light';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        // 1. Update DOM immediately for instant feedback
+        applyTheme(newTheme);
+
+        // 2. Update local state
+        if (user) {
+            updateUser({ theme: newTheme });
+
+            // 3. Persist to backend if logged in
+            try {
+                const api = (await import('../api/axios')).default;
+                await api.put('/users/profile', { theme: newTheme });
+            } catch (error) {
+                console.error('Failed to save theme preference to backend:', error);
+            }
+        }
+    };
+
+    // Initialize theme on load (from localStorage or user profile)
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme') || 'light';
         applyTheme(savedTheme);
     }, []);
 
-    // Sync theme when user loads
+    // Sync theme when user data is fetched
     useEffect(() => {
         if (user?.theme) {
             applyTheme(user.theme);
         }
-    }, [user]);
+    }, [user?.id]); // Only sync when the user itself changes (login/init)
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, applyTheme }}>
+        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, applyTheme, toggleTheme }}>
             {!loading && children}
         </AuthContext.Provider>
     );

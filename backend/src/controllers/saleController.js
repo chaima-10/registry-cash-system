@@ -44,13 +44,17 @@ exports.createSale = async (req, res) => {
 
             // 4. Create SaleItems and Decrement Stock
             for (const item of cart.items) {
+                const productPrice = parseFloat(item.product.price);
+                const remise = parseFloat(item.product.remise || 0);
+                const discountedPrice = productPrice - (productPrice * remise / 100);
+
                 // Create sale item
                 await tx.saleItem.create({
                     data: {
                         saleId: sale.id,
                         productId: item.productId,
                         quantity: item.quantity,
-                        price: item.product.price,
+                        price: discountedPrice,
                         subtotal: item.subtotal
                     }
                 });

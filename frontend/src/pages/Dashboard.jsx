@@ -4,18 +4,18 @@ import { FiDollarSign, FiShoppingBag, FiUsers, FiActivity } from 'react-icons/fi
 const StatCard = ({ title, value, change, icon: Icon, color }) => (
     <motion.div
         whileHover={{ y: -5 }}
-        className="bg-gray-900 border border-gray-800 p-6 rounded-2xl shadow-xl"
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-6 rounded-2xl shadow-sm dark:shadow-xl transition-colors"
     >
         <div className="flex items-start justify-between mb-4">
-            <div className={`p-3 rounded-xl bg-opacity-20 ${color} bg-white`}>
+            <div className={`p-3 rounded-xl bg-opacity-20 ${color}`}>
                 <Icon className={`text-2xl ${color.replace('bg-', 'text-')}`} />
             </div>
             <span className={`text-sm font-medium ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                 {change > 0 ? '+' : ''}{change}%
             </span>
         </div>
-        <h3 className="text-gray-400 text-sm font-medium">{title}</h3>
-        <p className="text-2xl font-bold text-white mt-1">{value}</p>
+        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">{title}</h3>
+        <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
     </motion.div>
 );
 
@@ -35,35 +35,35 @@ const Dashboard = () => {
 
             {/* Recent Activity Section (Placeholder) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">{t('recentTransactions')}</h3>
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl transition-colors">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('recentTransactions')}</h3>
                     <div className="space-y-4">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="flex items-center justify-between p-4 bg-gray-800/50 rounded-xl">
+                            <div key={i} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                                    <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
                                         <FiShoppingBag />
                                     </div>
                                     <div>
-                                        <p className="text-white font-medium">Order #{1000 + i}</p>
-                                        <p className="text-sm text-gray-500">{t('justNow')}</p>
+                                        <p className="text-gray-900 dark:text-white font-medium">Order #{1000 + i}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">{t('justNow')}</p>
                                     </div>
                                 </div>
-                                <span className="text-white font-bold">$125.00</span>
+                                <span className="text-gray-900 dark:text-white font-bold">$125.00</span>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                    <h3 className="text-lg font-bold text-white mb-4">{t('stockAlerts')}</h3>
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl transition-colors">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">{t('stockAlerts')}</h3>
                     <div className="space-y-4">
-                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between">
+                        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-between transition-colors">
                             <div>
-                                <p className="text-red-400 font-medium">{t('lowStock')}: Coca Cola</p>
-                                <p className="text-sm text-red-500/70">Only 5 {t('itemsRemaining')}</p>
+                                <p className="text-red-600 dark:text-red-400 font-medium">{t('lowStock')}: Coca Cola</p>
+                                <p className="text-sm text-red-500/70 dark:text-red-500/50">Only 5 {t('itemsRemaining')}</p>
                             </div>
-                            <button className="px-3 py-1 bg-red-500/20 text-red-300 text-sm rounded-lg hover:bg-red-500/30">{t('restock')}</button>
+                            <button className="px-3 py-1 bg-red-500/20 text-red-600 dark:text-red-300 text-sm rounded-lg hover:bg-red-500/30 transition-colors">{t('restock')}</button>
                         </div>
                     </div>
                 </div>

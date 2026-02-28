@@ -47,7 +47,7 @@ exports.getProfile = async (req, res) => {
 // Update current user profile
 exports.updateProfile = async (req, res) => {
     try {
-        const { fullName, username, theme } = req.body;
+        const { fullName, username, theme, email, phone } = req.body;
         const userId = req.user.id;
 
         // Validation: If username is being changed, check uniqueness
@@ -68,14 +68,18 @@ exports.updateProfile = async (req, res) => {
             data: {
                 fullName,
                 username,
-                theme
+                theme,
+                email,
+                phone
             },
             select: {
                 id: true,
                 username: true,
                 fullName: true,
                 role: true,
-                theme: true
+                theme: true,
+                email: true,
+                phone: true
             }
         });
 

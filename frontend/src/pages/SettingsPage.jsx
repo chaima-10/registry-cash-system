@@ -6,17 +6,10 @@ import api from '../api/axios';
 
 const SettingsPage = () => {
     const { t } = useTranslation();
-    const { user, updateUser, applyTheme } = useAuth();
+    const { user, toggleTheme } = useAuth();
 
-    const handleThemeToggle = async () => {
-        const newTheme = user?.theme === 'dark' ? 'light' : 'dark';
-        applyTheme(newTheme);
-        updateUser({ theme: newTheme });
-        try {
-            await api.put('/users/profile', { theme: newTheme });
-        } catch (error) {
-            console.error('Failed to save theme preference:', error);
-        }
+    const handleThemeToggle = () => {
+        toggleTheme();
     };
 
     return (
@@ -47,8 +40,8 @@ const SettingsPage = () => {
                     <button
                         onClick={handleThemeToggle}
                         className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 shadow-lg ${user?.theme === 'dark'
-                                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30'
-                                : 'bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/30'
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30'
+                            : 'bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/30'
                             }`}
                     >
                         {user?.theme === 'dark' ? t('switchToLight') : t('switchToDark')}

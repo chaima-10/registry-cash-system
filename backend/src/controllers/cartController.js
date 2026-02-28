@@ -73,13 +73,18 @@ exports.addToCart = async (req, res) => {
             return res.status(400).json({ message: `Insufficient stock. Available: ${product.stockQuantity}` });
         }
 
+        // Calculate discounted price
+        const price = parseFloat(product.price);
+        const remise = parseFloat(product.remise || 0);
+        const discountedPrice = price - (price * remise / 100);
+
         // Upsert Item
         if (existingItem) {
             await prisma.cartItem.update({
                 where: { id: existingItem.id },
                 data: {
                     quantity: newQuantity,
-                    subtotal: newQuantity * parseFloat(product.price)
+                    subtotal: newQuantity * discountedPrice
                 }
             });
         } else {
@@ -88,7 +93,7 @@ exports.addToCart = async (req, res) => {
                     cartId: cart.id,
                     productId: parseInt(productId),
                     quantity: newQuantity,
-                    subtotal: newQuantity * parseFloat(product.price)
+                    subtotal: newQuantity * discountedPrice
                 }
             });
         }
@@ -131,11 +136,15 @@ exports.updateCartItem = async (req, res) => {
         if (quantity === 0) {
             await prisma.cartItem.delete({ where: { id: parseInt(itemId) } });
         } else {
+            const price = parseFloat(item.product.price);
+            const remise = parseFloat(item.product.remise || 0);
+            const discountedPrice = price - (price * remise / 100);
+
             await prisma.cartItem.update({
                 where: { id: parseInt(itemId) },
                 data: {
                     quantity: parseInt(quantity),
-                    subtotal: parseInt(quantity) * parseFloat(item.product.price)
+                    subtotal: parseInt(quantity) * discountedPrice
                 }
             });
         }

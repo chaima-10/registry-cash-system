@@ -124,5 +124,14 @@
     "myProfile": "Mon profil",
     "profile": "Profil",
     "clear": "Vider",
-    "outOfStock": "Rupture de stock"
+    "outOfStock": "Rupture de stock",
+    "remise": "Remise (%)",
+    "personalInformation": "Informations Personnelles",
+    "security": "Sécurité",
+    "editProfile": "Modifier le Profil",
+    "accountStatus": "Statut du Compte",
+    "changePassword": "Changer le Mot de Passe",
+    "lastLogin": "Dernière Connexion",
+    "activeSessions": "Sessions Actives",
+    "accountCreated": "Compte Créé"
 }

@@ -124,5 +124,14 @@
     "myProfile": "ملفي الشخصي",
     "profile": "الملف الشخصي",
     "clear": "مسح",
-    "outOfStock": "نفد المخزون"
+    "outOfStock": "نفد المخزون",
+    "remise": "الخصم (%)",
+    "personalInformation": "المعلومات الشخصية",
+    "security": "الأمان",
+    "editProfile": "تعديل الملف الشخصي",
+    "accountStatus": "حالة الحساب",
+    "changePassword": "تغيير كلمة المرور",
+    "lastLogin": "آخر تسجيل دخول",
+    "activeSessions": "الجلسات النشطة",
+    "accountCreated": "تاريخ الإنشاء"
 }

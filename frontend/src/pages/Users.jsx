@@ -71,62 +71,66 @@ const Users = () => {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white">{t('userManagement')}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('userManagement')}</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Register Form */}
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-xl h-fit">
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl h-fit transition-colors">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-blue-500/20 rounded-lg text-blue-400"><FiUserCheck size={24} /></div>
-                        <h3 className="text-xl font-bold text-white">{t('registerNewUser')}</h3>
+                        <div className="p-3 bg-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400"><FiUserCheck size={24} /></div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('registerNewUser')}</h3>
                     </div>
 
                     {message && (
-                        <div className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}`}>
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`mb-4 p-3 rounded-lg text-sm font-medium ${message.type === 'success' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-500/20' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-500/20'}`}
+                        >
                             {message.text}
-                        </div>
+                        </motion.div>
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">{t('fullName')}</label>
+                        <div className="space-y-1">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('fullName')}</label>
                             <div className="relative">
-                                <FiUser className="absolute left-3 top-3 text-gray-500" />
-                                <input required type="text" className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500"
+                                <FiUser className="absolute left-3 top-3 text-gray-400" />
+                                <input required type="text" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
                                     value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">{t('username')}</label>
+                        <div className="space-y-1">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('username')}</label>
                             <div className="relative">
-                                <FiUser className="absolute left-3 top-3 text-gray-500" />
-                                <input required type="text" className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500"
+                                <FiUser className="absolute left-3 top-3 text-gray-400" />
+                                <input required type="text" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
                                     value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} />
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">{t('password')}</label>
-                            <input required type="password" className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500"
+                        <div className="space-y-1">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('password')}</label>
+                            <input required type="password" className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
                                 value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">{t('role')}</label>
-                            <div className="flex gap-4">
-                                <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
-                                    <input type="radio" name="role" value="cashier" checked={formData.role === 'cashier'} onChange={e => setFormData({ ...formData, role: 'cashier' })} />
+                        <div className="space-y-1">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 mb-2">{t('role')}</label>
+                            <div className="flex gap-6">
+                                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer font-medium group">
+                                    <input type="radio" name="role" value="cashier" checked={formData.role === 'cashier'} onChange={e => setFormData({ ...formData, role: 'cashier' })} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
                                     {t('cashier')}
                                 </label>
-                                <label className="flex items-center gap-2 text-gray-300 cursor-pointer">
-                                    <input type="radio" name="role" value="admin" checked={formData.role === 'admin'} onChange={e => setFormData({ ...formData, role: 'admin' })} />
-                                    <span className="flex items-center gap-1 text-purple-400"><FiShield size={14} /> {t('admin')}</span>
+                                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer font-medium group">
+                                    <input type="radio" name="role" value="admin" checked={formData.role === 'admin'} onChange={e => setFormData({ ...formData, role: 'admin' })} className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300" />
+                                    <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400"><FiShield size={14} /> {t('admin')}</span>
                                 </label>
                             </div>
                         </div>
 
-                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all">
+                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/30 active:scale-95 mt-4">
                             {t('createAccount')}
                         </button>
                     </form>

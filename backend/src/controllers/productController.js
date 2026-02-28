@@ -3,12 +3,20 @@ const prisma = require('../config/prisma');
 // Create Product
 exports.createProduct = async (req, res) => {
     try {
-        const { barcode, name, price, stockQuantity, categoryId, subcategoryId } = req.body;
+        const { barcode, name, price, stockQuantity, categoryId, subcategoryId, remise } = req.body;
 
         // Check if already exists
         const existing = await prisma.product.findUnique({ where: { barcode } });
         if (existing) {
             return res.status(400).json({ message: 'Product with this barcode already exists' });
+        }
+
+        let validRemise = 0;
+        if (remise !== undefined && remise !== null) {
+            validRemise = parseFloat(remise);
+            if (isNaN(validRemise) || validRemise < 0 || validRemise > 100) {
+                return res.status(400).json({ message: 'Remise must be a percentage between 0 and 100' });
+            }
         }
 
         const product = await prisma.product.create({
@@ -19,7 +27,12 @@ exports.createProduct = async (req, res) => {
                 stockQuantity: parseInt(stockQuantity),
                 categoryId: categoryId ? parseInt(categoryId) : null,
                 subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
+                remise: validRemise,
             },
+            include: {
+                category: true,
+                subcategory: true,
+            }
         });
         res.status(201).json(product);
     } catch (error) {
@@ -30,7 +43,15 @@ exports.createProduct = async (req, res) => {
 // Get All Products
 exports.getAllProducts = async (req, res) => {
     try {
-        const products = await prisma.product.findMany();
+        const products = await prisma.product.findMany({
+            include: {
+                category: true,
+                subcategory: true,
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
         res.json(products);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching products', error: error.message });
@@ -42,6 +63,10 @@ exports.getProductByBarcode = async (req, res) => {
     try {
         const product = await prisma.product.findUnique({
             where: { barcode: req.params.barcode },
+            include: {
+                category: true,
+                subcategory: true,
+            }
         });
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
@@ -56,17 +81,31 @@ exports.getProductByBarcode = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, price, stockQuantity, categoryId, subcategoryId } = req.body;
+        const { name, price, stockQuantity, categoryId, subcategoryId, remise } = req.body;
+
+        let updateData = {
+            name,
+            price: price !== undefined ? parseFloat(price) : undefined,
+            stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : undefined,
+            categoryId: categoryId ? parseInt(categoryId) : null,
+            subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
+        };
+
+        if (remise !== undefined && remise !== null) {
+            let validRemise = parseFloat(remise);
+            if (isNaN(validRemise) || validRemise < 0 || validRemise > 100) {
+                return res.status(400).json({ message: 'Remise must be a percentage between 0 and 100' });
+            }
+            updateData.remise = validRemise;
+        }
 
         const product = await prisma.product.update({
             where: { id: parseInt(id) },
-            data: {
-                name,
-                price,
-                stockQuantity,
-                categoryId: categoryId ? parseInt(categoryId) : null,
-                subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
-            },
+            data: updateData,
+            include: {
+                category: true,
+                subcategory: true,
+            }
         });
 
         res.json(product);

@@ -36,7 +36,7 @@ const SidebarItem = ({ to, icon: Icon, label, collapsed }) => (
 
 const Layout = () => {
     const { t } = useTranslation();
-    const { logout, user, applyTheme } = useAuth();
+    const { logout, user, toggleTheme } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [collapsed, setCollapsed] = useState(false);
@@ -59,16 +59,8 @@ const Layout = () => {
         navigate('/login');
     };
 
-    const toggleTheme = () => {
-        const newTheme = user?.theme === 'dark' ? 'light' : 'dark';
-        applyTheme(newTheme);
-        // Optimistically update if user is logged in, actual update happens via Settings or context sync
-        // Ideally we should call updateUser but for toggle button specific logic:
-        if (user) {
-            // We might want to call updateUser API here but for now just context
-            // The AuthContext updateProfile function handles this better
-        }
-    };
+    // Unified theme toggle now handled in AuthContext
+    // const toggleTheme = () => { ... } is no longer needed locally
 
     const menuItems = [
         { to: '/', icon: FiHome, label: t('dashboard') },

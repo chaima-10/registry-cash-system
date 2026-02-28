@@ -33,62 +33,62 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl transform transition-all">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md p-6 shadow-2xl transform transition-all">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold text-white">{t('editUser')}</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-                        <FiX size={24} />
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('editUser')}</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                        <FiX size={20} />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">{t('fullName')}</label>
+                    <div className="space-y-1">
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('fullName')}</label>
                         <input
                             type="text"
                             name="fullName"
                             value={formData.fullName}
                             onChange={handleChange}
-                            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500"
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">{t('salary')}</label>
+                    <div className="space-y-1">
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('salary')}</label>
                         <input
                             type="number"
                             name="salary"
                             step="0.01"
                             value={formData.salary}
                             onChange={handleChange}
-                            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500"
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">{t('workingDays')}</label>
+                    <div className="space-y-1">
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('workingDays')}</label>
                         <input
                             type="text"
                             name="workingDays"
                             placeholder="e.g. Mon,Tue,Wed"
                             value={formData.workingDays}
                             onChange={handleChange}
-                            className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-xl text-white outline-none focus:border-blue-500"
+                            className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
                         />
                     </div>
 
-                    <div className="flex gap-3 mt-6">
+                    <div className="flex gap-4 mt-8">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 py-2 bg-gray-800 hover:bg-gray-700 text-white font-medium rounded-xl transition-colors"
+                            className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-all active:scale-95"
                         >
                             {t('cancel')}
                         </button>
                         <button
                             type="submit"
-                            className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30 active:scale-95"
                         >
                             <FiSave /> {t('save')}
                         </button>

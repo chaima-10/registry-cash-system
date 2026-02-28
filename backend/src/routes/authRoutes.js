@@ -97,4 +97,18 @@ router.get('/profile', authMiddleware.protect, authController.getProfile);
  */
 router.post('/logout', authController.logout);
 
+/**
+ * @swagger
+ * /api/auth/profile:
+ *   put:
+ *     summary: Update current user profile
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile updated
+ */
+router.put('/profile', authMiddleware.protect, authController.updateProfile);
+
 module.exports = router;

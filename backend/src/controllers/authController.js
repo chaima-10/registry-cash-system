@@ -61,6 +61,12 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Invalid credentials' });
         }
 
+        // Update lastLogin
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() }
+        });
+
         // Create Token
         const payload = { id: user.id, role: user.role };
         const token = jwt.sign(payload, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });
@@ -89,6 +95,28 @@ exports.getProfile = async (req, res) => {
 
         // Exclude password from response
         const { password, ...userWithoutPassword } = user;
+        res.json(userWithoutPassword);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Update user profile
+exports.updateProfile = async (req, res) => {
+    try {
+        const { fullName, email, phone } = req.body;
+
+        // Basic update - can be expanded later to allow password changes
+        const updatedUser = await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+                fullName,
+                email,
+                phone
+            }
+        });
+
+        const { password, ...userWithoutPassword } = updatedUser;
         res.json(userWithoutPassword);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });

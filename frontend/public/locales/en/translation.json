@@ -124,5 +124,14 @@
     "myProfile": "My Profile",
     "profile": "Profile",
     "clear": "Clear",
-    "outOfStock": "Out of stock"
+    "outOfStock": "Out of stock",
+    "remise": "Discount",
+    "personalInformation": "Personal Information",
+    "security": "Security",
+    "editProfile": "Edit Profile",
+    "accountStatus": "Account Status",
+    "changePassword": "Change Password",
+    "lastLogin": "Last Login",
+    "activeSessions": "Active Sessions",
+    "accountCreated": "Account Created"
 }
