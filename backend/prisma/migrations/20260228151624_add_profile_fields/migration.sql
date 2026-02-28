@@ -5,34 +5,34 @@
 
 */
 -- DropIndex
-DROP INDEX `Cart_userId_fkey` ON `cart`;
+DROP INDEX `Cart_userId_fkey` ON `Cart`;
 
 -- DropIndex
-DROP INDEX `CartItem_cartId_fkey` ON `cartitem`;
+DROP INDEX `CartItem_cartId_fkey` ON `CartItem`;
 
 -- DropIndex
-DROP INDEX `CartItem_productId_fkey` ON `cartitem`;
+DROP INDEX `CartItem_productId_fkey` ON `CartItem`;
 
 -- DropIndex
-DROP INDEX `Product_categoryId_fkey` ON `product`;
+DROP INDEX `Product_categoryId_fkey` ON `Product`;
 
 -- DropIndex
-DROP INDEX `Product_subcategoryId_fkey` ON `product`;
+DROP INDEX `Product_subcategoryId_fkey` ON `Product`;
 
 -- DropIndex
-DROP INDEX `Sale_userId_fkey` ON `sale`;
+DROP INDEX `Sale_userId_fkey` ON `Sale`;
 
 -- DropIndex
-DROP INDEX `SaleItem_productId_fkey` ON `saleitem`;
+DROP INDEX `SaleItem_productId_fkey` ON `SaleItem`;
 
 -- DropIndex
-DROP INDEX `SaleItem_saleId_fkey` ON `saleitem`;
+DROP INDEX `SaleItem_saleId_fkey` ON `SaleItem`;
 
 -- DropIndex
-DROP INDEX `Subcategory_categoryId_fkey` ON `subcategory`;
+DROP INDEX `Subcategory_categoryId_fkey` ON `Subcategory`;
 
 -- AlterTable
-ALTER TABLE `user` ADD COLUMN `email` VARCHAR(191) NULL,
+ALTER TABLE `User` ADD COLUMN `email` VARCHAR(191) NULL,
     ADD COLUMN `lastLogin` DATETIME(3) NULL,
     ADD COLUMN `phone` VARCHAR(191) NULL,
     ADD COLUMN `status` VARCHAR(191) NOT NULL DEFAULT 'Active';

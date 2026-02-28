@@ -1,29 +1,29 @@
 -- DropIndex
-DROP INDEX `Cart_userId_fkey` ON `cart`;
+DROP INDEX `Cart_userId_fkey` ON `Cart`;
 
 -- DropIndex
-DROP INDEX `CartItem_cartId_fkey` ON `cartitem`;
+DROP INDEX `CartItem_cartId_fkey` ON `CartItem`;
 
 -- DropIndex
-DROP INDEX `CartItem_productId_fkey` ON `cartitem`;
+DROP INDEX `CartItem_productId_fkey` ON `CartItem`;
 
 -- DropIndex
-DROP INDEX `Product_categoryId_fkey` ON `product`;
+DROP INDEX `Product_categoryId_fkey` ON `Product`;
 
 -- DropIndex
-DROP INDEX `Product_subcategoryId_fkey` ON `product`;
+DROP INDEX `Product_subcategoryId_fkey` ON `Product`;
 
 -- DropIndex
-DROP INDEX `Sale_userId_fkey` ON `sale`;
+DROP INDEX `Sale_userId_fkey` ON `Sale`;
 
 -- DropIndex
-DROP INDEX `SaleItem_productId_fkey` ON `saleitem`;
+DROP INDEX `SaleItem_productId_fkey` ON `SaleItem`;
 
 -- DropIndex
-DROP INDEX `SaleItem_saleId_fkey` ON `saleitem`;
+DROP INDEX `SaleItem_saleId_fkey` ON `SaleItem`;
 
 -- DropIndex
-DROP INDEX `Subcategory_categoryId_fkey` ON `subcategory`;
+DROP INDEX `Subcategory_categoryId_fkey` ON `Subcategory`;
 
 -- AddForeignKey
 ALTER TABLE `Sale` ADD CONSTRAINT `Sale_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
