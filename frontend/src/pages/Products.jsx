@@ -50,7 +50,9 @@ const Products = () => {
     });
 
     const getFilterSubcategories = () => {
-        if (!filterCategory) return [];
+        if (!filterCategory) {
+            return categories.flatMap(c => c.subcategories || []);
+        }
         const category = categories.find(c => c.id === parseInt(filterCategory));
         return category ? category.subcategories : [];
     };
@@ -145,8 +147,7 @@ const Products = () => {
                     <select
                         value={filterSubcategory}
                         onChange={(e) => setFilterSubcategory(e.target.value)}
-                        disabled={!filterCategory}
-                        className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 shadow-sm"
+                        className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
                     >
                         <option value="">{t('allSubcategories') || 'All Subcategories'}</option>
                         {getFilterSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
