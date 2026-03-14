@@ -73,7 +73,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push Frontend Image
+      - name: Build and Push Frontend Image (Developer 1)
         uses: docker/build-push-action@v5
         with:
           context: ./frontend
@@ -82,7 +82,7 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/registry-cash-system-frontend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/registry-cash-system-frontend:${{ github.sha }}
 
-      - name: Build and Push Backend Image
+      - name: Build and Push Backend Image (Developer 1)
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -90,3 +90,29 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/registry-cash-system-backend:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/registry-cash-system-backend:${{ github.sha }}
+
+      # ---- Developer 2 ----
+
+      - name: Login to Docker Hub (Developer 2)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME_1 }}
+          password: ${{ secrets.DOCKERHUB_TOKEN_1 }}
+
+      - name: Push Frontend Image (Developer 2)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME_1 }}/registry-cash-system-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME_1 }}/registry-cash-system-frontend:${{ github.sha }}
+
+      - name: Push Backend Image (Developer 2)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME_1 }}/registry-cash-system-backend:latest
+            ${{ secrets.DOCKERHUB_USERNAME_1 }}/registry-cash-system-backend:${{ github.sha }}
