@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
+const validate = require('../middleware/validateMiddleware');
+const { updateProfileSchema, changePasswordSchema } = require('../validators/authValidators');
 
 // Public routes (none for now)
 
@@ -9,8 +11,8 @@ const { protect } = require('../middleware/authMiddleware');
 router.use(protect); // Apply to all routes below
 
 router.get('/profile', userController.getProfile);
-router.put('/profile', userController.updateProfile);
-router.put('/change-password', userController.changePassword);
+router.put('/profile', validate(updateProfileSchema), userController.updateProfile);
+router.put('/change-password', validate(changePasswordSchema), userController.changePassword);
 
 // Admin routes (should ideally use admin middleware too)
 router.get('/', userController.getAllUsers);
