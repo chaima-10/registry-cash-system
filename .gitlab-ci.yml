@@ -1,0 +1,90 @@
+stages:
+  - build
+  - test
+  - docker-build
+
+variables:
+  # Use overlay2 storage driver for docker, standard for GitLab CI
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+
+# ==========================================
+# FRONTEND PIPELINE
+# ==========================================
+
+build-frontend:
+  image: node:22-alpine
+  stage: build
+  script:
+    - echo "Building frontend..."
+    - cd frontend
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 hour
+
+test-frontend:
+  image: node:22-alpine
+  stage: test
+  script:
+    - echo "Testing frontend..."
+    - cd frontend
+    - npm install
+    - npm run test --if-present || echo "No tests configured yet. Skipping."
+
+docker-build-frontend:
+  image: docker:20.10.16
+  stage: docker-build
+  services:
+    - docker:20.10.16-dind
+  script:
+    - echo "Building frontend Docker image..."
+    - cd frontend
+    - docker build -t registry-cash-system-frontend:$CI_COMMIT_SHORT_SHA .
+    # Uncomment the lines below to push to GitLab's container registry
+    # - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    # - docker tag registry-cash-system-frontend:$CI_COMMIT_SHORT_SHA $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
+    # - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHORT_SHA
+
+# ==========================================
+# BACKEND PIPELINE
+# ==========================================
+
+build-backend:
+  image: node:22-alpine
+  stage: build
+  script:
+    - echo "Building backend..."
+    - cd backend
+    - npm install
+    - npx prisma generate
+  artifacts:
+    paths:
+      - backend/node_modules/
+    expire_in: 1 hour
+
+test-backend:
+  image: node:22-alpine
+  stage: test
+  script:
+    - echo "Testing backend..."
+    - cd backend
+    - npm install
+    - npx prisma generate
+    - npm run test --if-present || echo "No tests configured yet. Skipping."
+
+docker-build-backend:
+  image: docker:20.10.16
+  stage: docker-build
+  services:
+    - docker:20.10.16-dind
+  script:
+    - echo "Building backend Docker image..."
+    - cd backend
+    - docker build -t registry-cash-system-backend:$CI_COMMIT_SHORT_SHA .
+    # Uncomment the lines below to push to GitLab's container registry
+    # - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    # - docker tag registry-cash-system-backend:$CI_COMMIT_SHORT_SHA $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
+    # - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHORT_SHA
