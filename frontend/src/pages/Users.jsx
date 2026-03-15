@@ -50,10 +50,10 @@ const Users = () => {
         if (window.confirm(t('deleteUserConfirm'))) {
             try {
                 await deleteUser(id);
-                setMessage({ type: 'success', text: 'User deleted successfully!' });
+                setMessage({ type: 'success', text: t('userDeletedSuccess') });
                 fetchUsers();
             } catch (error) {
-                setMessage({ type: 'error', text: 'Failed to delete user' });
+                setMessage({ type: 'error', text: t('failedToDeleteUser') });
             }
         }
     };
@@ -63,9 +63,9 @@ const Users = () => {
             await updateUser(id, data);
             fetchUsers();
             setIsEditModalOpen(false);
-            setMessage({ type: 'success', text: 'User updated successfully!' });
+            setMessage({ type: 'success', text: t('userUpdatedSuccess') });
         } catch (error) {
-            setMessage({ type: 'error', text: 'Failed to update user' });
+            setMessage({ type: 'error', text: t('failedToUpdateUser') });
         }
     };
 

@@ -138,7 +138,7 @@ const Products = () => {
                         onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory(''); }}
                         className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
                     >
-                        <option value="">{t('allCategories') || 'All Categories'}</option>
+                        <option value="">{t('allCategories')}</option>
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
 
@@ -148,7 +148,7 @@ const Products = () => {
                         disabled={!filterCategory}
                         className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 shadow-sm"
                     >
-                        <option value="">{t('allSubcategories') || 'All Subcategories'}</option>
+                        <option value="">{t('allSubcategories')}</option>
                         {getFilterSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                 </div>

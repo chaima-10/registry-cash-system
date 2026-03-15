@@ -93,7 +93,7 @@ const Categories = () => {
             setShowModal(false);
             fetchData();
         } catch (error) {
-            alert("Failed to create");
+            alert(t('failedToCreate'));
         }
     };
 
