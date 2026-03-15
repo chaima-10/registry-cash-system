@@ -12,7 +12,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
- * /sales:
+ * /api/sales:
  *   post:
  *     summary: Process checkout and create sale
  *     tags: [Sales]
@@ -36,7 +36,7 @@ router.post('/', protect, saleController.createSale);
 
 /**
  * @swagger
- * /sales:
+ * /api/sales:
  *   get:
  *     summary: Get all sales
  *     tags: [Sales]
@@ -50,7 +50,7 @@ router.get('/', protect, saleController.getAllSales);
 
 /**
  * @swagger
- * /sales/{id}:
+ * /api/sales/{id}:
  *   get:
  *     summary: Get sale by ID
  *     tags: [Sales]
