@@ -163,5 +163,7 @@
     "failedToUpdateProfile": "فشل تحديث الملف الشخصي",
     "passwordsDoNotMatch": "كلمات المرور الجديدة غير متطابقة",
     "passwordChangedSuccess": "تم تغيير كلمة المرور بنجاح!",
-    "failedToChangePassword": "فشل تغيير كلمة المرور"
+    "failedToChangePassword": "فشل تغيير كلمة المرور",
+    "usernameOrEmail": "اسم المستخدم أو البريد الإلكتروني",
+    "enterUsernameOrEmail": "أدخل اسم المستخدم أو البريد الإلكتروني"
 }

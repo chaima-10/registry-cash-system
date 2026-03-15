@@ -163,5 +163,7 @@
     "failedToUpdateProfile": "Échec de la mise à jour du profil",
     "passwordsDoNotMatch": "Les nouveaux mots de passe ne correspondent pas",
     "passwordChangedSuccess": "Mot de passe modifié avec succès !",
-    "failedToChangePassword": "Échec de la modification du mot de passe"
+    "failedToChangePassword": "Échec de la modification du mot de passe",
+    "usernameOrEmail": "Nom d'utilisateur ou Email",
+    "enterUsernameOrEmail": "Saisissez votre nom d'utilisateur ou email"
 }

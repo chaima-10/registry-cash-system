@@ -24,8 +24,14 @@ export const AuthProvider = ({ children }) => {
         initAuth();
     }, []);
 
-    const login = async (username, password) => {
-        const data = await loginUser({ username, password });
+    const login = async (identifier, password) => {
+        // If identifier contains '@', treat as email, otherwise username
+        const isEmail = identifier.includes('@');
+        const credentials = isEmail 
+            ? { email: identifier, password } 
+            : { username: identifier, password };
+            
+        const data = await loginUser(credentials);
         if (data.token) {
             const userData = await getProfile();
             setUser(userData);

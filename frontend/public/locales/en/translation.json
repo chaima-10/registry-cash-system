@@ -163,5 +163,7 @@
     "failedToUpdateProfile": "Failed to update profile",
     "passwordsDoNotMatch": "New passwords don't match",
     "passwordChangedSuccess": "Password changed successfully!",
-    "failedToChangePassword": "Failed to change password"
+    "failedToChangePassword": "Failed to change password",
+    "usernameOrEmail": "Username or Email",
+    "enterUsernameOrEmail": "Enter username or email"
 }
