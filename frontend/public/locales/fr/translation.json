@@ -165,5 +165,6 @@
     "passwordChangedSuccess": "Mot de passe modifié avec succès !",
     "failedToChangePassword": "Échec de la modification du mot de passe",
     "usernameOrEmail": "Nom d'utilisateur ou Email",
-    "enterUsernameOrEmail": "Saisissez votre nom d'utilisateur ou email"
+    "enterUsernameOrEmail": "Saisissez votre nom d'utilisateur ou email",
+    "appearance": "Apparence"
 }

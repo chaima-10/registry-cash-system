@@ -165,5 +165,6 @@
     "passwordChangedSuccess": "Password changed successfully!",
     "failedToChangePassword": "Failed to change password",
     "usernameOrEmail": "Username or Email",
-    "enterUsernameOrEmail": "Enter username or email"
+    "enterUsernameOrEmail": "Enter username or email",
+    "appearance": "Appearance"
 }
