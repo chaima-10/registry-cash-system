@@ -93,6 +93,9 @@ exports.createSale = async (req, res) => {
                     }
                 }
             });
+        }, {
+            maxWait: 5000, // default: 2000
+            timeout: 15000 // default: 5000
         });
 
         res.status(201).json({
