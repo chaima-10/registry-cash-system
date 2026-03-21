@@ -1,19 +1,5 @@
 const prisma = require('../config/prisma');
 
-// Helper: Calculate total amount for a cart
-const calculateTotal = async (cartId) => {
-    const cartItems = await prisma.cartItem.findMany({
-        where: { cartId },
-    });
-    const total = cartItems.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-
-    await prisma.cart.update({
-        where: { id: cartId },
-        data: { totalAmount: total },
-    });
-    return total;
-};
-
 // Get the active cart for the logged-in user (Cashier)
 exports.getCart = async (req, res) => {
     try {
@@ -28,7 +14,7 @@ exports.getCart = async (req, res) => {
         if (!cart) {
             cart = await prisma.cart.create({
                 data: { userId },
-                include: { items: true }
+                include: { items: { include: { product: true } } }
             });
         }
 
@@ -42,72 +28,82 @@ exports.getCart = async (req, res) => {
 exports.addToCart = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { productId, quantity } = req.body; // quantity to add
+        const { productId, quantity } = req.body;
 
         if (!productId || !quantity || quantity <= 0) {
             return res.status(400).json({ message: 'Invalid product or quantity' });
         }
 
-        // Get Product
-        const product = await prisma.product.findUnique({ where: { id: parseInt(productId) } });
+        // Parallel fetch Product and Cart to save latency
+        let [product, cart] = await Promise.all([
+            prisma.product.findUnique({ where: { id: parseInt(productId) } }),
+            prisma.cart.findFirst({ 
+                where: { userId },
+                include: { items: true }
+            })
+        ]);
+
         if (!product) return res.status(404).json({ message: 'Product not found' });
 
-        // Get or Create Cart
-        let cart = await prisma.cart.findFirst({ where: { userId } });
         if (!cart) {
-            cart = await prisma.cart.create({ data: { userId } });
+            cart = await prisma.cart.create({ 
+                data: { userId },
+                include: { items: true }
+            });
         }
 
-        // Check if item exists in cart
-        const existingItem = await prisma.cartItem.findFirst({
-            where: { cartId: cart.id, productId: parseInt(productId) }
-        });
-
+        const existingItem = cart.items.find(item => item.productId === parseInt(productId));
         let newQuantity = parseInt(quantity);
         if (existingItem) {
             newQuantity += existingItem.quantity;
         }
 
-        // Validating Stock
         if (product.stockQuantity < newQuantity) {
             return res.status(400).json({ message: `Insufficient stock. Available: ${product.stockQuantity}` });
         }
 
-        // Calculate discounted price
         const price = parseFloat(product.price);
         const remise = parseFloat(product.remise || 0);
         const discountedPrice = price - (price * remise / 100);
+        const newSubtotal = newQuantity * discountedPrice;
 
-        // Upsert Item
+        // Calculate total in memory instead of reading from disk again
+        let newTotalAmount = cart.items.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
         if (existingItem) {
-            await prisma.cartItem.update({
-                where: { id: existingItem.id },
-                data: {
-                    quantity: newQuantity,
-                    subtotal: newQuantity * discountedPrice
-                }
-            });
+            newTotalAmount = newTotalAmount - parseFloat(existingItem.subtotal) + newSubtotal;
         } else {
-            await prisma.cartItem.create({
+            newTotalAmount += newSubtotal;
+        }
+
+        const queries = [];
+        
+        if (existingItem) {
+            queries.push(prisma.cartItem.update({
+                where: { id: existingItem.id },
+                data: { quantity: newQuantity, subtotal: newSubtotal }
+            }));
+        } else {
+            queries.push(prisma.cartItem.create({
                 data: {
                     cartId: cart.id,
                     productId: parseInt(productId),
                     quantity: newQuantity,
-                    subtotal: newQuantity * discountedPrice
+                    subtotal: newSubtotal
                 }
-            });
+            }));
         }
 
-        // Recalculate Total
-        await calculateTotal(cart.id);
-
-        // Return updated cart
-        const updatedCart = await prisma.cart.findUnique({
+        queries.push(prisma.cart.update({
             where: { id: cart.id },
+            data: { totalAmount: newTotalAmount },
             include: { items: { include: { product: true } } }
-        });
-        res.json(updatedCart);
+        }));
 
+        // Execute all writes in a single transaction roundtrip
+        const results = await prisma.$transaction(queries);
+        const updatedCart = results[results.length - 1]; // cart.update is the last response
+        
+        res.json(updatedCart);
     } catch (error) {
         res.status(500).json({ message: 'Error adding to cart', error: error.message });
     }
@@ -123,41 +119,45 @@ exports.updateCartItem = async (req, res) => {
 
         const item = await prisma.cartItem.findUnique({
             where: { id: parseInt(itemId) },
-            include: { product: true }
+            include: { product: true, cart: { include: { items: true } } }
         });
 
         if (!item) return res.status(404).json({ message: 'Cart item not found' });
 
-        // Check Stock
         if (item.product.stockQuantity < quantity) {
             return res.status(400).json({ message: `Insufficient stock. Available: ${item.product.stockQuantity}` });
         }
 
-        if (quantity === 0) {
-            await prisma.cartItem.delete({ where: { id: parseInt(itemId) } });
-        } else {
-            const price = parseFloat(item.product.price);
-            const remise = parseFloat(item.product.remise || 0);
-            const discountedPrice = price - (price * remise / 100);
+        const cart = item.cart;
+        const price = parseFloat(item.product.price);
+        const remise = parseFloat(item.product.remise || 0);
+        const discountedPrice = price - (price * remise / 100);
+        const newSubtotal = parseInt(quantity) * discountedPrice;
 
-            await prisma.cartItem.update({
+        let newTotalAmount = cart.items.reduce((sum, ci) => sum + parseFloat(ci.subtotal), 0);
+        newTotalAmount = newTotalAmount - parseFloat(item.subtotal) + newSubtotal;
+
+        const queries = [];
+        
+        if (quantity === 0) {
+            queries.push(prisma.cartItem.delete({ where: { id: parseInt(itemId) } }));
+        } else {
+            queries.push(prisma.cartItem.update({
                 where: { id: parseInt(itemId) },
-                data: {
-                    quantity: parseInt(quantity),
-                    subtotal: parseInt(quantity) * discountedPrice
-                }
-            });
+                data: { quantity: parseInt(quantity), subtotal: newSubtotal }
+            }));
         }
 
-        await calculateTotal(item.cartId);
-
-        // Return updated cart
-        const updatedCart = await prisma.cart.findUnique({
-            where: { id: item.cartId },
+        queries.push(prisma.cart.update({
+            where: { id: cart.id },
+            data: { totalAmount: newTotalAmount },
             include: { items: { include: { product: true } } }
-        });
-        res.json(updatedCart);
+        }));
 
+        const results = await prisma.$transaction(queries);
+        const updatedCart = results[results.length - 1];
+
+        res.json(updatedCart);
     } catch (error) {
         res.status(500).json({ message: 'Error updating cart item', error: error.message });
     }
@@ -167,19 +167,30 @@ exports.updateCartItem = async (req, res) => {
 exports.removeFromCart = async (req, res) => {
     try {
         const { itemId } = req.params;
-        const item = await prisma.cartItem.findUnique({ where: { id: parseInt(itemId) } });
+        const item = await prisma.cartItem.findUnique({ 
+            where: { id: parseInt(itemId) },
+            include: { cart: { include: { items: true } } }
+        });
 
         if (!item) return res.status(404).json({ message: 'Item not found' });
 
-        await prisma.cartItem.delete({ where: { id: parseInt(itemId) } });
-        await calculateTotal(item.cartId);
+        const cart = item.cart;
+        let newTotalAmount = cart.items.reduce((sum, ci) => sum + parseFloat(ci.subtotal), 0);
+        newTotalAmount = newTotalAmount - parseFloat(item.subtotal);
 
-        const updatedCart = await prisma.cart.findUnique({
-            where: { id: item.cartId },
-            include: { items: { include: { product: true } } }
-        });
+        const queries = [
+            prisma.cartItem.delete({ where: { id: parseInt(itemId) } }),
+            prisma.cart.update({
+                where: { id: cart.id },
+                data: { totalAmount: newTotalAmount },
+                include: { items: { include: { product: true } } }
+            })
+        ];
+
+        const results = await prisma.$transaction(queries);
+        const updatedCart = results[results.length - 1];
+
         res.json(updatedCart);
-
     } catch (error) {
         res.status(500).json({ message: 'Error removing item', error: error.message });
     }
@@ -192,8 +203,10 @@ exports.clearCart = async (req, res) => {
         const cart = await prisma.cart.findFirst({ where: { userId } });
 
         if (cart) {
-            await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
-            await prisma.cart.update({ where: { id: cart.id }, data: { totalAmount: 0 } });
+            await prisma.$transaction([
+                prisma.cartItem.deleteMany({ where: { cartId: cart.id } }),
+                prisma.cart.update({ where: { id: cart.id }, data: { totalAmount: 0 } })
+            ]);
         }
 
         res.json({ message: 'Cart cleared', totalAmount: 0, items: [] });
