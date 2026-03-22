@@ -3,6 +3,7 @@ import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
 import { getAllCategories } from '../api/categories';
+import Barcode from 'react-barcode';
 
 import { useTranslation } from 'react-i18next';
 
@@ -178,7 +179,11 @@ const Products = () => {
                             ) : (
                                 filteredProducts.map(product => (
                                     <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                                        <td className="p-4 text-gray-600 dark:text-gray-400 font-mono text-sm">{product.barcode}</td>
+                                        <td className="p-4">
+                                            <div className="bg-white px-2 py-1 rounded inline-block">
+                                                <Barcode value={product.barcode} width={1} height={25} fontSize={10} margin={0} background="transparent" />
+                                            </div>
+                                        </td>
                                         <td className="p-4 text-gray-900 dark:text-white font-medium">{product.name}</td>
                                         <td className="p-4">
                                             <span className="px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs font-medium border border-blue-100 dark:border-blue-500/20">

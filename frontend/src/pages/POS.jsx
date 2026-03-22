@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiSearch, FiShoppingCart, FiPlus, FiMinus, FiTrash2, FiMonitor, FiPrinter, FiBox } from 'react-icons/fi';
+import Barcode from 'react-barcode';
 import { getAllProducts } from '../api/products';
 import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '../api/cart';
 import { processCheckout } from '../api/sales';
@@ -182,8 +183,14 @@ const POS = () => {
                                         </div>
                                     )}
                                 </div>
-                                <h3 className="font-bold text-lg mb-1 truncate text-gray-900 dark:text-white">{product.name}</h3>
-                                <p className="text-gray-500 dark:text-gray-400 text-sm mb-2">{product.barcode}</p>
+                                <h3 className="font-bold text-lg mb-2 truncate text-gray-900 dark:text-white text-center">{product.name}</h3>
+                                
+                                <div className="flex justify-center mb-3">
+                                    <div className="bg-white px-3 py-1 rounded-lg">
+                                        <Barcode value={product.barcode} width={1.2} height={35} fontSize={12} margin={0} background="transparent" />
+                                    </div>
+                                </div>
+
                                 <div className="flex justify-between items-center">
                                     <div className="flex flex-col">
                                         <span className="text-blue-600 dark:text-blue-400 font-bold">
