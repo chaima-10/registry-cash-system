@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiSearch, FiShoppingCart, FiPlus, FiMinus, FiTrash2, FiMonitor, FiPrinter, FiBox } from 'react-icons/fi';
+import { FiSearch, FiShoppingCart, FiPlus, FiMinus, FiTrash2, FiMonitor, FiPrinter, FiBox, FiCamera } from 'react-icons/fi';
 import Barcode from 'react-barcode';
+import CameraScannerModal from '../components/CameraScannerModal';
 import { getAllProducts } from '../api/products';
 import { getCart, addToCart, updateCartItem, removeFromCart, clearCart } from '../api/cart';
 import { processCheckout } from '../api/sales';
@@ -18,6 +19,7 @@ const POS = () => {
     const [loading, setLoading] = useState(true);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [completedSale, setCompletedSale] = useState(null);
+    const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -48,11 +50,13 @@ const POS = () => {
     };
 
     const handleBarcodeSubmit = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         const scannedCode = barcodeInput.trim();
-        if (!scannedCode) return;
+        await processBarcodeScanned(scannedCode);
+    };
 
-        // Find the product by exactly matching the barcode
+    const processBarcodeScanned = async (scannedCode) => {
+        if (!scannedCode) return;
         const foundProduct = products.find(p => p.barcode === scannedCode);
 
         if (foundProduct) {
@@ -61,9 +65,13 @@ const POS = () => {
             alert(t('productNotFound', 'Product not found for barcode: ') + scannedCode);
         }
 
-        // Clear input and focus back for the next scan
         setBarcodeInput('');
         barcodeInputRef.current?.focus();
+    };
+
+    const handleCameraScan = async (decodedText) => {
+        setIsCameraScannerOpen(false);
+        await processBarcodeScanned(decodedText);
     };
 
     const handleUpdateQuantity = async (itemId, newQuantity) => {
@@ -136,18 +144,27 @@ const POS = () => {
                     
                     <div className="flex flex-col sm:flex-row gap-4">
                         {/* 1. Barcode Scanner Input */}
-                        <form onSubmit={handleBarcodeSubmit} className="relative flex-1">
-                            <FiBox className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-500" />
-                            <input
-                                ref={barcodeInputRef}
-                                type="text"
-                                placeholder={t('scanBarcodeToCart', 'Scan Barcode (Auto-Add)')}
-                                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border-2 border-green-100 dark:border-green-800 focus:border-green-500 dark:focus:border-green-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white font-mono shadow-sm"
-                                value={barcodeInput}
-                                onChange={e => setBarcodeInput(e.target.value)}
-                                autoFocus
-                            />
-                        </form>
+                        <div className="flex flex-1 gap-2">
+                            <form onSubmit={handleBarcodeSubmit} className="relative flex-1">
+                                <FiBox className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-500" />
+                                <input
+                                    ref={barcodeInputRef}
+                                    type="text"
+                                    placeholder={t('scanBarcodeToCart', 'Scan Barcode (Auto-Add)')}
+                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border-2 border-green-100 dark:border-green-800 focus:border-green-500 dark:focus:border-green-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white font-mono shadow-sm"
+                                    value={barcodeInput}
+                                    onChange={e => setBarcodeInput(e.target.value)}
+                                    autoFocus
+                                />
+                            </form>
+                            <button
+                                onClick={() => setIsCameraScannerOpen(true)}
+                                className="p-3 bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-300 rounded-xl transition-all shadow-sm border border-green-200 dark:border-green-700 flex items-center justify-center transform active:scale-95"
+                                title={t('scanWithCamera', 'Scan with Camera')}
+                            >
+                                <FiCamera size={22} />
+                            </button>
+                        </div>
 
                         {/* 2. Manual Search Input */}
                         <div className="relative flex-1">
@@ -310,6 +327,13 @@ const POS = () => {
 
             {/* Hidden Receipt for Printing */}
             <Receipt sale={completedSale} />
+
+            {/* Camera Scanner Modal */}
+            <CameraScannerModal
+                isOpen={isCameraScannerOpen}
+                onClose={() => setIsCameraScannerOpen(false)}
+                onScan={handleCameraScan}
+            />
         </div>
     );
 };

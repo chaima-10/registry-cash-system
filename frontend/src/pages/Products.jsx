@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiCamera } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import CameraScannerModal from '../components/CameraScannerModal';
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
 import { getAllCategories } from '../api/categories';
 import Barcode from 'react-barcode';
@@ -13,6 +14,7 @@ const Products = () => {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
     const [filterCategory, setFilterCategory] = useState('');
     const [filterSubcategory, setFilterSubcategory] = useState('');
 
@@ -123,15 +125,24 @@ const Products = () => {
 
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder={t('searchPlaceholder')}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
-                    />
+                <div className="relative flex-1 flex gap-2">
+                    <div className="relative w-full">
+                        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder={t('searchPlaceholder')}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setIsCameraScannerOpen(true)}
+                        className="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-all shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center transform active:scale-95"
+                        title={t('scanWithCamera', 'Scan with Camera')}
+                    >
+                        <FiCamera size={22} />
+                    </button>
                 </div>
                 <div className="flex gap-4">
                     <select
@@ -308,6 +319,16 @@ const Products = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Camera Scanner Modal */}
+            <CameraScannerModal
+                isOpen={isCameraScannerOpen}
+                onClose={() => setIsCameraScannerOpen(false)}
+                onScan={(decodedText) => {
+                    setSearchTerm(decodedText);
+                    setIsCameraScannerOpen(false);
+                }}
+            />
         </div>
     );
 };
