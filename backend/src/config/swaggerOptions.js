@@ -10,8 +10,8 @@ const options = {
         },
         servers: [
             {
-                url: '${import.meta.env.VITE_API_URL}',
-                description: 'Local server',
+                url: 'http://localhost:5000',
+                description: 'Development Server',
             },
         ],
         components: {

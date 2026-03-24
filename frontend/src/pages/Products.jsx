@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiCamera } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import CameraScannerModal from '../components/CameraScannerModal';
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
 import { getAllCategories } from '../api/categories';
+import Barcode from 'react-barcode';
 
 import { useTranslation } from 'react-i18next';
 
@@ -12,6 +14,7 @@ const Products = () => {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
     const [filterCategory, setFilterCategory] = useState('');
     const [filterSubcategory, setFilterSubcategory] = useState('');
 
@@ -50,9 +53,7 @@ const Products = () => {
     });
 
     const getFilterSubcategories = () => {
-        if (!filterCategory) {
-            return categories.flatMap(c => c.subcategories || []);
-        }
+        if (!filterCategory) return [];
         const category = categories.find(c => c.id === parseInt(filterCategory));
         return category ? category.subcategories : [];
     };
@@ -124,15 +125,24 @@ const Products = () => {
 
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1">
-                    <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder={t('searchPlaceholder')}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
-                    />
+                <div className="relative flex-1 flex gap-2">
+                    <div className="relative w-full">
+                        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder={t('searchPlaceholder')}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setIsCameraScannerOpen(true)}
+                        className="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-all shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center transform active:scale-95"
+                        title={t('scanWithCamera', 'Scan with Camera')}
+                    >
+                        <FiCamera size={22} />
+                    </button>
                 </div>
                 <div className="flex gap-4">
                     <select
@@ -140,16 +150,17 @@ const Products = () => {
                         onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory(''); }}
                         className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
                     >
-                        <option value="">{t('allCategories') || 'All Categories'}</option>
+                        <option value="">{t('allCategories')}</option>
                         {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
 
                     <select
                         value={filterSubcategory}
                         onChange={(e) => setFilterSubcategory(e.target.value)}
-                        className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
+                        disabled={!filterCategory}
+                        className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 shadow-sm"
                     >
-                        <option value="">{t('allSubcategories') || 'All Subcategories'}</option>
+                        <option value="">{t('allSubcategories')}</option>
                         {getFilterSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                 </div>
@@ -179,7 +190,11 @@ const Products = () => {
                             ) : (
                                 filteredProducts.map(product => (
                                     <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
-                                        <td className="p-4 text-gray-600 dark:text-gray-400 font-mono text-sm">{product.barcode}</td>
+                                        <td className="p-4">
+                                            <div className="bg-white px-2 py-1 rounded inline-block">
+                                                <Barcode value={product.barcode} width={1} height={25} fontSize={10} margin={0} background="transparent" />
+                                            </div>
+                                        </td>
                                         <td className="p-4 text-gray-900 dark:text-white font-medium">{product.name}</td>
                                         <td className="p-4">
                                             <span className="px-2 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs font-medium border border-blue-100 dark:border-blue-500/20">
@@ -304,6 +319,16 @@ const Products = () => {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Camera Scanner Modal */}
+            <CameraScannerModal
+                isOpen={isCameraScannerOpen}
+                onClose={() => setIsCameraScannerOpen(false)}
+                onScan={(decodedText) => {
+                    setSearchTerm(decodedText);
+                    setIsCameraScannerOpen(false);
+                }}
+            />
         </div>
     );
 };

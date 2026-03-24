@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 
 const Login = () => {
     const { t } = useTranslation();
-    const [username, setUsername] = useState('');
+    const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const { login } = useAuth();
@@ -18,7 +18,7 @@ const Login = () => {
         e.preventDefault();
         setError('');
         try {
-            await login(username, password);
+            await login(identifier, password);
             navigate('/');
         } catch (err) {
             // Axios error handling
@@ -55,17 +55,17 @@ const Login = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300 ml-1">{t('username')}</label>
+                        <label className="text-sm font-medium text-gray-300 ml-1">{t('usernameOrEmail')}</label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                                 <FiUser />
                             </div>
                             <input
                                 type="text"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                value={identifier}
+                                onChange={(e) => setIdentifier(e.target.value)}
                                 className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700 rounded-xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder-gray-500 text-white"
-                                placeholder={t('enterUsername')}
+                                placeholder={t('enterUsernameOrEmail')}
                                 required
                             />
                         </div>

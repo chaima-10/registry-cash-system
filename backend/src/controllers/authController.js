@@ -42,15 +42,19 @@ exports.register = async (req, res) => {
     }
 };
 
-// Login user
+// Login user (supports either username or email)
 exports.login = async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { username, email, password } = req.body;
 
-        // Check if user exists
-        const user = await prisma.user.findUnique({
-            where: { username },
-        });
+        // Find user by email OR username depending on what was provided
+        let user;
+        if (email) {
+            user = await prisma.user.findFirst({ where: { email } });
+        } else {
+            user = await prisma.user.findUnique({ where: { username } });
+        }
+
         if (!user) {
             return res.status(400).json({ message: 'Invalid credentials' });
         }

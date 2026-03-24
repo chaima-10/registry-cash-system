@@ -31,16 +31,16 @@ const ProfilePage = () => {
             const res = await updateProfile(editFormData);
             updateUser(res.user);
             setIsEditModalOpen(false);
-            alert('Profile updated successfully!');
+            alert(t('profileUpdatedSuccess'));
         } catch (error) {
-            alert(error.response?.data?.message || 'Failed to update profile');
+            alert(error.response?.data?.message || t('failedToUpdateProfile'));
         }
     };
 
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
         if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
-            return alert("New passwords don't match");
+            return alert(t('passwordsDoNotMatch'));
         }
         try {
             await changePassword({
@@ -49,9 +49,9 @@ const ProfilePage = () => {
             });
             setIsPasswordModalOpen(false);
             setPasswordFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-            alert('Password changed successfully!');
+            alert(t('passwordChangedSuccess'));
         } catch (error) {
-            alert(error.response?.data?.message || 'Failed to change password');
+            alert(error.response?.data?.message || t('failedToChangePassword'));
         }
     };
 
@@ -67,7 +67,7 @@ const ProfilePage = () => {
     return (
         <div className="space-y-8 max-w-5xl mx-auto pb-12">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('profile') || 'My Profile'}</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">Manage your personal information and security settings.</p>
+            <p className="text-gray-500 dark:text-gray-400 mb-8">{t('managePersonalInfo')}</p>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Personal Info */}
@@ -75,12 +75,12 @@ const ProfilePage = () => {
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
                         <div className="flex justify-between items-start mb-8">
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                <FiUser className="text-blue-500" /> Personal Information
+                                <FiUser className="text-blue-500" /> {t('personalInformation')}
                             </h3>
                             <button
                                 onClick={handleOpenEdit}
                                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-colors text-sm font-medium">
-                                <FiEdit2 /> Edit Profile
+                                <FiEdit2 /> {t('editProfile')}
                             </button>
                         </div>
 
@@ -99,7 +99,7 @@ const ProfilePage = () => {
                                 <div className="flex items-center gap-3 mb-1">
                                     <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{user?.fullName || user?.username}</h4>
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${user?.status === 'Disabled' ? 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400' : 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400'}`}>
-                                        {user?.status || 'Active'}
+                                        {user?.status || t('active')}
                                     </span>
                                 </div>
                                 <p className="text-blue-600 dark:text-blue-400 font-medium capitalize mb-4">{user?.role}</p>
@@ -108,7 +108,7 @@ const ProfilePage = () => {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                             <div>
-                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Username</label>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('username')}</label>
                                 <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                         <FiUser />
@@ -117,7 +117,7 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Email Address</label>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('emailAddress')}</label>
                                 <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                         <FiMail />
@@ -126,7 +126,7 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Phone Number</label>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('phoneNumber')}</label>
                                 <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                         <FiPhone />
@@ -135,7 +135,7 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                             <div>
-                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Account Created</label>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('accountCreated')}</label>
                                 <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                         <FiCalendar />
@@ -151,12 +151,12 @@ const ProfilePage = () => {
                 <div className="space-y-6">
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
-                            <FiShield className="text-purple-500" /> Security
+                            <FiShield className="text-purple-500" /> {t('security')}
                         </h3>
 
                         <div className="space-y-6">
                             <div>
-                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Last Login</label>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('lastLogin')}</label>
                                 <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                         <FiClock />
@@ -166,12 +166,12 @@ const ProfilePage = () => {
                             </div>
 
                             <div>
-                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">Active Sessions</label>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('activeSessions')}</label>
                                 <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                     <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-500/10 flex items-center justify-center text-green-500">
                                         <FiActivity />
                                     </div>
-                                    1 Session (Current)
+                                    {t('activeSessionCurrent')}
                                 </div>
                             </div>
                         </div>
@@ -180,7 +180,7 @@ const ProfilePage = () => {
                             <button
                                 onClick={() => setIsPasswordModalOpen(true)}
                                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors font-medium shadow-lg shadow-purple-500/20">
-                                <FiLock /> Change Password
+                                <FiLock /> {t('changePassword')}
                             </button>
                         </div>
                     </div>
@@ -199,7 +199,7 @@ const ProfilePage = () => {
                         >
                             <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <FiEdit2 className="text-blue-500" /> Edit Profile
+                                    <FiEdit2 className="text-blue-500" /> {t('editProfile')}
                                 </h3>
                                 <button onClick={() => setIsEditModalOpen(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                                     <FiX size={24} />
@@ -207,7 +207,7 @@ const ProfilePage = () => {
                             </div>
                             <form onSubmit={handleEditSubmit} className="p-6 space-y-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">Full Name</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('fullName')}</label>
                                     <input
                                         type="text"
                                         className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
@@ -216,7 +216,7 @@ const ProfilePage = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">Email Address</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('emailAddress')}</label>
                                     <input
                                         type="email"
                                         className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
@@ -225,7 +225,7 @@ const ProfilePage = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">Phone Number</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('phoneNumber')}</label>
                                     <input
                                         type="text"
                                         className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
@@ -235,10 +235,10 @@ const ProfilePage = () => {
                                 </div>
                                 <div className="pt-4 flex gap-3">
                                     <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 py-3 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                                        Cancel
+                                        {t('cancel')}
                                     </button>
                                     <button type="submit" className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all">
-                                        Save Changes
+                                        {t('saveChanges')}
                                     </button>
                                 </div>
                             </form>
@@ -259,7 +259,7 @@ const ProfilePage = () => {
                         >
                             <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
                                 <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                    <FiLock className="text-purple-500" /> Change Password
+                                    <FiLock className="text-purple-500" /> {t('changePassword')}
                                 </h3>
                                 <button onClick={() => setIsPasswordModalOpen(false)} className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">
                                     <FiX size={24} />
@@ -267,7 +267,7 @@ const ProfilePage = () => {
                             </div>
                             <form onSubmit={handlePasswordSubmit} className="p-6 space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">Current Password</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('currentPassword')}</label>
                                     <input
                                         required
                                         type="password"
@@ -278,7 +278,7 @@ const ProfilePage = () => {
                                 </div>
                                 <div className="h-px bg-gray-200 dark:bg-gray-800 my-4"></div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">New Password</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('newPassword')}</label>
                                     <input
                                         required
                                         type="password"
@@ -288,7 +288,7 @@ const ProfilePage = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">Confirm New Password</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('confirmNewPassword')}</label>
                                     <input
                                         required
                                         type="password"
@@ -299,10 +299,10 @@ const ProfilePage = () => {
                                 </div>
                                 <div className="pt-4 flex gap-3">
                                     <button type="button" onClick={() => setIsPasswordModalOpen(false)} className="flex-1 py-3 text-gray-700 dark:text-gray-300 font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                                        Cancel
+                                        {t('cancel')}
                                     </button>
                                     <button type="submit" className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg shadow-purple-500/20 transition-all">
-                                        Update
+                                        {t('updatePassword')}
                                     </button>
                                 </div>
                             </form>

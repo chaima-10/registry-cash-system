@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
+const validate = require('../middleware/validateMiddleware');
+const { loginSchema, updateProfileSchema } = require('../validators/authValidators');
 
 /**
  * @swagger
@@ -67,7 +69,7 @@ router.post('/register', authController.register);
  *       400:
  *         description: Invalid credentials
  */
-router.post('/login', authController.login);
+router.post('/login', validate(loginSchema), authController.login);
 
 /**
  * @swagger
@@ -109,6 +111,6 @@ router.post('/logout', authController.logout);
  *       200:
  *         description: Profile updated
  */
-router.put('/profile', authMiddleware.protect, authController.updateProfile);
+router.put('/profile', authMiddleware.protect, validate(updateProfileSchema), authController.updateProfile);
 
 module.exports = router;
