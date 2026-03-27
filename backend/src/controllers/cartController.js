@@ -52,10 +52,10 @@ exports.addToCart = async (req, res) => {
             });
         }
 
-        const existingItem = cart.items.find(item => item.productId === parseInt(productId));
+        const existingItemIndex = cart.items.findIndex(item => item.productId === parseInt(productId));
         let newQuantity = parseInt(quantity);
-        if (existingItem) {
-            newQuantity += existingItem.quantity;
+        if (existingItemIndex !== -1) {
+            newQuantity += cart.items[existingItemIndex].quantity;
         }
 
         if (product.stockQuantity < newQuantity) {
@@ -64,23 +64,29 @@ exports.addToCart = async (req, res) => {
 
         const price = parseFloat(product.price);
         const remise = parseFloat(product.remise || 0);
+        const tvaRate = parseFloat(product.tva || 0);
         const discountedPrice = price - (price * remise / 100);
-        const newSubtotal = newQuantity * discountedPrice;
+        const newSubtotalHT = newQuantity * discountedPrice;
+        const newTvaAmount = newSubtotalHT * (tvaRate / 100);
 
-        // Calculate total in memory instead of reading from disk again
-        let newTotalAmount = cart.items.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
-        if (existingItem) {
-            newTotalAmount = newTotalAmount - parseFloat(existingItem.subtotal) + newSubtotal;
+        // Calculate totals in memory
+        const inMemoryItem = { ...cart.items[existingItemIndex], quantity: newQuantity, subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount };
+        if (existingItemIndex !== -1) {
+            cart.items[existingItemIndex] = inMemoryItem;
         } else {
-            newTotalAmount += newSubtotal;
+            cart.items.push(inMemoryItem);
         }
+
+        const cartSubtotalHT = cart.items.reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0);
+        const cartTvaAmount = cart.items.reduce((sum, item) => sum + parseFloat(item.tvaAmount || 0), 0);
+        const cartTotalAmount = cartSubtotalHT + cartTvaAmount;
 
         const queries = [];
         
-        if (existingItem) {
+        if (existingItemIndex !== -1) {
             queries.push(prisma.cartItem.update({
-                where: { id: existingItem.id },
-                data: { quantity: newQuantity, subtotal: newSubtotal }
+                where: { id: cart.items[existingItemIndex].id },
+                data: { quantity: newQuantity, subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount }
             }));
         } else {
             queries.push(prisma.cartItem.create({
@@ -88,14 +94,16 @@ exports.addToCart = async (req, res) => {
                     cartId: cart.id,
                     productId: parseInt(productId),
                     quantity: newQuantity,
-                    subtotal: newSubtotal
+                    subtotal: newSubtotalHT,
+                    tvaRate,
+                    tvaAmount: newTvaAmount
                 }
             }));
         }
 
         queries.push(prisma.cart.update({
             where: { id: cart.id },
-            data: { totalAmount: newTotalAmount },
+            data: { subtotalHT: cartSubtotalHT, tvaAmount: cartTvaAmount, totalAmount: cartTotalAmount },
             include: { items: { include: { product: true } } }
         }));
 
@@ -131,11 +139,21 @@ exports.updateCartItem = async (req, res) => {
         const cart = item.cart;
         const price = parseFloat(item.product.price);
         const remise = parseFloat(item.product.remise || 0);
+        const tvaRate = parseFloat(item.product.tva || 0);
         const discountedPrice = price - (price * remise / 100);
-        const newSubtotal = parseInt(quantity) * discountedPrice;
+        const newSubtotalHT = parseInt(quantity) * discountedPrice;
+        const newTvaAmount = newSubtotalHT * (tvaRate / 100);
 
-        let newTotalAmount = cart.items.reduce((sum, ci) => sum + parseFloat(ci.subtotal), 0);
-        newTotalAmount = newTotalAmount - parseFloat(item.subtotal) + newSubtotal;
+        const itemIndex = cart.items.findIndex(ci => ci.id === parseInt(itemId));
+        if (quantity === 0) {
+            cart.items.splice(itemIndex, 1);
+        } else {
+            cart.items[itemIndex] = { ...cart.items[itemIndex], quantity: parseInt(quantity), subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount };
+        }
+
+        const cartSubtotalHT = cart.items.reduce((sum, ci) => sum + parseFloat(ci.subtotal || 0), 0);
+        const cartTvaAmount = cart.items.reduce((sum, ci) => sum + parseFloat(ci.tvaAmount || 0), 0);
+        const cartTotalAmount = cartSubtotalHT + cartTvaAmount;
 
         const queries = [];
         
@@ -144,13 +162,13 @@ exports.updateCartItem = async (req, res) => {
         } else {
             queries.push(prisma.cartItem.update({
                 where: { id: parseInt(itemId) },
-                data: { quantity: parseInt(quantity), subtotal: newSubtotal }
+                data: { quantity: parseInt(quantity), subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount }
             }));
         }
 
         queries.push(prisma.cart.update({
             where: { id: cart.id },
-            data: { totalAmount: newTotalAmount },
+            data: { subtotalHT: cartSubtotalHT, tvaAmount: cartTvaAmount, totalAmount: cartTotalAmount },
             include: { items: { include: { product: true } } }
         }));
 
@@ -175,14 +193,18 @@ exports.removeFromCart = async (req, res) => {
         if (!item) return res.status(404).json({ message: 'Item not found' });
 
         const cart = item.cart;
-        let newTotalAmount = cart.items.reduce((sum, ci) => sum + parseFloat(ci.subtotal), 0);
-        newTotalAmount = newTotalAmount - parseFloat(item.subtotal);
+        const itemIndex = cart.items.findIndex(ci => ci.id === parseInt(itemId));
+        cart.items.splice(itemIndex, 1);
+
+        const cartSubtotalHT = cart.items.reduce((sum, ci) => sum + parseFloat(ci.subtotal || 0), 0);
+        const cartTvaAmount = cart.items.reduce((sum, ci) => sum + parseFloat(ci.tvaAmount || 0), 0);
+        const cartTotalAmount = cartSubtotalHT + cartTvaAmount;
 
         const queries = [
             prisma.cartItem.delete({ where: { id: parseInt(itemId) } }),
             prisma.cart.update({
                 where: { id: cart.id },
-                data: { totalAmount: newTotalAmount },
+                data: { subtotalHT: cartSubtotalHT, tvaAmount: cartTvaAmount, totalAmount: cartTotalAmount },
                 include: { items: { include: { product: true } } }
             })
         ];
@@ -205,11 +227,11 @@ exports.clearCart = async (req, res) => {
         if (cart) {
             await prisma.$transaction([
                 prisma.cartItem.deleteMany({ where: { cartId: cart.id } }),
-                prisma.cart.update({ where: { id: cart.id }, data: { totalAmount: 0 } })
+                prisma.cart.update({ where: { id: cart.id }, data: { subtotalHT: 0, tvaAmount: 0, totalAmount: 0 } })
             ]);
         }
 
-        res.json({ message: 'Cart cleared', totalAmount: 0, items: [] });
+        res.json({ message: 'Cart cleared', subtotalHT: 0, tvaAmount: 0, totalAmount: 0, items: [] });
     } catch (error) {
         res.status(500).json({ message: 'Error clearing cart', error: error.message });
     }

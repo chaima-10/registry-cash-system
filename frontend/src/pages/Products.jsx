@@ -7,9 +7,16 @@ import { getAllCategories } from '../api/categories';
 import Barcode from 'react-barcode';
 
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
 const Products = () => {
     const { t } = useTranslation();
+    const { currency } = useAuth();
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(amount);
+    };
+
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -23,7 +30,7 @@ const Products = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentProductId, setCurrentProductId] = useState(null);
     const [formData, setFormData] = useState({
-        barcode: '', name: '', price: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: ''
+        barcode: '', name: '', price: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: ''
     });
 
     useEffect(() => {
@@ -69,12 +76,13 @@ const Products = () => {
                 stockQuantity: product.stockQuantity,
                 categoryId: product.categoryId || '',
                 subcategoryId: product.subcategoryId || '',
-                remise: product.remise || ''
+                remise: product.remise || '',
+                tva: product.tva || ''
             });
         } else {
             setIsEditing(false);
             setCurrentProductId(null);
-            setFormData({ barcode: '', name: '', price: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '' });
+            setFormData({ barcode: '', name: '', price: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '' });
         }
         setIsModalOpen(true);
     };
@@ -177,8 +185,10 @@ const Products = () => {
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('category')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('subcategory')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('stock')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('price')}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('price')} (HT)</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('remise') || 'Remise'} %</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">TVA %</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('price')} (TTC)</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-center">{t('actions')}</th>
                             </tr>
                         </thead>
@@ -213,9 +223,15 @@ const Products = () => {
                                                 {product.stockQuantity}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">${Number(product.price).toFixed(2)}</td>
+                                        <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">{formatCurrency(Number(product.price))}</td>
                                         <td className="p-4 text-right text-green-600 dark:text-green-400 font-bold">
                                             {product.remise ? `${product.remise}%` : '-'}
+                                        </td>
+                                        <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-bold">
+                                            {product.tva ? `${product.tva}%` : '-'}
+                                        </td>
+                                        <td className="p-4 text-right text-blue-600 dark:text-blue-400 font-bold">
+                                            {formatCurrency(((Number(product.price) * (1 - (product.remise || 0) / 100)) * (1 + (product.tva || 0) / 100)))}
                                         </td>
                                         <td className="p-4">
                                             <div className="flex justify-center gap-1">
@@ -279,9 +295,9 @@ const Products = () => {
                                         value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('price')} ($)</label>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('price')} (HT)</label>
                                         <input required type="number" step="0.01" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                                     </div>
@@ -289,6 +305,11 @@ const Products = () => {
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">Remise (%)</label>
                                         <input type="number" step="1" max="100" min="0" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.remise} onChange={e => setFormData({ ...formData, remise: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">TVA (%)</label>
+                                        <input type="number" step="0.01" max="100" min="0" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
+                                            value={formData.tva} onChange={e => setFormData({ ...formData, tva: e.target.value })} placeholder="e.g. 19" />
                                     </div>
                                 </div>
 

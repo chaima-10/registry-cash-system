@@ -4,7 +4,7 @@ const prisma = require('../config/prisma');
 exports.createSale = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { paymentMethod } = req.body; // CASH, CARD, VOUCHER
+        const { paymentMethod, currency } = req.body; // CASH, CARD, VOUCHER
 
         if (!['CASH', 'CARD', 'VOUCHER'].includes(paymentMethod)) {
             return res.status(400).json({ message: 'Invalid payment method' });
@@ -38,6 +38,9 @@ exports.createSale = async (req, res) => {
                 data: {
                     userId,
                     totalAmount: cart.totalAmount,
+                    subtotalHT: cart.subtotalHT,
+                    tvaAmount: cart.tvaAmount,
+                    currency: currency || 'USD',
                     paymentMethod
                 }
             });
@@ -55,6 +58,8 @@ exports.createSale = async (req, res) => {
                         productId: item.productId,
                         quantity: item.quantity,
                         price: discountedPrice,
+                        tvaRate: item.tvaRate,
+                        tvaAmount: item.tvaAmount,
                         subtotal: item.subtotal
                     }
                 });

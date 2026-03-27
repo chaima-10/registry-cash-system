@@ -8,9 +8,15 @@ import { processCheckout } from '../api/sales';
 import PaymentModal from '../components/PaymentModal';
 import Receipt from '../components/Receipt';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
 const POS = () => {
     const { t } = useTranslation();
+    const { currency } = useAuth();
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(amount);
+    };
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState({ items: [], totalAmount: 0 });
     const [searchTerm, setSearchTerm] = useState('');
@@ -211,11 +217,11 @@ const POS = () => {
                                 <div className="flex justify-between items-center">
                                     <div className="flex flex-col">
                                         <span className="text-blue-600 dark:text-blue-400 font-bold">
-                                            ${(product.price * (1 - (product.remise || 0) / 100)).toFixed(2)}
+                                            {formatCurrency(((product.price * (1 - (product.remise || 0) / 100)) * (1 + (product.tva || 0) / 100)))}
                                         </span>
                                         {product.remise > 0 && (
                                             <span className="text-gray-400 text-xs line-through">
-                                                ${Number(product.price).toFixed(2)}
+                                                {formatCurrency((Number(product.price) * (1 + (product.tva || 0) / 100)))}
                                             </span>
                                         )}
                                     </div>
@@ -249,9 +255,14 @@ const POS = () => {
                                             -{item.product.remise}%
                                         </span>
                                     )}
+                                    {item.tvaRate > 0 && (
+                                        <span className="bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] px-1.5 py-0.5 rounded-md font-bold">
+                                            TVA {item.tvaRate}%
+                                        </span>
+                                    )}
                                 </h4>
                                 <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
-                                    ${(item.product.price * (1 - (item.product.remise || 0) / 100)).toFixed(2)}
+                                    {formatCurrency(((item.product.price * (1 - (item.product.remise || 0) / 100)) * (1 + (item.tvaRate || 0) / 100)))}
                                 </p>
                             </div>
 
@@ -282,13 +293,17 @@ const POS = () => {
                 </div>
 
                 <div className="p-6 bg-gray-50 dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 transition-colors">
-                    <div className="flex justify-between items-center mb-4 text-gray-500 dark:text-gray-400 font-medium">
-                        <span>{t('subtotal')}</span>
-                        <span>${Number(cart.totalAmount).toFixed(2)}</span>
+                    <div className="flex justify-between items-center mb-2 text-gray-500 dark:text-gray-400 font-medium text-sm">
+                        <span>{t('subtotal')} (HT)</span>
+                        <span>{formatCurrency(Number(cart.subtotalHT || 0))}</span>
                     </div>
-                    <div className="flex justify-between items-center mb-6 text-2xl font-bold text-gray-900 dark:text-white">
+                    <div className="flex justify-between items-center mb-4 text-gray-500 dark:text-gray-400 font-medium text-sm">
+                        <span>TVA</span>
+                        <span>{formatCurrency(Number(cart.tvaAmount || 0))}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-6 text-2xl font-bold text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-800 pt-4">
                         <span>{t('total')}</span>
-                        <span>${Number(cart.totalAmount).toFixed(2)}</span>
+                        <span>{formatCurrency(Number(cart.totalAmount || 0))}</span>
                     </div>
 
                     <div className="space-y-3">
@@ -317,11 +332,10 @@ const POS = () => {
                 </div>
             </div>
 
-            {/* Payment Modal */}
             <PaymentModal
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
-                totalAmount={Number(cart.totalAmount)}
+                cart={cart}
                 onConfirm={handlePaymentConfirm}
             />
 

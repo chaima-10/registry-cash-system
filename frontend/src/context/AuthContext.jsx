@@ -6,6 +6,7 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [currency, setCurrency] = useState('USD');
 
     useEffect(() => {
         const initAuth = async () => {
@@ -22,7 +23,15 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         };
         initAuth();
+
+        const savedCurrency = localStorage.getItem('currency') || 'USD';
+        setCurrency(savedCurrency);
     }, []);
+
+    const changeCurrency = (newCurrency) => {
+        setCurrency(newCurrency);
+        localStorage.setItem('currency', newCurrency);
+    };
 
     const login = async (identifier, password) => {
         // If identifier contains '@', treat as email, otherwise username
@@ -100,7 +109,7 @@ export const AuthProvider = ({ children }) => {
     }, [user?.id]); // Only sync when the user itself changes (login/init)
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, applyTheme, toggleTheme }}>
+        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, applyTheme, toggleTheme, currency, changeCurrency }}>
             {!loading && children}
         </AuthContext.Provider>
     );

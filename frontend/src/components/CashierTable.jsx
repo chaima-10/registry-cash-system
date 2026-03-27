@@ -1,9 +1,15 @@
 import React from 'react';
 import { FiEdit, FiTrash2, FiUser } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
 const CashierTable = ({ users, onEdit, onDelete }) => {
     const { t } = useTranslation();
+    const { currency } = useAuth();
+    
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(amount);
+    };
 
     const cashiers = users.filter(user => user.role === 'cashier');
     // Also include admins if desired, but "Cashier Management" implies cashiers.
@@ -51,7 +57,7 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                                             {user.role === 'admin' && <span className="text-[10px] font-bold uppercase bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-500/20">{t('admin')}</span>}
                                         </div>
                                     </td>
-                                    <td className="p-3 font-medium">${user.salary ? Number(user.salary).toFixed(2) : '0.00'}</td>
+                                    <td className="p-3 font-medium">{user.salary ? formatCurrency(Number(user.salary)) : formatCurrency(0)}</td>
                                     <td className="p-3 text-sm text-gray-500 dark:text-gray-400">{user.workingDays || '-'}</td>
                                     <td className="p-3 text-right">
                                         <div className="flex items-center justify-end gap-1">
