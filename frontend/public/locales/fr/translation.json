@@ -166,5 +166,13 @@
     "failedToChangePassword": "Échec de la modification du mot de passe",
     "usernameOrEmail": "Nom d'utilisateur ou Email",
     "enterUsernameOrEmail": "Saisissez votre nom d'utilisateur ou email",
-    "appearance": "Apparence"
+    "appearance": "Apparence",
+    "finalizePayment": "Finaliser le paiement",
+    "selectMethodAndConfirm": "Sélectionner la méthode et confirmer",
+    "paymentMethod": "Méthode de paiement",
+    "discount": "Remise",
+    "completePurchase": "Terminer l'achat",
+    "cardProcessMsg": "Le paiement par carte sera traité au terminal",
+    "voucherProcessMsg": "Le code du chèque-cadeau sera vérifié",
+    "enterAmount": "Entrer le montant..."
 }

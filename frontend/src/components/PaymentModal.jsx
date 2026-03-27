@@ -104,7 +104,7 @@ const PaymentModal = ({ isOpen, onClose, totalAmount, onConfirm }) => {
                                                 step="0.01"
                                                 value={cashTendered}
                                                 onChange={(e) => setCashTendered(e.target.value)}
-                                                placeholder="Enter amount..."
+                                                placeholder={t('enterAmount')}
                                                 className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
                                             />
                                             {cashTendered && (

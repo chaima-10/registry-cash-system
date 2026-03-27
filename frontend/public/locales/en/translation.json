@@ -166,5 +166,13 @@
     "failedToChangePassword": "Failed to change password",
     "usernameOrEmail": "Username or Email",
     "enterUsernameOrEmail": "Enter username or email",
-    "appearance": "Appearance"
+    "appearance": "Appearance",
+    "finalizePayment": "Finalize Payment",
+    "selectMethodAndConfirm": "Select method and confirm",
+    "paymentMethod": "Payment Method",
+    "discount": "Discount",
+    "completePurchase": "Complete Purchase",
+    "cardProcessMsg": "Card payment will be processed at the terminal",
+    "voucherProcessMsg": "Gift voucher code will be verified",
+    "enterAmount": "Enter amount..."
 }

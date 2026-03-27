@@ -166,5 +166,13 @@
     "failedToChangePassword": "فشل تغيير كلمة المرور",
     "usernameOrEmail": "اسم المستخدم أو البريد الإلكتروني",
     "enterUsernameOrEmail": "أدخل اسم المستخدم أو البريد الإلكتروني",
-    "appearance": "المظهر"
+    "appearance": "المظهر",
+    "finalizePayment": "إتمام الدفع",
+    "selectMethodAndConfirm": "اختر الطريقة وقم بالتأكيد",
+    "paymentMethod": "طريقة الدفع",
+    "discount": "الخصم",
+    "completePurchase": "إتمام الشراء",
+    "cardProcessMsg": "سيتم معالجة الدفع بالبطاقة في المحطة",
+    "voucherProcessMsg": "سيتم التحقق من رمز قسيمة الهدية",
+    "enterAmount": "أدخل المبلغ..."
 }
