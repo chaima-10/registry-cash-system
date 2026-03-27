@@ -5,6 +5,11 @@ exports.createProduct = async (req, res) => {
     try {
         const { barcode, name, price, stockQuantity, categoryId, subcategoryId, remise, tva } = req.body;
 
+        // Strict EAN-13/UPC barcode validation: numeric only, 1-13 digits
+        if (!barcode || !/^\d{1,13}$/.test(barcode.trim())) {
+            return res.status(400).json({ message: 'Barcode must be numeric only (1-13 digits, e.g. EAN-13 or UPC)' });
+        }
+
         // Check if already exists
         const existing = await prisma.product.findUnique({ where: { barcode } });
         if (existing) {
@@ -90,7 +95,14 @@ exports.getProductByBarcode = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, price, stockQuantity, categoryId, subcategoryId, remise, tva } = req.body;
+        const { name, price, stockQuantity, categoryId, subcategoryId, remise, tva, barcode } = req.body;
+
+        // If barcode is being updated, validate it
+        if (barcode !== undefined && barcode !== null && barcode !== '') {
+            if (!/^\d{1,13}$/.test(barcode.trim())) {
+                return res.status(400).json({ message: 'Barcode must be numeric only (1-13 digits)' });
+            }
+        }
 
         let updateData = {
             name,

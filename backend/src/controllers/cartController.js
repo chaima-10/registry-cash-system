@@ -65,12 +65,13 @@ exports.addToCart = async (req, res) => {
         const price = parseFloat(product.price);
         const remise = parseFloat(product.remise || 0);
         const tvaRate = parseFloat(product.tva || 0);
-        const discountedPrice = price - (price * remise / 100);
+        const discountedPrice = price * (1 - remise / 100);
+        const priceTTC = discountedPrice * (1 + tvaRate / 100);
         const newSubtotalHT = newQuantity * discountedPrice;
         const newTvaAmount = newSubtotalHT * (tvaRate / 100);
 
         // Calculate totals in memory
-        const inMemoryItem = { ...cart.items[existingItemIndex], quantity: newQuantity, subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount };
+        const inMemoryItem = { ...cart.items[existingItemIndex], quantity: newQuantity, subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount, priceTTC };
         if (existingItemIndex !== -1) {
             cart.items[existingItemIndex] = inMemoryItem;
         } else {
@@ -86,7 +87,7 @@ exports.addToCart = async (req, res) => {
         if (existingItemIndex !== -1) {
             queries.push(prisma.cartItem.update({
                 where: { id: cart.items[existingItemIndex].id },
-                data: { quantity: newQuantity, subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount }
+                data: { quantity: newQuantity, subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount, priceTTC }
             }));
         } else {
             queries.push(prisma.cartItem.create({
@@ -96,7 +97,8 @@ exports.addToCart = async (req, res) => {
                     quantity: newQuantity,
                     subtotal: newSubtotalHT,
                     tvaRate,
-                    tvaAmount: newTvaAmount
+                    tvaAmount: newTvaAmount,
+                    priceTTC
                 }
             }));
         }
@@ -140,7 +142,8 @@ exports.updateCartItem = async (req, res) => {
         const price = parseFloat(item.product.price);
         const remise = parseFloat(item.product.remise || 0);
         const tvaRate = parseFloat(item.product.tva || 0);
-        const discountedPrice = price - (price * remise / 100);
+        const discountedPrice = price * (1 - remise / 100);
+        const priceTTC = discountedPrice * (1 + tvaRate / 100);
         const newSubtotalHT = parseInt(quantity) * discountedPrice;
         const newTvaAmount = newSubtotalHT * (tvaRate / 100);
 
@@ -148,7 +151,7 @@ exports.updateCartItem = async (req, res) => {
         if (quantity === 0) {
             cart.items.splice(itemIndex, 1);
         } else {
-            cart.items[itemIndex] = { ...cart.items[itemIndex], quantity: parseInt(quantity), subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount };
+            cart.items[itemIndex] = { ...cart.items[itemIndex], quantity: parseInt(quantity), subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount, priceTTC };
         }
 
         const cartSubtotalHT = cart.items.reduce((sum, ci) => sum + parseFloat(ci.subtotal || 0), 0);
@@ -162,7 +165,7 @@ exports.updateCartItem = async (req, res) => {
         } else {
             queries.push(prisma.cartItem.update({
                 where: { id: parseInt(itemId) },
-                data: { quantity: parseInt(quantity), subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount }
+                data: { quantity: parseInt(quantity), subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount, priceTTC }
             }));
         }
 

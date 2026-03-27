@@ -5,11 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 const CashierTable = ({ users, onEdit, onDelete }) => {
     const { t } = useTranslation();
-    const { currency } = useAuth();
-    
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(amount);
-    };
+    const { formatCurrency } = useAuth();
 
     const cashiers = users.filter(user => user.role === 'cashier');
     // Also include admins if desired, but "Cashier Management" implies cashiers.

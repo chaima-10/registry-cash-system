@@ -34,6 +34,7 @@ model Sale {
   subtotalHT    Decimal       @default(0.00) @db.Decimal(10, 2)
   tvaAmount     Decimal       @default(0.00) @db.Decimal(10, 2)
   currency      String        @default("USD")
+  exchangeRate  Decimal       @default(1.0000) @db.Decimal(10, 4)
   paymentMethod PaymentMethod
   createdAt     DateTime      @default(now())
   items         SaleItem[]
@@ -49,6 +50,7 @@ model SaleItem {
   price     Decimal @db.Decimal(10, 2) // Snapshot of price (HT)
   tvaRate   Decimal @default(0.00) @db.Decimal(5, 2)
   tvaAmount Decimal @default(0.00) @db.Decimal(10, 2)
+  priceTTC  Decimal @default(0.00) @db.Decimal(10, 2) // unit price TTC
   subtotal  Decimal @db.Decimal(10, 2) // subtotal HT
 }
 
@@ -73,6 +75,7 @@ model CartItem {
   quantity  Int
   tvaRate   Decimal  @default(0.00) @db.Decimal(5, 2)
   tvaAmount Decimal  @default(0.00) @db.Decimal(10, 2)
+  priceTTC  Decimal  @default(0.00) @db.Decimal(10, 2) // unit price TTC
   subtotal  Decimal  @db.Decimal(10, 2)
 }
 

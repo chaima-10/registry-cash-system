@@ -12,11 +12,7 @@ import { useAuth } from '../context/AuthContext';
 
 const POS = () => {
     const { t } = useTranslation();
-    const { currency } = useAuth();
-
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(amount);
-    };
+    const { currency, exchangeRates, formatCurrency } = useAuth();
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState({ items: [], totalAmount: 0 });
     const [searchTerm, setSearchTerm] = useState('');
@@ -119,7 +115,8 @@ const POS = () => {
 
     const handlePaymentConfirm = async (paymentMethod) => {
         try {
-            const response = await processCheckout(paymentMethod);
+            const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
+            const response = await processCheckout(paymentMethod, currency, rate);
             setShowPaymentModal(false);
             setCompletedSale(response.sale);
             alert(t('paymentSuccessful'));

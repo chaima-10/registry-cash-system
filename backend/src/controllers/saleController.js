@@ -4,7 +4,7 @@ const prisma = require('../config/prisma');
 exports.createSale = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { paymentMethod, currency } = req.body; // CASH, CARD, VOUCHER
+        const { paymentMethod, currency, exchangeRate } = req.body; // CASH, CARD, VOUCHER
 
         if (!['CASH', 'CARD', 'VOUCHER'].includes(paymentMethod)) {
             return res.status(400).json({ message: 'Invalid payment method' });
@@ -41,6 +41,7 @@ exports.createSale = async (req, res) => {
                     subtotalHT: cart.subtotalHT,
                     tvaAmount: cart.tvaAmount,
                     currency: currency || 'USD',
+                    exchangeRate: exchangeRate ? parseFloat(exchangeRate) : 1.0,
                     paymentMethod
                 }
             });
@@ -49,18 +50,21 @@ exports.createSale = async (req, res) => {
             for (const item of cart.items) {
                 const productPrice = parseFloat(item.product.price);
                 const remise = parseFloat(item.product.remise || 0);
-                const discountedPrice = productPrice - (productPrice * remise / 100);
+                const tvaRate = parseFloat(item.tvaRate || 0);
+                const discountedPrice = productPrice * (1 - remise / 100);
+                const priceTTC = discountedPrice * (1 + tvaRate / 100);
 
-                // Create sale item
+                // Create sale item with full TVA snapshot
                 await tx.saleItem.create({
                     data: {
                         saleId: sale.id,
                         productId: item.productId,
                         quantity: item.quantity,
-                        price: discountedPrice,
+                        price: discountedPrice,       // price HT
                         tvaRate: item.tvaRate,
                         tvaAmount: item.tvaAmount,
-                        subtotal: item.subtotal
+                        priceTTC,                     // price TTC per unit
+                        subtotal: item.subtotal        // subtotal HT
                     }
                 });
 

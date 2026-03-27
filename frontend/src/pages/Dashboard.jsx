@@ -24,11 +24,7 @@ import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
     const { t } = useTranslation();
-    const { currency } = useAuth();
-    
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(amount);
-    };
+    const { formatCurrency } = useAuth();
 
     return (
         <div className="space-y-6">

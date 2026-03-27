@@ -9,13 +9,17 @@ import Barcode from 'react-barcode';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 
+// Generate a valid EAN-13 barcode (12 random digits + 1 check digit)
+const generateEAN13 = () => {
+    const digits = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10));
+    const checksum = digits.reduce((sum, d, i) => sum + d * (i % 2 === 0 ? 1 : 3), 0);
+    const checkDigit = (10 - (checksum % 10)) % 10;
+    return [...digits, checkDigit].join('');
+};
+
 const Products = () => {
     const { t } = useTranslation();
-    const { currency } = useAuth();
-
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(amount);
-    };
+    const { formatCurrency } = useAuth();
 
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -279,8 +283,22 @@ const Products = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('barcode')}</label>
-                                        <input required type="text" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
-                                            value={formData.barcode} onChange={e => setFormData({ ...formData, barcode: e.target.value })} disabled={isEditing} />
+                                        <div className="flex gap-2">
+                                            <input required type="text" pattern="\d{1,13}" title="Barcode must be numeric digits only (1-13 digits)"
+                                                className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all font-mono"
+                                                value={formData.barcode}
+                                                onChange={e => setFormData({ ...formData, barcode: e.target.value.replace(/\D/g, '').slice(0, 13) })}
+                                                disabled={isEditing}
+                                                placeholder="e.g. 5901234123457" />
+                                            {!isEditing && (
+                                                <button type="button"
+                                                    onClick={() => setFormData({ ...formData, barcode: generateEAN13() })}
+                                                    className="px-3 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-800/60 text-blue-700 dark:text-blue-300 rounded-xl text-xs font-bold transition-all border border-blue-200 dark:border-blue-700 whitespace-nowrap"
+                                                    title="Auto-generate a valid EAN-13 barcode">
+                                                    EAN-13
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="space-y-1">
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('stock')}</label>

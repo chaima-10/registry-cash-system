@@ -6,11 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const { t } = useTranslation();
-    const { currency } = useAuth();
-    
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(amount);
-    };
+    const { formatCurrency } = useAuth();
     const [selectedMethod, setSelectedMethod] = useState('CASH');
     const [cashTendered, setCashTendered] = useState('');
     const [processing, setProcessing] = useState(false);
