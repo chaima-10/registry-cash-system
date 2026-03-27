@@ -132,9 +132,11 @@ const POS = () => {
         }
     };
 
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredProducts = products.filter(p => {
+        const matchesName = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesBarcode = barcodeInput.trim() === '' || p.barcode.includes(barcodeInput.trim());
+        return matchesName && matchesBarcode;
+    });
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white overflow-hidden transition-colors duration-300">
