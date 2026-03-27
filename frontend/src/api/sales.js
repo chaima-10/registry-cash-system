@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const processCheckout = async (paymentMethod) => {
-    const response = await api.post('/sales', { paymentMethod });
+export const processCheckout = async (paymentMethod, currency, exchangeRate) => {
+    const response = await api.post('/sales', { paymentMethod, currency, exchangeRate });
     return response.data;
 };
 

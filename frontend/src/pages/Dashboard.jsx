@@ -20,17 +20,20 @@ const StatCard = ({ title, value, change, icon: Icon, color }) => (
 );
 
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
     const { t } = useTranslation();
+    const { formatCurrency } = useAuth();
+
     return (
         <div className="space-y-6">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title={t('totalRevenue')} value="$12,543.00" change={12.5} icon={FiDollarSign} color="bg-green-500" />
+                <StatCard title={t('totalRevenue')} value={formatCurrency(12543)} change={12.5} icon={FiDollarSign} color="bg-green-500" />
                 <StatCard title={t('totalOrders')} value="156" change={8.2} icon={FiShoppingBag} color="bg-blue-500" />
                 <StatCard title={t('activeUsers')} value="12" change={-2.4} icon={FiUsers} color="bg-purple-500" />
-                <StatCard title={t('inventoryValue')} value="$45,230.00" change={5.1} icon={FiActivity} color="bg-orange-500" />
+                <StatCard title={t('inventoryValue')} value={formatCurrency(45230)} change={5.1} icon={FiActivity} color="bg-orange-500" />
             </div>
 
             {/* Recent Activity Section (Placeholder) */}
@@ -49,7 +52,7 @@ const Dashboard = () => {
                                         <p className="text-sm text-gray-500 dark:text-gray-400">{t('justNow')}</p>
                                     </div>
                                 </div>
-                                <span className="text-gray-900 dark:text-white font-bold">$125.00</span>
+                                <span className="text-gray-900 dark:text-white font-bold">{formatCurrency(125)}</span>
                             </div>
                         ))}
                     </div>

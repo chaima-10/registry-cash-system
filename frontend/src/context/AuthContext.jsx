@@ -6,6 +6,33 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [currency, setCurrency] = useState('USD');
+    const [exchangeRates, setExchangeRates] = useState({ USD: 1 });
+
+    // Fetch real exchange rates from open.er-api.com (free, no key required)
+    const fetchExchangeRates = async () => {
+        try {
+            const res = await fetch('https://open.er-api.com/v6/latest/USD');
+            const data = await res.json();
+            if (data.result === 'success') {
+                setExchangeRates(data.rates);
+            }
+        } catch (e) {
+            console.warn('Exchange rate fetch failed, using default 1:1', e);
+        }
+    };
+
+    // Format amount in chosen currency using real exchange rate
+    const formatCurrency = (amount, overrideCurrency) => {
+        const tgt = overrideCurrency || currency || 'USD';
+        const rate = (exchangeRates && exchangeRates[tgt]) ? exchangeRates[tgt] : 1;
+        const converted = parseFloat(amount || 0) * rate;
+        try {
+            return new Intl.NumberFormat(undefined, { style: 'currency', currency: tgt }).format(converted);
+        } catch {
+            return `${converted.toFixed(2)} ${tgt}`;
+        }
+    };
 
     useEffect(() => {
         const initAuth = async () => {
@@ -22,8 +49,18 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         };
         initAuth();
+
+        const savedCurrency = localStorage.getItem('currency') || 'USD';
+        setCurrency(savedCurrency);
+        fetchExchangeRates(); // Fetch on load
     }, []);
 
+    const changeCurrency = (newCurrency) => {
+        setCurrency(newCurrency);
+        localStorage.setItem('currency', newCurrency);
+        // Re-fetch rates when currency changes (they are relative to USD always)
+        fetchExchangeRates();
+    };
     const login = async (identifier, password) => {
         // If identifier contains '@', treat as email, otherwise username
         const isEmail = identifier.includes('@');
@@ -100,7 +137,7 @@ export const AuthProvider = ({ children }) => {
     }, [user?.id]); // Only sync when the user itself changes (login/init)
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, applyTheme, toggleTheme }}>
+        <AuthContext.Provider value={{ user, login, logout, loading, updateUser, applyTheme, toggleTheme, currency, changeCurrency, exchangeRates, formatCurrency }}>
             {!loading && children}
         </AuthContext.Provider>
     );

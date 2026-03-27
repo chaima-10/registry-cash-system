@@ -12,6 +12,10 @@ const Receipt = ({ sale }) => {
         });
     };
 
+    const formatCurrency = (amount, currencyCode) => {
+        return new Intl.NumberFormat(undefined, { style: 'currency', currency: currencyCode || 'USD' }).format(amount);
+    };
+
     const formatTime = (dateString) => {
         const date = new Date(dateString);
         return date.toLocaleTimeString('en-US', {
@@ -48,10 +52,10 @@ const Receipt = ({ sale }) => {
                             </div>
                             <div className="item-row details">
                                 <span className="item-details">
-                                    {item.quantity} x ${Number(item.price).toFixed(2)}
+                                    {item.quantity} x {formatCurrency(Number(item.price), sale.currency)}
                                 </span>
                                 <span className="item-total">
-                                    ${Number(item.subtotal).toFixed(2)}
+                                    {formatCurrency(Number(item.subtotal), sale.currency)}
                                 </span>
                             </div>
                         </div>
@@ -62,9 +66,17 @@ const Receipt = ({ sale }) => {
 
                 {/* Total */}
                 <div className="receipt-total">
-                    <div className="total-row">
-                        <span className="total-label">TOTAL:</span>
-                        <span className="total-amount">${Number(sale.totalAmount).toFixed(2)}</span>
+                    <div className="sub-row">
+                        <span className="total-label">SUBTOTAL HT:</span>
+                        <span className="total-amount">{formatCurrency(Number(sale.subtotalHT || 0), sale.currency)}</span>
+                    </div>
+                    <div className="sub-row">
+                        <span className="total-label">TVA:</span>
+                        <span className="total-amount">{formatCurrency(Number(sale.tvaAmount || 0), sale.currency)}</span>
+                    </div>
+                    <div className="total-row" style={{ marginTop: '8px' }}>
+                        <span className="total-label">TOTAL TTC:</span>
+                        <span className="total-amount">{formatCurrency(Number(sale.totalAmount), sale.currency)}</span>
                     </div>
                     <div className="payment-method">
                         <span>Payment: {sale.paymentMethod}</span>
@@ -171,6 +183,13 @@ const Receipt = ({ sale }) => {
 
                     .receipt-total {
                         margin-top: 10px;
+                    }
+
+                    .sub-row {
+                        display: flex;
+                        justify-content: space-between;
+                        font-size: 11pt;
+                        margin-bottom: 3px;
                     }
 
                     .total-row {

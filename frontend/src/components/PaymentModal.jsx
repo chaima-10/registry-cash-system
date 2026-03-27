@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { FiX, FiCreditCard, FiDollarSign, FiGift, FiCheck, FiCheckCircle, FiActivity } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
-const PaymentModal = ({ isOpen, onClose, totalAmount, onConfirm }) => {
+const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const { t } = useTranslation();
+    const { formatCurrency } = useAuth();
     const [selectedMethod, setSelectedMethod] = useState('CASH');
     const [cashTendered, setCashTendered] = useState('');
     const [processing, setProcessing] = useState(false);
 
-    const amount = Number(totalAmount) || 0;
+    const amount = Number(cart?.totalAmount) || 0;
     const tendered = parseFloat(cashTendered) || 0;
     const change = tendered - amount;
 
@@ -61,7 +63,7 @@ const PaymentModal = ({ isOpen, onClose, totalAmount, onConfirm }) => {
                                 <div className="space-y-6">
                                     <div className="p-6 bg-blue-50 dark:bg-blue-500/10 rounded-2xl border border-blue-100 dark:border-blue-500/20 transition-colors">
                                         <p className="text-blue-600 dark:text-blue-400 font-bold mb-1 uppercase text-xs tracking-wider">{t('totalAmount')}</p>
-                                        <p className="text-4xl font-black text-gray-900 dark:text-white">${amount.toFixed(2)}</p>
+                                        <p className="text-4xl font-black text-gray-900 dark:text-white">{formatCurrency(amount)}</p>
                                     </div>
 
                                     <div className="space-y-3">
@@ -104,7 +106,7 @@ const PaymentModal = ({ isOpen, onClose, totalAmount, onConfirm }) => {
                                                 step="0.01"
                                                 value={cashTendered}
                                                 onChange={(e) => setCashTendered(e.target.value)}
-                                                placeholder="Enter amount..."
+                                                placeholder={t('enterAmount')}
                                                 className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
                                             />
                                             {cashTendered && (
@@ -112,7 +114,7 @@ const PaymentModal = ({ isOpen, onClose, totalAmount, onConfirm }) => {
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-gray-500 dark:text-gray-400">{t('change') || 'Change'}:</span>
                                                         <span className={`font-bold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                            ${Math.abs(change).toFixed(2)}
+                                                            {formatCurrency(Math.abs(change))}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -145,17 +147,17 @@ const PaymentModal = ({ isOpen, onClose, totalAmount, onConfirm }) => {
                                             </h4>
                                             <div className="space-y-3">
                                                 <div className="flex justify-between text-gray-500 dark:text-gray-400 font-medium">
-                                                    <span>{t('subtotal')}</span>
-                                                    <span className="text-gray-900 dark:text-white font-bold">${amount.toFixed(2)}</span>
+                                                    <span>{t('subtotal')} (HT)</span>
+                                                    <span className="text-gray-900 dark:text-white font-bold">{formatCurrency(Number(cart?.subtotalHT || 0))}</span>
                                                 </div>
                                                 <div className="flex justify-between text-gray-500 dark:text-gray-400 font-medium">
-                                                    <span>{t('discount')}</span>
-                                                    <span className="text-green-500 font-bold">-$0.00</span>
+                                                    <span>TVA</span>
+                                                    <span className="text-purple-500 font-bold">{formatCurrency(Number(cart?.tvaAmount || 0))}</span>
                                                 </div>
                                                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
                                                 <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white">
                                                     <span>{t('total')}</span>
-                                                    <span>${amount.toFixed(2)}</span>
+                                                    <span>{formatCurrency(amount)}</span>
                                                 </div>
                                             </div>
                                         </div>

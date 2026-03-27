@@ -1,4 +1,4 @@
-import { FiMonitor, FiGlobe, FiMoon, FiSun } from 'react-icons/fi';
+import { FiMonitor, FiGlobe, FiMoon, FiSun, FiDollarSign } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -6,7 +6,7 @@ import api from '../api/axios';
 
 const SettingsPage = () => {
     const { t } = useTranslation();
-    const { user, toggleTheme } = useAuth();
+    const { user, toggleTheme, currency, changeCurrency } = useAuth();
 
     const handleThemeToggle = () => {
         toggleTheme();
@@ -64,6 +64,33 @@ const SettingsPage = () => {
                         <p className="text-sm text-gray-500 dark:text-gray-400">{t('selectPreferredLanguage')}</p>
                     </div>
                     <LanguageSwitcher />
+                </div>
+            </div>
+
+            {/* Currency Card */}
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-yellow-500/20 rounded-lg text-yellow-600 dark:text-yellow-400">
+                        <FiDollarSign size={24} />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('currency') || 'Currency'}</h3>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl transition-colors">
+                    <div>
+                        <p className="text-gray-900 dark:text-white font-medium">{t('storeCurrency') || 'Store Currency'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t('selectCurrency') || 'Select base currency'}</p>
+                    </div>
+                    <select
+                        value={currency}
+                        onChange={(e) => changeCurrency(e.target.value)}
+                        className="py-2 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
+                    >
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="TND">TND (د.ت)</option>
+                        <option value="GBP">GBP (£)</option>
+                    </select>
                 </div>
             </div>
         </div>

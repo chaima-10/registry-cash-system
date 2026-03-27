@@ -3,7 +3,12 @@ const prisma = require('../config/prisma');
 // Create Product
 exports.createProduct = async (req, res) => {
     try {
-        const { barcode, name, price, stockQuantity, categoryId, subcategoryId, remise } = req.body;
+        const { barcode, name, price, stockQuantity, categoryId, subcategoryId, remise, tva } = req.body;
+
+        // Strict EAN-13/UPC barcode validation: numeric only, 1-13 digits
+        if (!barcode || !/^\d{1,13}$/.test(barcode.trim())) {
+            return res.status(400).json({ message: 'Barcode must be numeric only (1-13 digits, e.g. EAN-13 or UPC)' });
+        }
 
         // Check if already exists
         const existing = await prisma.product.findUnique({ where: { barcode } });
@@ -19,6 +24,14 @@ exports.createProduct = async (req, res) => {
             }
         }
 
+        let validTva = 0;
+        if (tva !== undefined && tva !== null && tva !== '') {
+            validTva = parseFloat(tva);
+            if (isNaN(validTva) || validTva < 0) {
+                return res.status(400).json({ message: 'TVA must be a valid positive percentage' });
+            }
+        }
+
         const product = await prisma.product.create({
             data: {
                 barcode,
@@ -28,6 +41,7 @@ exports.createProduct = async (req, res) => {
                 categoryId: categoryId ? parseInt(categoryId) : null,
                 subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
                 remise: validRemise,
+                tva: validTva,
             },
             include: {
                 category: true,
@@ -81,7 +95,14 @@ exports.getProductByBarcode = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, price, stockQuantity, categoryId, subcategoryId, remise } = req.body;
+        const { name, price, stockQuantity, categoryId, subcategoryId, remise, tva, barcode } = req.body;
+
+        // If barcode is being updated, validate it
+        if (barcode !== undefined && barcode !== null && barcode !== '') {
+            if (!/^\d{1,13}$/.test(barcode.trim())) {
+                return res.status(400).json({ message: 'Barcode must be numeric only (1-13 digits)' });
+            }
+        }
 
         let updateData = {
             name,
@@ -91,12 +112,20 @@ exports.updateProduct = async (req, res) => {
             subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
         };
 
-        if (remise !== undefined && remise !== null) {
+        if (remise !== undefined && remise !== null && remise !== '') {
             let validRemise = parseFloat(remise);
             if (isNaN(validRemise) || validRemise < 0 || validRemise > 100) {
                 return res.status(400).json({ message: 'Remise must be a percentage between 0 and 100' });
             }
             updateData.remise = validRemise;
+        }
+
+        if (tva !== undefined && tva !== null && tva !== '') {
+            let validTva = parseFloat(tva);
+            if (isNaN(validTva) || validTva < 0) {
+                return res.status(400).json({ message: 'TVA must be a valid positive percentage' });
+            }
+            updateData.tva = validTva;
         }
 
         const product = await prisma.product.update({
