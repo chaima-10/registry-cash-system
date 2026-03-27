@@ -53,9 +53,11 @@ const Products = () => {
     });
 
     const getFilterSubcategories = () => {
-        if (!filterCategory) return [];
+        if (!filterCategory) {
+            return categories.flatMap(c => c.subcategories || []);
+        }
         const category = categories.find(c => c.id === parseInt(filterCategory));
-        return category ? category.subcategories : [];
+        return category ? category.subcategories || [] : [];
     };
 
     const handleOpenModal = (product = null) => {
@@ -106,9 +108,11 @@ const Products = () => {
     };
 
     const getSubcategories = () => {
-        if (!formData.categoryId) return [];
+        if (!formData.categoryId) {
+            return categories.flatMap(c => c.subcategories || []);
+        }
         const category = categories.find(c => c.id === parseInt(formData.categoryId));
-        return category ? category.subcategories : [];
+        return category ? category.subcategories || [] : [];
     };
 
     return (
@@ -156,9 +160,15 @@ const Products = () => {
 
                     <select
                         value={filterSubcategory}
-                        onChange={(e) => setFilterSubcategory(e.target.value)}
-                        disabled={!filterCategory}
-                        className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-50 shadow-sm"
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setFilterSubcategory(val);
+                            if (val && !filterCategory) {
+                                const parentCat = categories.find(c => c.subcategories?.some(s => s.id === parseInt(val)));
+                                if (parentCat) setFilterCategory(parentCat.id.toString());
+                            }
+                        }}
+                        className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
                     >
                         <option value="">{t('allSubcategories')}</option>
                         {getFilterSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -303,8 +313,17 @@ const Products = () => {
                                     </div>
                                     <div className="space-y-1">
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('subcategory')}</label>
-                                        <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all appearance-none disabled:opacity-50"
-                                            value={formData.subcategoryId} onChange={e => setFormData({ ...formData, subcategoryId: e.target.value })} disabled={!formData.categoryId}>
+                                        <select className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all appearance-none"
+                                            value={formData.subcategoryId}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                const parentCat = val ? categories.find(c => c.subcategories?.some(s => s.id === parseInt(val))) : null;
+                                                setFormData({ 
+                                                    ...formData, 
+                                                    subcategoryId: val,
+                                                    categoryId: parentCat ? parentCat.id.toString() : formData.categoryId
+                                                });
+                                            }}>
                                             <option value="">{t('selectSubcategory')}</option>
                                             {getSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
