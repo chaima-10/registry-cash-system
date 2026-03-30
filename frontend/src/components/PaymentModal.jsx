@@ -6,14 +6,23 @@ import { useAuth } from '../context/AuthContext';
 
 const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const { t } = useTranslation();
-    const { formatCurrency } = useAuth();
+    const { formatCurrency, exchangeRates, currency } = useAuth();
     const [selectedMethod, setSelectedMethod] = useState('CASH');
     const [cashTendered, setCashTendered] = useState('');
     const [processing, setProcessing] = useState(false);
 
-    const amount = Number(cart?.totalAmount) || 0;
+    // Convert raw USD amount to current display currency
+    const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
+    const amount = (Number(cart?.totalAmount) || 0) * rate;   // in display currency
     const tendered = parseFloat(cashTendered) || 0;
-    const change = tendered - amount;
+    const change = tendered - amount;                          // both in display currency
+
+    // Format a value that is already in display currency (no rate multiplication)
+    const formatRaw = (val) => {
+        try {
+            return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'USD' }).format(val);
+        } catch { return val.toFixed(2); }
+    };
 
     const handleConfirm = async () => {
         if (selectedMethod === 'CASH' && change < 0) {
@@ -63,7 +72,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                 <div className="space-y-6">
                                     <div className="p-6 bg-blue-50 dark:bg-blue-500/10 rounded-2xl border border-blue-100 dark:border-blue-500/20 transition-colors">
                                         <p className="text-blue-600 dark:text-blue-400 font-bold mb-1 uppercase text-xs tracking-wider">{t('totalAmount')}</p>
-                                        <p className="text-4xl font-black text-gray-900 dark:text-white">{formatCurrency(amount)}</p>
+                                        <p className="text-4xl font-black text-gray-900 dark:text-white">{formatRaw(amount)}</p>
                                     </div>
 
                                     <div className="space-y-3">
@@ -114,7 +123,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                                     <div className="flex justify-between items-center">
                                                         <span className="text-gray-500 dark:text-gray-400">{t('change') || 'Change'}:</span>
                                                         <span className={`font-bold ${change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                            {formatCurrency(Math.abs(change))}
+                                                            {formatRaw(Math.abs(change))}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -157,7 +166,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                                 <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
                                                 <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white">
                                                     <span>{t('total')}</span>
-                                                    <span>{formatCurrency(amount)}</span>
+                                                    <span>{formatRaw(amount)}</span>
                                                 </div>
                                             </div>
                                         </div>
