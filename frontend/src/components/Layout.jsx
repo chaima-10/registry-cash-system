@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    FiHome, FiBox, FiUsers, FiLogOut, FiMenu, FiX, FiShoppingCart, FiSettings, FiUser, FiMoon, FiSun, FiChevronDown
+    FiHome, FiBox, FiUsers, FiLogOut, FiMenu, FiX, FiShoppingCart, FiSettings, FiUser, FiMoon, FiSun, FiChevronDown, FiActivity
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -67,6 +67,7 @@ const Layout = () => {
         { to: '/pos', icon: FiShoppingCart, label: t('posTerminal') },
         { to: '/products', icon: FiBox, label: t('products') },
         { to: '/users', icon: FiUsers, label: t('users') },
+        { to: '/analytics', icon: FiActivity, label: 'AI Analytics' },
         // Settings moved to dropdown
     ];
 

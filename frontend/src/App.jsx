@@ -20,6 +20,7 @@ import POS from './pages/POS';
 
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
+import AIAnalytics from './pages/AIAnalytics';
 
 function AppRoutes() {
     return (
@@ -34,6 +35,7 @@ function AppRoutes() {
                 <Route path="/pos" element={<POS />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/analytics" element={<AIAnalytics />} />
             </Route>
         </Routes>
     );

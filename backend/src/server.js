@@ -32,6 +32,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/sales', saleRoutes);
+app.use('/api/ai', require('./routes/aiRoutes'));
 
 app.get('/', (req, res) => {
     res.send('Backend is running!');
