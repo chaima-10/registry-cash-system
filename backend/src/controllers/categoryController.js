@@ -56,3 +56,15 @@ exports.createSubcategory = async (req, res) => {
         res.status(500).json({ message: 'Error creating subcategory', error: error.message });
     }
 };
+
+// Get All Subcategories
+exports.getAllSubcategories = async (req, res) => {
+    try {
+        const subcategories = await prisma.subcategory.findMany({
+            include: { category: true }
+        });
+        res.json(subcategories);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching subcategories', error: error.message });
+    }
+};

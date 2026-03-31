@@ -79,4 +79,9 @@ router.post('/', categoryController.createCategory);
  */
 router.post('/sub', categoryController.createSubcategory);
 
+// Added missing GET routes for subcategories
+router.get('/sub', categoryController.getAllSubcategories);
+router.get('/allsubcategory', categoryController.getAllSubcategories);
+router.get('/subcategories', categoryController.getAllSubcategories);
+
 module.exports = router;
