@@ -83,6 +83,7 @@ model Product {
   id            Int          @id @default(autoincrement())
   barcode       String       @unique
   name          String
+  purchasePrice Decimal      @default(0.00) @db.Decimal(10, 2)
   price         Decimal      @db.Decimal(10, 2)
   stockQuantity Int          @default(0)
   remise        Decimal      @default(0) @db.Decimal(5, 2)

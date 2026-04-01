@@ -3,7 +3,7 @@ import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiCamera } from 'react-icons/
 import { motion, AnimatePresence } from 'framer-motion';
 import CameraScannerModal from '../components/CameraScannerModal';
 import { getAllProducts, createProduct, updateProduct, deleteProduct } from '../api/products';
-import { getAllCategories } from '../api/categories';
+import { getAllCategories, createCategory, createSubcategory } from '../api/categories';
 import Barcode from 'react-barcode';
 
 import { useTranslation } from 'react-i18next';
@@ -34,7 +34,7 @@ const Products = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentProductId, setCurrentProductId] = useState(null);
     const [formData, setFormData] = useState({
-        barcode: '', name: '', price: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: ''
+        barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: ''
     });
 
     useEffect(() => {
@@ -71,6 +71,37 @@ const Products = () => {
         return category ? category.subcategories || [] : [];
     };
 
+    const handleCreateCategory = async () => {
+        const name = window.prompt(t('newCategory') || "Nouvelle Catégorie");
+        if (name) {
+            try {
+                const res = await createCategory({ name });
+                await fetchData();
+                setFilterCategory(res.id.toString());
+                setFilterSubcategory('');
+            } catch (error) {
+                alert("Erreur lors de la création de la catégorie");
+            }
+        }
+    };
+
+    const handleCreateSubcategory = async () => {
+        if (!filterCategory) {
+            alert(parseInt(formData.categoryId) ? "Veuillez sélectionner la catégorie principale dans le filtre d'en haut pour ajouter une sous-catégorie." : "Sélectionnez d'abord une catégorie principale dans la liste déroulante d'en haut.");
+            return;
+        }
+        const name = window.prompt(t('newSubcategory') || "Nouvelle Sous-Catégorie");
+        if (name) {
+            try {
+                const res = await createSubcategory({ name, categoryId: filterCategory });
+                await fetchData();
+                setFilterSubcategory(res.id.toString());
+            } catch (error) {
+                alert("Erreur lors de la création de la sous-catégorie");
+            }
+        }
+    };
+
     const handleOpenModal = (product = null) => {
         if (product) {
             setIsEditing(true);
@@ -79,6 +110,7 @@ const Products = () => {
                 barcode: product.barcode,
                 name: product.name,
                 price: product.price,
+                purchasePrice: product.purchasePrice || '',
                 stockQuantity: product.stockQuantity,
                 categoryId: product.categoryId || '',
                 subcategoryId: product.subcategoryId || '',
@@ -88,7 +120,7 @@ const Products = () => {
         } else {
             setIsEditing(false);
             setCurrentProductId(null);
-            setFormData({ barcode: '', name: '', price: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '' });
+            setFormData({ barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '' });
         }
         setIsModalOpen(true);
     };
@@ -104,7 +136,7 @@ const Products = () => {
             setIsModalOpen(false);
             fetchData(); // Refresh list
         } catch (error) {
-            alert(`Failed to ${isEditing ? 'update' : 'create'} product: ` + (error.response?.data?.message || error.message));
+            alert(`Failed to ${isEditing ? 'update' : 'create'} product: ` + (error.response?.data?.error || error.response?.data?.message || error.message));
         }
     };
 
@@ -160,31 +192,41 @@ const Products = () => {
                         <FiCamera size={22} />
                     </button>
                 </div>
-                <div className="flex gap-4">
-                    <select
-                        value={filterCategory}
-                        onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory(''); }}
-                        className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
-                    >
-                        <option value="">{t('allCategories')}</option>
-                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex gap-1">
+                        <select
+                            value={filterCategory}
+                            onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory(''); }}
+                            className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
+                        >
+                            <option value="">{t('allCategories', 'Toutes les catégories')}</option>
+                            {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <button type="button" onClick={handleCreateCategory} className="p-3 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-800/60 text-blue-600 dark:text-blue-400 rounded-xl transition-colors shrink-0" title="Nouvelle catégorie">
+                            <FiPlus />
+                        </button>
+                    </div>
 
-                    <select
-                        value={filterSubcategory}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setFilterSubcategory(val);
-                            if (val && !filterCategory) {
-                                const parentCat = categories.find(c => c.subcategories?.some(s => s.id === parseInt(val)));
-                                if (parentCat) setFilterCategory(parentCat.id.toString());
-                            }
-                        }}
-                        className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
-                    >
-                        <option value="">{t('allSubcategories')}</option>
-                        {getFilterSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
+                    <div className="flex gap-1">
+                        <select
+                            value={filterSubcategory}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setFilterSubcategory(val);
+                                if (val && !filterCategory) {
+                                    const parentCat = categories.find(c => c.subcategories?.some(s => s.id === parseInt(val)));
+                                    if (parentCat) setFilterCategory(parentCat.id.toString());
+                                }
+                            }}
+                            className="py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-700 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
+                        >
+                            <option value="">{t('allSubcategories', 'Toutes les sous-catégories')}</option>
+                            {getFilterSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <button type="button" onClick={handleCreateSubcategory} disabled={!filterCategory} className="p-3 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" title="Nouvelle sous-catégorie">
+                            <FiPlus />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -199,7 +241,8 @@ const Products = () => {
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('category')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('subcategory')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('stock')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('price')} (HT)</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">Prix d'Achat</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">Prix Vente (HT)</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('remise') || 'Remise'} %</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">TVA %</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('price')} (TTC)</th>
@@ -237,6 +280,7 @@ const Products = () => {
                                                 {product.stockQuantity}
                                             </span>
                                         </td>
+                                        <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">{formatCurrency(Number(product.purchasePrice || 0))}</td>
                                         <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">{formatCurrency(Number(product.price))}</td>
                                         <td className="p-4 text-right text-green-600 dark:text-green-400 font-bold">
                                             {product.remise ? `${product.remise}%` : '-'}
@@ -323,12 +367,20 @@ const Products = () => {
                                         value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('price')} (HT)</label>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">Prix d'Achat</label>
+                                        <input type="number" step="0.01" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
+                                            value={formData.purchasePrice} onChange={e => setFormData({ ...formData, purchasePrice: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">Prix Vente (HT)</label>
                                         <input required type="number" step="0.01" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                                     </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">Remise (%)</label>
                                         <input type="number" step="1" max="100" min="0" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"

@@ -15,7 +15,6 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Users from './pages/Users';
-import Categories from './pages/Categories';
 import POS from './pages/POS';
 
 import ProfilePage from './pages/ProfilePage';

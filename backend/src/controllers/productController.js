@@ -3,7 +3,7 @@ const prisma = require('../config/prisma');
 // Create Product
 exports.createProduct = async (req, res) => {
     try {
-        const { barcode, name, price, stockQuantity, categoryId, subcategoryId, remise, tva } = req.body;
+        const { barcode, name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva } = req.body;
 
         // Strict EAN-13/UPC barcode validation: numeric only, 1-13 digits
         if (!barcode || !/^\d{1,13}$/.test(barcode.trim())) {
@@ -37,6 +37,7 @@ exports.createProduct = async (req, res) => {
                 barcode,
                 name,
                 price: parseFloat(price),
+                purchasePrice: purchasePrice !== undefined && purchasePrice !== '' ? parseFloat(purchasePrice) : 0,
                 stockQuantity: parseInt(stockQuantity),
                 categoryId: categoryId ? parseInt(categoryId) : null,
                 subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
@@ -95,7 +96,7 @@ exports.getProductByBarcode = async (req, res) => {
 exports.updateProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, price, stockQuantity, categoryId, subcategoryId, remise, tva, barcode } = req.body;
+        const { name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva, barcode } = req.body;
 
         // If barcode is being updated, validate it
         if (barcode !== undefined && barcode !== null && barcode !== '') {
@@ -107,6 +108,7 @@ exports.updateProduct = async (req, res) => {
         let updateData = {
             name,
             price: price !== undefined ? parseFloat(price) : undefined,
+            purchasePrice: purchasePrice !== undefined && purchasePrice !== '' ? parseFloat(purchasePrice) : undefined,
             stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : undefined,
             categoryId: categoryId ? parseInt(categoryId) : null,
             subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
