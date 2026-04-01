@@ -152,10 +152,30 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
     try {
         const { id } = req.params;
-        await prisma.product.delete({
-            where: { id: parseInt(id) },
+        const productId = parseInt(id);
+
+        // Vérifier si le produit est lié à des ventes
+        const existingSales = await prisma.saleItem.findFirst({
+            where: { productId }
         });
-        res.json({ message: 'Product deleted' });
+
+        if (existingSales) {
+            return res.status(400).json({ 
+                message: 'Impossible de supprimer ce produit car il est lié à un historique de ventes existant. Vous devriez plutôt désactiver le produit ou mettre son stock à zéro.' 
+            });
+        }
+
+        // Nettoyer les chariots actifs (qui n'ont pas encore été convertis en ventes)
+        await prisma.cartItem.deleteMany({
+            where: { productId }
+        });
+
+        // Supprimer le produit
+        await prisma.product.delete({
+            where: { id: productId },
+        });
+        
+        res.json({ message: 'Product deleted successfully' });
     } catch (error) {
         if (error.code === 'P2025') {
             return res.status(404).json({ message: 'Product not found' });
