@@ -18,9 +18,13 @@ const Users = () => {
     const fetchUsers = async () => {
         try {
             const data = await getUsers();
-            setUsers(data);
+            setUsers(data || []);
         } catch (error) {
             console.error("Error fetching users:", error);
+            setMessage({ 
+                type: 'error', 
+                text: error.response?.data?.message || t('errorFetchingUsers', 'Erreur lors du chargement des utilisateurs.') 
+            });
         }
     };
 

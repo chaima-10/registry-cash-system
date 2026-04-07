@@ -43,25 +43,25 @@ exports.getAllUsers = async (req, res) => {
         });
 
         const usersWithStats = users.map(user => {
-            const workedDaysCount = activityMap[user.id] ? activityMap[user.id].size : 0;
-            const absencesCount = Math.max(0, daysInMonthSoFar - workedDaysCount);
+            const workedDays = (activityMap[user.id] && activityMap[user.id].size) || 0;
+            const absences = Math.max(0, daysInMonthSoFar - workedDays);
+            const rate = Number(user.salary || 0);
             
-            // monthlySalary = dailyRate (user.salary) * workedDays
-            const dailyRate = parseFloat(user.salary || 0);
-            const monthlySalary = workedDaysCount * dailyRate;
-
             return {
                 ...user,
-                workedDays: workedDaysCount, // Overwrite/Add field
-                absences: absencesCount,
-                monthlySalary: monthlySalary.toFixed(2)
+                workedDays,
+                absences,
+                monthlySalary: (workedDays * rate).toFixed(2)
             };
         });
 
         res.json(usersWithStats);
     } catch (error) {
-        console.error('Error fetching users with stats:', error);
-        res.status(500).json({ message: 'Server error', error: error.message });
+        console.error("Aggregation Error in getAllUsers:", error);
+        res.status(500).json({ 
+            message: 'Erreur lors de la récupération des statistiques.',
+            error: error.message 
+        });
     }
 };
 

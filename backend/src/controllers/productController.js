@@ -83,6 +83,10 @@ exports.createProduct = async (req, res) => {
 // Get All Products
 exports.getAllProducts = async (req, res) => {
     try {
+        console.log('--- FETCH ALL PRODUCTS START ---');
+        const count = await prisma.product.count();
+        console.log('Database product count:', count);
+
         const products = await prisma.product.findMany({
             include: {
                 category: true,
@@ -92,9 +96,20 @@ exports.getAllProducts = async (req, res) => {
                 createdAt: 'desc'
             }
         });
+        
+        console.log('Products found by findMany:', products.length);
+        if (products.length > 0) {
+            console.log('First product sample:', JSON.stringify(products[0]).substring(0, 100));
+        }
+
         res.json(products);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching products', error: error.message });
+        console.error('CRITICAL Error fetching products:', error);
+        res.status(500).json({ 
+            message: 'Erreur lors du chargement des produits.', 
+            error: error.message,
+            stack: error.stack
+        });
     }
 };
 
@@ -184,7 +199,7 @@ exports.deleteProduct = async (req, res) => {
         const productId = parseInt(id);
 
         // Vérifier si le produit est lié à des ventes
-        const existingSales = await prisma.saleItem.findFirst({
+        const existingSales = await prisma.saleitem.findFirst({
             where: { productId }
         });
 
@@ -195,7 +210,7 @@ exports.deleteProduct = async (req, res) => {
         }
 
         // Nettoyer les chariots actifs (qui n'ont pas encore été convertis en ventes)
-        await prisma.cartItem.deleteMany({
+        await prisma.cartitem.deleteMany({
             where: { productId }
         });
 

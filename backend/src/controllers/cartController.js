@@ -85,12 +85,12 @@ exports.addToCart = async (req, res) => {
         const queries = [];
 
         if (existingItemIndex !== -1) {
-            queries.push(prisma.cartItem.update({
+            queries.push(prisma.cartitem.update({
                 where: { id: cart.items[existingItemIndex].id },
                 data: { quantity: newQuantity, subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount, priceTTC }
             }));
         } else {
-            queries.push(prisma.cartItem.create({
+            queries.push(prisma.cartitem.create({
                 data: {
                     cartId: cart.id,
                     productId: parseInt(productId),
@@ -127,7 +127,7 @@ exports.updateCartItem = async (req, res) => {
 
         if (quantity < 0) return res.status(400).json({ message: 'Invalid quantity' });
 
-        const item = await prisma.cartItem.findUnique({
+        const item = await prisma.cartitem.findUnique({
             where: { id: parseInt(itemId) },
             include: { product: true, cart: { include: { items: true } } }
         });
@@ -161,9 +161,9 @@ exports.updateCartItem = async (req, res) => {
         const queries = [];
 
         if (quantity === 0) {
-            queries.push(prisma.cartItem.delete({ where: { id: parseInt(itemId) } }));
+            queries.push(prisma.cartitem.delete({ where: { id: parseInt(itemId) } }));
         } else {
-            queries.push(prisma.cartItem.update({
+            queries.push(prisma.cartitem.update({
                 where: { id: parseInt(itemId) },
                 data: { quantity: parseInt(quantity), subtotal: newSubtotalHT, tvaRate, tvaAmount: newTvaAmount, priceTTC }
             }));
@@ -188,7 +188,7 @@ exports.updateCartItem = async (req, res) => {
 exports.removeFromCart = async (req, res) => {
     try {
         const { itemId } = req.params;
-        const item = await prisma.cartItem.findUnique({
+        const item = await prisma.cartitem.findUnique({
             where: { id: parseInt(itemId) },
             include: { cart: { include: { items: true } } }
         });
@@ -204,7 +204,7 @@ exports.removeFromCart = async (req, res) => {
         const cartTotalAmount = cartSubtotalHT + cartTvaAmount;
 
         const queries = [
-            prisma.cartItem.delete({ where: { id: parseInt(itemId) } }),
+            prisma.cartitem.delete({ where: { id: parseInt(itemId) } }),
             prisma.cart.update({
                 where: { id: cart.id },
                 data: { subtotalHT: cartSubtotalHT, tvaAmount: cartTvaAmount, totalAmount: cartTotalAmount },
@@ -229,7 +229,7 @@ exports.clearCart = async (req, res) => {
 
         if (cart) {
             await prisma.$transaction([
-                prisma.cartItem.deleteMany({ where: { cartId: cart.id } }),
+                prisma.cartitem.deleteMany({ where: { cartId: cart.id } }),
                 prisma.cart.update({ where: { id: cart.id }, data: { subtotalHT: 0, tvaAmount: 0, totalAmount: 0 } })
             ]);
         }
