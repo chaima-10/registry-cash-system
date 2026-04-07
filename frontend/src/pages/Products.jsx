@@ -338,7 +338,7 @@ const Products = () => {
                                     <div className="space-y-1">
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('barcode')}</label>
                                         <div className="flex gap-2">
-                                            <input required type="text" pattern="\d{1,13}" title="Barcode must be numeric digits only (1-13 digits)"
+                                            <input required type="text" pattern="\d{12,13}" title="Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)"
                                                 className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all font-mono"
                                                 value={formData.barcode}
                                                 onChange={e => setFormData({ ...formData, barcode: e.target.value.replace(/\D/g, '').slice(0, 13) })}

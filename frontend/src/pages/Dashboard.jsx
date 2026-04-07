@@ -105,11 +105,11 @@ const Dashboard = () => {
     // Relative Time Formatter
     const timeAgo = (dateStr) => {
         const min = Math.floor((new Date() - new Date(dateStr)) / 60000);
-        if (min < 1) return `À l'instant`;
-        if (min < 60) return `Il y a ${min} min`;
+        if (min < 1) return t('justNow', "À l'instant");
+        if (min < 60) return t('minutesAgo', 'Il y a {{min}} min', { min });
         const hr = Math.floor(min/60);
-        if (hr < 24) return `Il y a ${hr} h`;
-        return `Il y a ${Math.floor(hr/24)} jours`;
+        if (hr < 24) return t('hoursAgo', 'Il y a {{hr}} h', { hr });
+        return t('daysAgo', 'Il y a {{days}} jours', { days: Math.floor(hr/24) });
     }
 
     if (loading) {
@@ -120,17 +120,17 @@ const Dashboard = () => {
         <div className="space-y-6">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Revenu du Jour" value={formatCurrency(revToday)} subtitle={`${countToday} transactions aujourd'hui`} icon={FiDollarSign} color="bg-green-500" />
-                <StatCard title="Revenu Semaine (7j)" value={formatCurrency(revWeek)} icon={FiActivity} color="bg-blue-500" />
-                <StatCard title="Revenu du Mois" value={formatCurrency(revMonth)} icon={FiPieChart} color="bg-purple-500" />
-                <StatCard title="Valeur du Stock (Revente)" value={formatCurrency(inventoryValue)} icon={FiBox} color="bg-orange-500" />
+                <StatCard title={t('revenueToday', 'Revenu du Jour')} value={formatCurrency(revToday)} subtitle={t('transactionsToday', '{{count}} transactions aujourd\'hui', { count: countToday })} icon={FiDollarSign} color="bg-green-500" />
+                <StatCard title={t('revenueWeek', 'Revenu Semaine (7j)')} value={formatCurrency(revWeek)} icon={FiActivity} color="bg-blue-500" />
+                <StatCard title={t('revenueMonth', 'Revenu du Mois')} value={formatCurrency(revMonth)} icon={FiPieChart} color="bg-purple-500" />
+                <StatCard title={t('inventoryValue', 'Valeur du Stock (Revente)')} value={formatCurrency(inventoryValue)} icon={FiBox} color="bg-orange-500" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
                 {/* Recent Transactions */}
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl transition-colors">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FiClock className="text-blue-500"/> Dernières Transactions</h3>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FiClock className="text-blue-500"/> {t('recentTransactions', 'Dernières Transactions')}</h3>
                     <div className="space-y-4">
                         {recentTransactions.map((tx, i) => (
                             <div key={i} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl transition-colors">
@@ -139,8 +139,8 @@ const Dashboard = () => {
                                         {tx.user?.username?.charAt(0) || 'U'}
                                     </div>
                                     <div>
-                                        <p className="text-gray-900 dark:text-white font-bold">Ticket #{tx.id}</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">Encaissement : {tx.user?.username || 'Gérant'} • {timeAgo(tx.createdAt)}</p>
+                                        <p className="text-gray-900 dark:text-white font-bold">{t('ticketNumber', 'Ticket #{{id}}', { id: tx.id })}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('cashedBy', 'Encaissement : {{name}}', { name: tx.user?.username || 'Gérant' })} • {timeAgo(tx.createdAt)}</p>
                                     </div>
                                 </div>
                                 <span className="text-gray-900 dark:text-white font-black text-lg bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-3 py-1 rounded-lg">
@@ -148,14 +148,14 @@ const Dashboard = () => {
                                 </span>
                             </div>
                         ))}
-                        {recentTransactions.length === 0 && <p className="text-gray-500 text-sm">Aucune transaction enregistrée.</p>}
+                        {recentTransactions.length === 0 && <p className="text-gray-500 text-sm">{t('noTransactionsFound', 'Aucune transaction enregistrée.')}</p>}
                     </div>
                 </div>
 
                 {/* Cashier Performance */}
                 <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl transition-colors">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FiAward className="text-yellow-500"/> Performances par Caissier</h3>
-                    <p className="text-sm text-gray-500 mb-6">Classement basé sur le Chiffre d'Affaires total généré par chaque employé (historique complet).</p>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2"><FiAward className="text-yellow-500"/> {t('cashierPerformance', 'Performances par Caissier')}</h3>
+                    <p className="text-sm text-gray-500 mb-6">{t('cashierPerformanceDesc', 'Classement basé sur le Chiffre d\'Affaires total généré par chaque employé (historique complet).')}</p>
                     <div className="space-y-6 mt-6">
                         {topCashiers.map((cashier, i) => (
                             <div key={i} className="relative">
@@ -169,7 +169,7 @@ const Dashboard = () => {
                                     </span>
                                     <div className="text-right">
                                         <div className="font-black text-gray-700 dark:text-gray-300">{formatCurrency(cashier.revenue)}</div>
-                                        <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{cashier.count} tickets générés</div>
+                                        <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{t('ticketsGenerated', '{{count}} tickets générés', { count: cashier.count })}</div>
                                     </div>
                                 </div>
                                 <div className="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3 overflow-hidden shadow-inner">
@@ -181,7 +181,7 @@ const Dashboard = () => {
                                 </div>
                             </div>
                         ))}
-                        {topCashiers.length === 0 && <p className="text-gray-500 text-sm">Aucune donnée de caissier.</p>}
+                        {topCashiers.length === 0 && <p className="text-gray-500 text-sm">{t('noCashierData', 'Aucune donnée de caissier.')}</p>}
                     </div>
                 </div>
 

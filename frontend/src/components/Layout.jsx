@@ -62,14 +62,19 @@ const Layout = () => {
     // Unified theme toggle now handled in AuthContext
     // const toggleTheme = () => { ... } is no longer needed locally
 
+    // Definition des onglets du menu
     const menuItems = [
-        { to: '/', icon: FiHome, label: t('dashboard') },
-        { to: '/pos', icon: FiShoppingCart, label: t('posTerminal') },
-        { to: '/products', icon: FiBox, label: t('products') },
-        { to: '/users', icon: FiUsers, label: t('users') },
-        { to: '/analytics', icon: FiActivity, label: 'AI Analytics' },
-        // Settings moved to dropdown
+        { to: '/', icon: FiHome, label: t('dashboard'), adminOnly: true },
+        { to: '/pos', icon: FiShoppingCart, label: t('posTerminal'), adminOnly: false },
+        { to: '/products', icon: FiBox, label: t('products'), adminOnly: true },
+        { to: '/users', icon: FiUsers, label: t('users'), adminOnly: true },
+        { to: '/analytics', icon: FiActivity, label: 'AI Analytics', adminOnly: true },
     ];
+
+    // Filtrer le menu pour le caissier
+    const visibleMenuItems = menuItems.filter(item => 
+        user?.role === 'admin' || !item.adminOnly
+    );
 
     const getPageTitle = () => {
         const item = menuItems.find(i => i.to === location.pathname);
@@ -108,7 +113,7 @@ const Layout = () => {
 
                 {/* Navigation */}
                 <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto custom-scrollbar">
-                    {menuItems.map(item => (
+                    {visibleMenuItems.map(item => (
                         <SidebarItem key={item.to} {...item} collapsed={collapsed} />
                     ))}
                 </nav>

@@ -5,9 +5,9 @@ exports.createProduct = async (req, res) => {
     try {
         const { barcode, name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva } = req.body;
 
-        // Strict EAN-13/UPC barcode validation: numeric only, 1-13 digits
-        if (!barcode || !/^\d{1,13}$/.test(barcode.trim())) {
-            return res.status(400).json({ message: 'Barcode must be numeric only (1-13 digits, e.g. EAN-13 or UPC)' });
+        // Strict EAN-13/UPC-A barcode validation: numeric only, exactly 12 or 13 digits
+        if (!barcode || !/^\d{12,13}$/.test(barcode.trim())) {
+            return res.status(400).json({ message: 'Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)' });
         }
 
         // Check if already exists
@@ -100,8 +100,8 @@ exports.updateProduct = async (req, res) => {
 
         // If barcode is being updated, validate it
         if (barcode !== undefined && barcode !== null && barcode !== '') {
-            if (!/^\d{1,13}$/.test(barcode.trim())) {
-                return res.status(400).json({ message: 'Barcode must be numeric only (1-13 digits)' });
+            if (!/^\d{12,13}$/.test(barcode.trim())) {
+                return res.status(400).json({ message: 'Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)' });
             }
         }
 

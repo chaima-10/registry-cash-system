@@ -10,17 +10,12 @@ import {
 } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
-const TABS = [
-    { id: 'overview', label: "Vue d'ensemble", icon: FiPieChart },
-    { id: 'products', label: 'Produits & Promos', icon: FiBox },
-    { id: 'forecasts', label: 'Prévisions', icon: FiTrendingUp },
-    { id: 'behavior', label: 'Comportement', icon: FiCalendar },
-    { id: 'anomalies', label: 'Anomalies', icon: FiActivity },
-    { id: 'alerts', label: 'Alertes stock', icon: FiAlertCircle },
-];
+// Tabs will be defined inside to support translation
 
 const AIAnalytics = () => {
+    const { t } = useTranslation();
     const { formatCurrency } = useAuth();
     const [activeTab, setActiveTab] = useState('overview');
     const [topProductsSortBy, setTopProductsSortBy] = useState('revenue');
@@ -538,7 +533,14 @@ ${salesData}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Tabs */}
                 <div className="flex space-x-2 mb-6 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar">
-                    {TABS.map(tab => (
+                    {[
+                        { id: 'overview', label: t('tabOverview', "Vue d'ensemble"), icon: FiPieChart },
+                        { id: 'products', label: t('tabProductsPromos', 'Produits & Promos'), icon: FiBox },
+                        { id: 'forecasts', label: t('tabForecasts', 'Prévisions'), icon: FiTrendingUp },
+                        { id: 'behavior', label: t('tabBehavior', 'Comportement'), icon: FiCalendar },
+                        { id: 'anomalies', label: t('tabAnomalies', 'Anomalies'), icon: FiActivity },
+                        { id: 'alerts', label: t('tabAlerts', 'Alertes stock'), icon: FiAlertCircle },
+                    ].map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
@@ -624,7 +626,7 @@ ${salesData}
                             type="text"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
-                            placeholder="Demandez une analyse..."
+                            placeholder={t('askAiPlaceholder', 'Demandez une analyse...')}
                             className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm text-sm"
                         />
                         <button
