@@ -108,13 +108,21 @@ const AIAnalytics = () => {
         sales.forEach(sale => {
             if (sale.items) {
                 sale.items.forEach(item => {
-                    if (!map[item.productId]) map[item.productId] = { id: item.productId, name: item.product?.name || `Produit ${item.productId}`, revenue: 0, qty: 0 };
+                    if (!map[item.productId]) map[item.productId] = { id: item.productId, name: item.product?.name || `Produit ${item.productId}`, imageUrl: item.product?.imageUrl || null, revenue: 0, qty: 0 };
                     map[item.productId].revenue += parseFloat(item.subtotal || 0);
                     map[item.productId].qty += item.quantity;
                 });
             }
         });
-        return Object.values(map)
+        // Also enrich from products list if imageUrl not already set from sale items
+        const result = Object.values(map);
+        result.forEach(p => {
+            if (!p.imageUrl) {
+                const found = products.find(pr => pr.id === p.id);
+                if (found) p.imageUrl = found.imageUrl || null;
+            }
+        });
+        return result
             .sort((a, b) => topProductsSortBy === 'revenue' ? b.revenue - a.revenue : b.qty - a.qty)
             .slice(0, 5);
     };
@@ -330,9 +338,16 @@ ${salesData}
                                 </div>
                                 <div className="space-y-3">
                                     {getTopProducts().map((p, i) => (
-                                        <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                                            <span className="font-medium dark:text-white">{p.name}</span>
-                                            <div className="text-right">
+                                        <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                                                {p.imageUrl ? (
+                                                    <img src={`${import.meta.env.VITE_API_URL}${p.imageUrl}`} alt={p.name} className="w-full h-full object-contain" />
+                                                ) : (
+                                                    <span className="text-[10px] font-black text-gray-400">{p.name.substring(0, 2).toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <span className="font-medium dark:text-white flex-1 truncate">{p.name}</span>
+                                            <div className="text-right shrink-0">
                                                 <div className="font-bold text-green-600 dark:text-green-400">{formatCurrency(p.revenue)}</div>
                                                 <div className="text-xs text-gray-500">{p.qty} vendus</div>
                                             </div>
@@ -347,12 +362,19 @@ ${salesData}
                                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><FiAlertCircle className="text-orange-500" /> Les Plus Lents</h3>
                                 <div className="space-y-3">
                                     {slowOverviewProds.map((p, i) => (
-                                        <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                                            <div>
-                                                <span className="font-medium dark:text-white block">{p.name}</span>
+                                        <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0">
+                                                {p.imageUrl ? (
+                                                    <img src={`${import.meta.env.VITE_API_URL}${p.imageUrl}`} alt={p.name} className="w-full h-full object-contain" />
+                                                ) : (
+                                                    <span className="text-[10px] font-black text-gray-400">{p.name.substring(0, 2).toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <span className="font-medium dark:text-white block truncate">{p.name}</span>
                                                 <span className="text-xs text-gray-500">Stock restant: {p.stockQuantity}</span>
                                             </div>
-                                            <div className="text-right">
+                                            <div className="text-right shrink-0">
                                                 <div className="font-bold text-orange-600 dark:text-orange-400">Promo IA: {p.suggestedDiscount}</div>
                                                 <div className="text-[10px] text-gray-500">Ventes trop faibles</div>
                                             </div>
@@ -499,13 +521,22 @@ ${salesData}
                                         a.urgency === 'high' ? 'bg-red-50 border-red-100 dark:bg-red-900/10 dark:border-red-800/50' : 'bg-orange-50 border-orange-100 dark:bg-orange-900/10 dark:border-orange-800/50'
                                     }`}>
                                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}></div>
-                                        <div>
-                                            <p className={`font-bold ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>
-                                                {a.p.name}
-                                            </p>
-                                            <p className={`text-sm mt-1 font-medium ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>
-                                                {a.reason}
-                                            </p>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0 ml-2">
+                                                {a.p.imageUrl ? (
+                                                    <img src={`${import.meta.env.VITE_API_URL}${a.p.imageUrl}`} alt={a.p.name} className="w-full h-full object-contain" />
+                                                ) : (
+                                                    <span className="text-[10px] font-black text-gray-400">{a.p.name.substring(0, 2).toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className={`font-bold ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                                                    {a.p.name}
+                                                </p>
+                                                <p className={`text-sm mt-1 font-medium ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>
+                                                    {a.reason}
+                                                </p>
+                                            </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
                                             <span className={`px-3 py-1 text-white font-bold rounded-lg text-sm ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}>

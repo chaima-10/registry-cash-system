@@ -32,6 +32,8 @@ exports.createProduct = async (req, res) => {
             }
         }
 
+        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
         const product = await prisma.product.create({
             data: {
                 barcode,
@@ -43,6 +45,7 @@ exports.createProduct = async (req, res) => {
                 subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
                 remise: validRemise,
                 tva: validTva,
+                imageUrl: imageUrl,
             },
             include: {
                 category: true,
@@ -128,6 +131,10 @@ exports.updateProduct = async (req, res) => {
                 return res.status(400).json({ message: 'TVA must be a valid positive percentage' });
             }
             updateData.tva = validTva;
+        }
+
+        if (req.file) {
+            updateData.imageUrl = `/uploads/${req.file.filename}`;
         }
 
         const product = await prisma.product.update({

@@ -36,6 +36,10 @@ const Products = () => {
     const [formData, setFormData] = useState({
         barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: ''
     });
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+
+    const API_URL = import.meta.env.VITE_API_URL;
 
     useEffect(() => {
         fetchData();
@@ -122,16 +126,26 @@ const Products = () => {
             setCurrentProductId(null);
             setFormData({ barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '' });
         }
+        setImageFile(null);
+        setImagePreview(product?.imageUrl ? `${API_URL}${product.imageUrl}` : null);
         setIsModalOpen(true);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const data = new FormData();
+            Object.keys(formData).forEach(key => {
+                data.append(key, formData[key]);
+            });
+            if (imageFile) {
+                data.append('image', imageFile);
+            }
+
             if (isEditing) {
-                await updateProduct(currentProductId, formData);
+                await updateProduct(currentProductId, data);
             } else {
-                await createProduct(formData);
+                await createProduct(data);
             }
             setIsModalOpen(false);
             fetchData(); // Refresh list
@@ -236,6 +250,7 @@ const Products = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50/50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800">
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('image') || 'Img'}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('barcode')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('name')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('category')}</th>
@@ -257,6 +272,15 @@ const Products = () => {
                             ) : (
                                 filteredProducts.map(product => (
                                     <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                                        <td className="p-4">
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                                                {product.imageUrl ? (
+                                                    <img src={`${API_URL}${product.imageUrl}`} alt={product.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-[10px] font-bold text-gray-400">{product.name.substring(0, 2).toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="p-4">
                                             <div className="bg-white px-2 py-1 rounded inline-block">
                                                 <Barcode value={product.barcode} width={1} height={25} fontSize={10} margin={0} background="transparent" />
@@ -418,6 +442,41 @@ const Products = () => {
                                             <option value="">{t('selectSubcategory')}</option>
                                             {getSubcategories().map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('productImage') || 'Image du Produit'}</label>
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800">
+                                            {imagePreview ? (
+                                                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <FiCamera size={24} className="text-gray-400" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <input 
+                                                type="file" 
+                                                accept="image/*" 
+                                                id="product-image"
+                                                className="hidden" 
+                                                onChange={(e) => {
+                                                    const file = e.target.files[0];
+                                                    if (file) {
+                                                        setImageFile(file);
+                                                        setImagePreview(URL.createObjectURL(file));
+                                                    }
+                                                }}
+                                            />
+                                            <label 
+                                                htmlFor="product-image"
+                                                className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-bold transition-all border border-gray-200 dark:border-gray-700 inline-block"
+                                            >
+                                                {t('chooseFile') || 'Choisir un fichier'}
+                                            </label>
+                                            <p className="text-[10px] text-gray-500 mt-1">PNG, JPG up to 5MB</p>
+                                        </div>
                                     </div>
                                 </div>
 

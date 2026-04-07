@@ -88,6 +88,7 @@ model Product {
   stockQuantity Int          @default(0)
   remise        Decimal      @default(0) @db.Decimal(5, 2)
   tva           Decimal      @default(0.00) @db.Decimal(5, 2)
+  imageUrl      String?      @db.Text
 
   // Relations
   categoryId    Int?

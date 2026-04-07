@@ -197,16 +197,28 @@ const POS = () => {
                                 onClick={() => handleAddToCart(product)}
                                 className="bg-white dark:bg-gray-800 p-4 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 group shadow-sm hover:shadow-md"
                             >
-                                <div className="h-24 bg-gray-100 dark:bg-gray-900 rounded-lg mb-3 flex items-center justify-center text-gray-400 dark:text-gray-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 relative transition-colors">
-                                    <span className="text-2xl font-bold">{product.name.substring(0, 2).toUpperCase()}</span>
+                                {/* Image / Placeholder */}
+                                <div className="h-24 bg-gray-100 dark:bg-gray-900 rounded-lg mb-3 flex items-center justify-center relative transition-colors overflow-hidden">
+                                    {product.imageUrl ? (
+                                        <img
+                                            src={`${import.meta.env.VITE_API_URL}${product.imageUrl}`}
+                                            alt={product.name}
+                                            className="w-full h-full object-contain"
+                                        />
+                                    ) : (
+                                        <span className="text-2xl font-bold text-gray-400 dark:text-gray-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                                            {product.name.substring(0, 2).toUpperCase()}
+                                        </span>
+                                    )}
                                     {product.remise > 0 && (
                                         <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg shadow-red-500/30">
                                             -{product.remise}%
                                         </div>
                                     )}
                                 </div>
+
                                 <h3 className="font-bold text-lg mb-2 truncate text-gray-900 dark:text-white text-center">{product.name}</h3>
-                                
+
                                 <div className="flex justify-center mb-3">
                                     <div className="bg-white px-3 py-1 rounded-lg">
                                         <Barcode value={product.barcode} width={1.2} height={35} fontSize={12} margin={0} background="transparent" />
@@ -232,6 +244,8 @@ const POS = () => {
                         ))
                     )}
                 </div>
+
+
             </div>
 
             {/* RIGHT SIDE: CART */}
@@ -245,17 +259,29 @@ const POS = () => {
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                     {cart.items?.map(item => (
-                        <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl flex justify-between items-center border border-gray-100 dark:border-gray-700 transition-colors">
-                            <div>
-                                <h4 className="font-bold flex items-center gap-2 text-gray-900 dark:text-white">
-                                    {item.product.name}
+                        <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-gray-700 transition-colors gap-3">
+                            {/* Product thumbnail */}
+                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0">
+                                {item.product.imageUrl ? (
+                                    <img
+                                        src={`${import.meta.env.VITE_API_URL}${item.product.imageUrl}`}
+                                        alt={item.product.name}
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <span className="text-xs font-black text-gray-400">{item.product.name.substring(0, 2).toUpperCase()}</span>
+                                )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold flex items-center gap-1 flex-wrap text-gray-900 dark:text-white text-sm">
+                                    <span className="truncate">{item.product.name}</span>
                                     {item.product.remise > 0 && (
-                                        <span className="bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] px-1.5 py-0.5 rounded-md font-bold">
+                                        <span className="bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] px-1.5 py-0.5 rounded-md font-bold shrink-0">
                                             -{item.product.remise}%
                                         </span>
                                     )}
                                     {item.tvaRate > 0 && (
-                                        <span className="bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] px-1.5 py-0.5 rounded-md font-bold">
+                                        <span className="bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] px-1.5 py-0.5 rounded-md font-bold shrink-0">
                                             TVA {item.tvaRate}%
                                         </span>
                                     )}
