@@ -2,13 +2,23 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists
+// Check if we are in an environment that likely has a read-only filesystem (Vercel)
+const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
+
+// Ensure uploads directory exists (only on local/persistent servers)
 const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+if (!isVercel) {
+    try {
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+    } catch (err) {
+        console.warn('Could not create uploads directory, switching to memory storage if needed:', err.message);
+    }
 }
 
-const storage = multer.diskStorage({
+// Storage strategy: disk for local, memory for Vercel/Production
+const storage = isVercel ? multer.memoryStorage() : multer.diskStorage({
     destination: (req, file, cb) => {
         cb(null, uploadDir);
     },
@@ -28,8 +38,8 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
     storage: storage,
-    fileFilter: fileFilter
-    // No file size limit
+    fileFilter: fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
 module.exports = upload;

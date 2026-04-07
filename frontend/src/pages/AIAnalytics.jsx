@@ -365,17 +365,15 @@ const AIAnalytics = () => {
             const safeCats = Array.isArray(categories) ? categories : [];
             const safeProducts = Array.isArray(products) ? products : [];
 
-            // Préparer les données brutes pour que l'IA y ait totalement accès
-            const productsData = JSON.stringify(safeProducts.map(p => ({
-                id: p.id, name: p.name, stock: p.stockQuantity, achat: p.purchasePrice, vente: p.price
+            // Préparer les données brutes pour que l'IA y ait totalement accès (limité pour éviter l'erreur 413)
+            const productsData = JSON.stringify(safeProducts.slice(0, 100).map(p => ({
+                n: p.name, s: p.stockQuantity, p: p.price
             })));
             
             // Pour les ventes, on ne prend que l'essentiel pour ne pas surcharger la requête
-            const salesData = JSON.stringify(safeSales.slice(-50).map(s => ({
-                date: s.createdAt,
-                total: s.totalAmount,
-                userId: s.userId,
-                items: Array.isArray(s.items) ? s.items.map(i => ({ pId: i.productId, q: i.quantity })) : []
+            const salesData = JSON.stringify(safeSales.slice(-20).map(s => ({
+                d: s.createdAt.split('T')[0],
+                t: s.totalAmount
             })));
 
             const usersData = JSON.stringify(safeUsers.map(u => ({ id: u.id, nom: u.username, role: u.role })));

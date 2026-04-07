@@ -17,6 +17,33 @@ class AIService {
     async generateResponse(messages, systemContext) {
         if (!this.isMockMode) {
             try {
+                // Normalize messages: Anthropic requires alternating user/assistant roles.
+                // We'll filter and ensure the sequence is correct.
+                let normalizedMessages = [];
+                let lastAddedRole = null;
+
+                for (const msg of messages) {
+                    if (msg.role === 'user' || msg.role === 'assistant') {
+                        // Skip if same role as last one (to maintain alternating pattern)
+                        if (msg.role !== lastAddedRole) {
+                            normalizedMessages.push({
+                                role: msg.role,
+                                content: msg.content || "..."
+                            });
+                            lastAddedRole = msg.role;
+                        }
+                    }
+                }
+
+                // Ensure the last message is from the user (required by Anthropic)
+                if (normalizedMessages.length > 0 && normalizedMessages[normalizedMessages.length - 1].role !== 'user') {
+                    normalizedMessages.pop();
+                }
+
+                if (normalizedMessages.length === 0) {
+                    return this.generateSmartMockResponse(messages, systemContext);
+                }
+
                 const systemPrompt = `Tu es un assistant IA intégré à un système de caisse enregistreuse (Registry Cash System).
 Ton rôle est d'analyser les données du magasin et de donner des conseils stratégiques.
 Données : ${systemContext || "Non fournies."}
@@ -26,13 +53,15 @@ Réponds de manière concise, professionnelle, et en français.`;
                     model: "claude-3-haiku-20240307",
                     max_tokens: 1024,
                     system: systemPrompt,
-                    messages: messages,
+                    messages: normalizedMessages,
                 });
 
-                return response.content[0].text;
+                if (response && response.content && response.content[0]) {
+                    return response.content[0].text;
+                }
             } catch (err) {
-                console.error("AI Service Error:", err.message);
-                // Fallback to mock on error
+                console.error("AI Service Error (Anthropic):", err.message);
+                // Fallback to mock on any error (rate limit, credit exhausted, invalid messages)
             }
         }
 

@@ -5,22 +5,32 @@ exports.createProduct = async (req, res) => {
     try {
         const { barcode, name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva } = req.body;
 
-        // Strict EAN-13/UPC-A barcode validation: numeric only, exactly 12 or 13 digits
-        if (!barcode || !/^\d{12,13}$/.test(barcode.trim())) {
-            return res.status(400).json({ message: 'Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)' });
+        // Logging for debug (visible in Vercel/Server logs)
+        console.log('Creating product with barcode:', barcode);
+
+        // Strict validation: must exist and be numeric
+        if (!barcode || typeof barcode !== 'string' || !/^\d{12,13}$/.test(barcode.trim())) {
+            return res.status(400).json({ 
+                message: 'Le code-barres est obligatoire et doit être au format EAN-13 (13 chiffres) ou UPC-A (12 chiffres)' 
+            });
         }
 
-        // Check if already exists
-        const existing = await prisma.product.findUnique({ where: { barcode } });
+        const cleanBarcode = barcode.trim();
+
+        // Check if already exists using findFirst for better error resilience if arg is somehow nullish
+        const existing = await prisma.product.findFirst({ 
+            where: { barcode: cleanBarcode } 
+        });
+        
         if (existing) {
-            return res.status(400).json({ message: 'Product with this barcode already exists' });
+            return res.status(400).json({ message: 'Un produit avec ce code-barres existe déjà' });
         }
 
         let validRemise = 0;
-        if (remise !== undefined && remise !== null) {
+        if (remise !== undefined && remise !== null && remise !== '') {
             validRemise = parseFloat(remise);
             if (isNaN(validRemise) || validRemise < 0 || validRemise > 100) {
-                return res.status(400).json({ message: 'Remise must be a percentage between 0 and 100' });
+                return res.status(400).json({ message: 'La remise doit être un pourcentage entre 0 et 100' });
             }
         }
 
@@ -28,19 +38,30 @@ exports.createProduct = async (req, res) => {
         if (tva !== undefined && tva !== null && tva !== '') {
             validTva = parseFloat(tva);
             if (isNaN(validTva) || validTva < 0) {
-                return res.status(400).json({ message: 'TVA must be a valid positive percentage' });
+                return res.status(400).json({ message: 'La TVA doit être un pourcentage positif valide' });
             }
         }
 
-        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+        // Handle image URL (supports diskStorage or memoryStorage fallback)
+        let imageUrl = null;
+        if (req.file) {
+            if (req.file.filename) {
+                imageUrl = `/uploads/${req.file.filename}`;
+            } else if (req.file.buffer) {
+                // If using memoryStorage on Vercel, we can't save to disk easily without cloud storage.
+                // We'll use a placeholder or log notice for now.
+                console.log('Image received in memory, but disk persistence is limited on Vercel.');
+                imageUrl = null; // Ideally upload to Cloudinary/S3 here
+            }
+        }
 
         const product = await prisma.product.create({
             data: {
-                barcode,
-                name,
-                price: parseFloat(price),
+                barcode: cleanBarcode,
+                name: name || 'Produit sans nom',
+                price: parseFloat(price || 0),
                 purchasePrice: purchasePrice !== undefined && purchasePrice !== '' ? parseFloat(purchasePrice) : 0,
-                stockQuantity: parseInt(stockQuantity),
+                stockQuantity: parseInt(stockQuantity || 0),
                 categoryId: categoryId ? parseInt(categoryId) : null,
                 subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
                 remise: validRemise,
@@ -54,7 +75,8 @@ exports.createProduct = async (req, res) => {
         });
         res.status(201).json(product);
     } catch (error) {
-        res.status(500).json({ message: 'Error creating product', error: error.message });
+        console.error('Create Product Error:', error);
+        res.status(500).json({ message: 'Erreur lors de la création du produit', error: error.message });
     }
 };
 
