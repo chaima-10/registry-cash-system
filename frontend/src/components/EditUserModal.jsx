@@ -55,11 +55,12 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
                     </div>
 
                     <div className="space-y-1">
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('salary')}</label>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('dailyRate')}</label>
                         <input
                             type="number"
                             name="salary"
                             step="0.01"
+                            placeholder="e.g. 50.00"
                             value={formData.salary}
                             onChange={handleChange}
                             className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
@@ -71,11 +72,12 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
                         <input
                             type="text"
                             name="workingDays"
-                            placeholder="e.g. Mon,Tue,Wed"
+                            placeholder={t('workingDaysPlaceholder', 'e.g. Mon,Tue,Wed')}
                             value={formData.workingDays}
                             onChange={handleChange}
                             className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
                         />
+                        <p className="text-[10px] text-gray-400 mt-1 italic">{t('workingDaysAutoNote', 'Les jours travaillés sont calculés automatiquement.')}</p>
                     </div>
 
                     <div className="flex gap-4 mt-8">

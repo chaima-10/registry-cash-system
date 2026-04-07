@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
 
-// Get all users (optionally filter by role)
+// Get all users (with current month stats)
 exports.getAllUsers = async (req, res) => {
     try {
         const users = await prisma.user.findMany({
@@ -17,8 +17,50 @@ exports.getAllUsers = async (req, res) => {
             },
             orderBy: { createdAt: 'desc' }
         });
-        res.json(users);
+
+        // Current Month Statistics
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const daysInMonthSoFar = now.getDate();
+
+        // Fetch unique days with sales for each user this month
+        const sales = await prisma.sale.findMany({
+            where: {
+                createdAt: { gte: startOfMonth }
+            },
+            select: {
+                userId: true,
+                createdAt: true
+            }
+        });
+
+        // Group by user and unique day
+        const activityMap = {};
+        sales.forEach(sale => {
+            const dateStr = sale.createdAt.toISOString().split('T')[0];
+            if (!activityMap[sale.userId]) activityMap[sale.userId] = new Set();
+            activityMap[sale.userId].add(dateStr);
+        });
+
+        const usersWithStats = users.map(user => {
+            const workedDaysCount = activityMap[user.id] ? activityMap[user.id].size : 0;
+            const absencesCount = Math.max(0, daysInMonthSoFar - workedDaysCount);
+            
+            // monthlySalary = dailyRate (user.salary) * workedDays
+            const dailyRate = parseFloat(user.salary || 0);
+            const monthlySalary = workedDaysCount * dailyRate;
+
+            return {
+                ...user,
+                workedDays: workedDaysCount, // Overwrite/Add field
+                absences: absencesCount,
+                monthlySalary: monthlySalary.toFixed(2)
+            };
+        });
+
+        res.json(usersWithStats);
     } catch (error) {
+        console.error('Error fetching users with stats:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
