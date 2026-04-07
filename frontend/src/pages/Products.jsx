@@ -84,14 +84,14 @@ const Products = () => {
                 setFilterCategory(res.id.toString());
                 setFilterSubcategory('');
             } catch (error) {
-                alert("Erreur lors de la création de la catégorie");
+                alert(t('failedToCreate'));
             }
         }
     };
 
     const handleCreateSubcategory = async () => {
         if (!filterCategory) {
-            alert(parseInt(formData.categoryId) ? "Veuillez sélectionner la catégorie principale dans le filtre d'en haut pour ajouter une sous-catégorie." : "Sélectionnez d'abord une catégorie principale dans la liste déroulante d'en haut.");
+            alert(t('selectCategoryFirst', "Sélectionnez d'abord une catégorie principale."));
             return;
         }
         const name = window.prompt(t('newSubcategory') || "Nouvelle Sous-Catégorie");
@@ -101,7 +101,7 @@ const Products = () => {
                 await fetchData();
                 setFilterSubcategory(res.id.toString());
             } catch (error) {
-                alert("Erreur lors de la création de la sous-catégorie");
+                alert(t('failedToCreate'));
             }
         }
     };
@@ -256,10 +256,10 @@ const Products = () => {
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('category')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('subcategory')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('stock')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">Prix d'Achat</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">Prix Vente (HT)</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('remise') || 'Remise'} %</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">TVA %</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('purchasePrice', "Prix d'Achat")}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('sellingPriceHT', "Prix Vente (HT)")}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('remise', 'Remise')} %</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('tvaPercent', "TVA %")}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('price')} (TTC)</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-center">{t('actions')}</th>
                             </tr>
@@ -393,12 +393,12 @@ const Products = () => {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">Prix d'Achat</label>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('purchasePrice')}</label>
                                         <input type="number" step="0.01" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.purchasePrice} onChange={e => setFormData({ ...formData, purchasePrice: e.target.value })} />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">Prix Vente (HT)</label>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('sellingPriceHT')}</label>
                                         <input required type="number" step="0.01" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                                     </div>
@@ -406,12 +406,12 @@ const Products = () => {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">Remise (%)</label>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('remise', 'Remise')} (%)</label>
                                         <input type="number" step="1" max="100" min="0" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.remise} onChange={e => setFormData({ ...formData, remise: e.target.value })} />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">TVA (%)</label>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('tvaPercent', 'TVA')} (%)</label>
                                         <input type="number" step="0.01" max="100" min="0" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.tva} onChange={e => setFormData({ ...formData, tva: e.target.value })} placeholder="e.g. 19" />
                                     </div>
@@ -446,7 +446,7 @@ const Products = () => {
                                 </div>
 
                                 <div className="space-y-1">
-                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('productImage') || 'Image du Produit'}</label>
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('productImage')}</label>
                                     <div className="flex items-center gap-4">
                                         <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800">
                                             {imagePreview ? (
@@ -480,10 +480,12 @@ const Products = () => {
                                     </div>
                                 </div>
 
-                                <button type="submit" className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/30 mt-4 active:scale-95">
-                                    {isEditing ? t('updateProduct') : t('createProduct')}
-                                </button>
-                            </form>
+                    <div className="flex justify-end gap-3 p-8 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-100 dark:border-gray-800">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-sm font-black text-gray-500 uppercase tracking-widest hover:text-gray-700 transition-colors">{t('cancel', 'Annuler')}</button>
+                        <button type="submit" className="px-10 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-xl text-sm font-black uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all">
+                            {isEditing ? t('save', 'Enregistrer') : t('add', 'Ajouter')}
+                        </button>
+                    </div>                </form>
                         </motion.div>
                     </div>
                 )}
