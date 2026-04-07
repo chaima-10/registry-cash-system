@@ -167,8 +167,8 @@ exports.updateUser = async (req, res) => {
 
         const dataToUpdate = {
             fullName,
-            salary,
-            workingDays
+            salary: salary !== undefined && salary !== "" ? parseFloat(salary) : 0.00,
+            workingDays: workingDays || ""
         };
 
         if (password && password.trim() !== "") {
@@ -183,6 +183,7 @@ exports.updateUser = async (req, res) => {
 
         res.json({ message: 'User updated successfully', user });
     } catch (error) {
+        console.error('Update User Error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };

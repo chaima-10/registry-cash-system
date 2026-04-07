@@ -65,17 +65,17 @@ const Users = () => {
             setIsEditModalOpen(false);
             setMessage({ type: 'success', text: t('userUpdatedSuccess') });
         } catch (error) {
-            setMessage({ type: 'error', text: t('failedToUpdateUser') });
+            setMessage({ type: 'error', text: error.response?.data?.message || t('failedToUpdateUser') });
         }
     };
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('userManagement')}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white px-2">{t('userManagement')}</h2>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Register Form */}
-                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl h-fit transition-colors">
+            <div className="grid grid-cols-12 gap-8 items-start">
+                {/* Register Form - Narrower (4/12) */}
+                <div className="col-span-12 lg:col-span-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl h-fit transition-colors sticky top-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-3 bg-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400"><FiUserCheck size={24} /></div>
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('registerNewUser')}</h3>
@@ -136,8 +136,10 @@ const Users = () => {
                     </form>
                 </div>
 
-                {/* Cashier Table */}
-                <CashierTable users={users} onEdit={handleEdit} onDelete={handleDelete} />
+                {/* Cashier Table - Wider (8/12) */}
+                <div className="col-span-12 lg:col-span-8">
+                    <CashierTable users={users} onEdit={handleEdit} onDelete={handleDelete} />
+                </div>
             </div>
 
             <EditUserModal
