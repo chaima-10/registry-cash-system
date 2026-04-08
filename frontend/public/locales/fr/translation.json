@@ -174,5 +174,10 @@
     "completePurchase": "Terminer l'achat",
     "cardProcessMsg": "Le paiement par carte sera traité au terminal",
     "voucherProcessMsg": "Le code du chèque-cadeau sera vérifié",
-    "enterAmount": "Entrer le montant..."
+    "enterAmount": "Entrer le montant...",
+    "orderSummary": "Récapitulatif",
+    "change": "Monnaie rendue",
+    "scanWithCamera": "Scanner avec Camera",
+    "currency": "Devise",
+    "selectCurrency": "Choisir la devise"
 }

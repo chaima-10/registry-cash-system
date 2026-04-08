@@ -174,5 +174,10 @@
     "completePurchase": "Complete Purchase",
     "cardProcessMsg": "Card payment will be processed at the terminal",
     "voucherProcessMsg": "Gift voucher code will be verified",
-    "enterAmount": "Enter amount..."
+    "enterAmount": "Enter amount...",
+    "orderSummary": "Order Summary",
+    "change": "Change",
+    "scanWithCamera": "Scan with Camera",
+    "currency": "Currency",
+    "selectCurrency": "Select Currency"
 }

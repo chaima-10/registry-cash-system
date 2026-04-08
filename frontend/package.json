@@ -18,6 +18,7 @@
     "i18next": "^25.8.4",
     "i18next-browser-languagedetector": "^8.2.0",
     "i18next-http-backend": "^3.0.2",
+    "lucide-react": "^1.7.0",
     "prop-types": "^15.8.1",
     "react": "^18.3.1",
     "react-barcode": "^1.6.1",

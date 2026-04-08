@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FiX, FiCreditCard, FiDollarSign, FiGift, FiCheck, FiCheckCircle, FiActivity } from 'react-icons/fi';
+import { FiX, FiCreditCard, FiDollarSign, FiGift, FiCheck, FiCheckCircle, FiActivity, FiCamera, FiKeyboard } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,16 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const [selectedMethod, setSelectedMethod] = useState('CASH');
     const [cashTendered, setCashTendered] = useState('');
     const [processing, setProcessing] = useState(false);
+    
+    // Gift voucher states
+    const [voucherCode, setVoucherCode] = useState('');
+    const [voucherQR, setVoucherQR] = useState('');
+    
+    // Credit card states
+    const [cardNumber, setCardNumber] = useState('');
+    const [cardExpiry, setCardExpiry] = useState('');
+    const [cardCVV, setCardCVV] = useState('');
+    const [cardName, setCardName] = useState('');
 
     // Convert raw USD amount to current display currency
     const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
@@ -29,17 +39,77 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
             alert(t('insufficientCash') || 'Insufficient cash tendered');
             return;
         }
+        
+        if (selectedMethod === 'VOUCHER' && !voucherCode && !voucherQR) {
+            alert(t('voucherRequired') || 'Please enter voucher code or scan QR code');
+            return;
+        }
+        
+        if (selectedMethod === 'CARD') {
+            if (!cardNumber || !cardExpiry || !cardCVV || !cardName) {
+                alert(t('cardDetailsRequired') || 'Please fill in all card details');
+                return;
+            }
+            // Basic card validation
+            if (cardNumber.replace(/\s/g, '').length < 13) {
+                alert(t('invalidCardNumber') || 'Invalid card number');
+                return;
+            }
+        }
 
         setProcessing(true);
         try {
-            await onConfirm(selectedMethod);
+            const paymentData = {
+                method: selectedMethod,
+                cashTendered: selectedMethod === 'CASH' ? tendered : null,
+                voucherCode: selectedMethod === 'VOUCHER' ? voucherCode : null,
+                voucherQR: selectedMethod === 'VOUCHER' ? voucherQR : null,
+                cardDetails: selectedMethod === 'CARD' ? {
+                    number: cardNumber,
+                    expiry: cardExpiry,
+                    cvv: cardCVV,
+                    name: cardName
+                } : null
+            };
+            await onConfirm(selectedMethod, paymentData);
+            // Reset form
             setCashTendered('');
             setSelectedMethod('CASH');
+            setVoucherCode('');
+            setVoucherQR('');
+            setCardNumber('');
+            setCardExpiry('');
+            setCardCVV('');
+            setCardName('');
         } catch (error) {
             console.error('Payment error:', error);
         } finally {
             setProcessing(false);
         }
+    };
+    
+    // Format card number with spaces
+    const formatCardNumber = (value) => {
+        const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+        const matches = v.match(/\d{4,16}/g);
+        const match = matches && matches[0] || '';
+        const parts = [];
+        for (let i = 0, len = match.length; i < len; i += 4) {
+            parts.push(match.substring(i, i + 4));
+        }
+        if (parts.length) {
+            return parts.join(' ');
+        }
+        return v;
+    };
+    
+    // Format expiry date
+    const formatExpiry = (value) => {
+        const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+        if (v.length >= 2) {
+            return v.slice(0, 2) + '/' + v.slice(2, 4);
+        }
+        return v;
     };
 
     return (
@@ -131,18 +201,111 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                         </motion.div>
                                     )}
 
-                                    {/* Card/Voucher Info */}
-                                    {(selectedMethod === 'CARD' || selectedMethod === 'VOUCHER') && (
+                                    {/* Gift Voucher Input */}
+                                    {selectedMethod === 'VOUCHER' && (
                                         <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl"
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="overflow-hidden space-y-4"
                                         >
-                                            <p className="text-blue-600 dark:text-blue-400 text-sm text-center">
-                                                {selectedMethod === 'CARD'
-                                                    ? t('cardProcessMsg') || 'Card payment will be processed at the terminal'
-                                                    : t('voucherProcessMsg') || 'Gift voucher code will be verified'}
-                                            </p>
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                                                    {t('voucherCode') || 'Voucher Code'}
+                                                </label>
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        value={voucherCode}
+                                                        onChange={(e) => setVoucherCode(e.target.value)}
+                                                        placeholder={t('enterVoucherCode') || 'Enter voucher code'}
+                                                        className="w-full px-4 py-3 pl-12 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
+                                                    />
+                                                    <FiKeyboard className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                                                    {t('scanQRCode') || 'Scan QR Code'}
+                                                </label>
+                                                <div className="relative">
+                                                    <textarea
+                                                        value={voucherQR}
+                                                        onChange={(e) => setVoucherQR(e.target.value)}
+                                                        placeholder={t('pasteQRData') || 'Paste QR code data or scan with camera'}
+                                                        rows={3}
+                                                        className="w-full px-4 py-3 pl-12 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors resize-none"
+                                                    />
+                                                    <FiCamera className="absolute left-4 top-4 text-gray-400" size={18} />
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {/* Credit Card Input */}
+                                    {selectedMethod === 'CARD' && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="overflow-hidden space-y-4"
+                                        >
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                                                    {t('cardNumber') || 'Card Number'}
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={cardNumber}
+                                                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                                                    placeholder="1234 5678 9012 3456"
+                                                    maxLength={19}
+                                                    className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
+                                                />
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                                                        {t('expiry') || 'Expiry'}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={cardExpiry}
+                                                        onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
+                                                        placeholder="MM/YY"
+                                                        maxLength={5}
+                                                        className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                                                        {t('cvv') || 'CVV'}
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={cardCVV}
+                                                        onChange={(e) => setCardCVV(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+                                                        placeholder="123"
+                                                        maxLength={4}
+                                                        className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
+                                                    {t('cardholderName') || 'Cardholder Name'}
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={cardName}
+                                                    onChange={(e) => setCardName(e.target.value)}
+                                                    placeholder={t('enterCardholderName') || 'Enter cardholder name'}
+                                                    className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
+                                                />
+                                            </div>
                                         </motion.div>
                                     )}
                                 </div>

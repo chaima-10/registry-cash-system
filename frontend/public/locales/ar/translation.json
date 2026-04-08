@@ -174,5 +174,10 @@
     "completePurchase": "إتمام الشراء",
     "cardProcessMsg": "سيتم معالجة الدفع بالبطاقة في المحطة",
     "voucherProcessMsg": "سيتم التحقق من رمز قسيمة الهدية",
-    "enterAmount": "أدخل المبلغ..."
+    "enterAmount": "أدخل المبلغ...",
+    "orderSummary": "ملخص الطلب",
+    "change": "الباقي",
+    "scanWithCamera": "مسح بالكاميرا",
+    "currency": "العملة",
+    "selectCurrency": "اختر العملة"
 }
