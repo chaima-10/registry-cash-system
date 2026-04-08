@@ -7,131 +7,139 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id          Int      @id @default(autoincrement())
-  username    String   @unique
-  password    String
-  fullName    String    @default("")
-  email       String?   @unique
-  phone       String?
-  status      String    @default("Active") // Active, Disabled
-  lastLogin   DateTime?
-  role        Role      @default(cashier)
-  salary      Decimal   @default(0.00) @db.Decimal(10, 2)
-  workingDays String    @default("")
-  theme       String    @default("light")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  carts       Cart[]
-  sales       Sale[]
-}
-
-model Sale {
-  id            Int           @id @default(autoincrement())
-  userId        Int
-  user          User          @relation(fields: [userId], references: [id])
-  totalAmount   Decimal       @db.Decimal(10, 2)
-  subtotalHT    Decimal       @default(0.00) @db.Decimal(10, 2)
-  tvaAmount     Decimal       @default(0.00) @db.Decimal(10, 2)
-  currency      String        @default("USD")
-  exchangeRate  Decimal       @default(1.0000) @db.Decimal(10, 4)
-  paymentMethod PaymentMethod
-  createdAt     DateTime      @default(now())
-  items         SaleItem[]
-}
-
-model SaleItem {
-  id        Int     @id @default(autoincrement())
-  saleId    Int
-  sale      Sale    @relation(fields: [saleId], references: [id])
-  productId Int
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Decimal @db.Decimal(10, 2) // Snapshot of price (HT)
-  tvaRate   Decimal @default(0.00) @db.Decimal(5, 2)
-  tvaAmount Decimal @default(0.00) @db.Decimal(10, 2)
-  priceTTC  Decimal @default(0.00) @db.Decimal(10, 2) // unit price TTC
-  subtotal  Decimal @db.Decimal(10, 2) // subtotal HT
-}
-
-model Cart {
+model cart {
   id          Int        @id @default(autoincrement())
   userId      Int
-  user        User       @relation(fields: [userId], references: [id])
-  items       CartItem[]
-  subtotalHT  Decimal    @default(0.00) @db.Decimal(10, 2)
-  tvaAmount   Decimal    @default(0.00) @db.Decimal(10, 2)
+  user        user       @relation(fields: [userId], references: [id])
+  items       cartitem[]
   totalAmount Decimal    @default(0.00) @db.Decimal(10, 2)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  subtotalHT  Decimal    @default(0.00) @db.Decimal(10, 2)
+  tvaAmount   Decimal    @default(0.00) @db.Decimal(10, 2)
+
+  @@index([userId], map: "Cart_userId_fkey")
 }
 
-model CartItem {
-  id        Int      @id @default(autoincrement())
+model cartitem {
+  id        Int     @id @default(autoincrement())
   cartId    Int
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cart      cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
   productId Int
-  product   Product  @relation(fields: [productId], references: [id])
+  product   product @relation(fields: [productId], references: [id])
   quantity  Int
-  tvaRate   Decimal  @default(0.00) @db.Decimal(5, 2)
-  tvaAmount Decimal  @default(0.00) @db.Decimal(10, 2)
-  priceTTC  Decimal  @default(0.00) @db.Decimal(10, 2) // unit price TTC
-  subtotal  Decimal  @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+  priceTTC  Decimal @default(0.00) @db.Decimal(10, 2)
+  tvaAmount Decimal @default(0.00) @db.Decimal(10, 2)
+  tvaRate   Decimal @default(0.00) @db.Decimal(5, 2)
+
+  @@index([cartId], map: "CartItem_cartId_fkey")
+  @@index([productId], map: "CartItem_productId_fkey")
 }
 
-model Product {
-  id            Int          @id @default(autoincrement())
-  barcode       String       @unique
-  name          String
-  purchasePrice Decimal      @default(0.00) @db.Decimal(10, 2)
-  price         Decimal      @db.Decimal(10, 2)
-  stockQuantity Int          @default(0)
-  remise        Decimal      @default(0) @db.Decimal(5, 2)
-  tva           Decimal      @default(0.00) @db.Decimal(5, 2)
-
-  // Relations
-  categoryId    Int?
-  category      Category?    @relation(fields: [categoryId], references: [id])
-
-  subcategoryId Int?
-  subcategory   Subcategory? @relation(fields: [subcategoryId], references: [id])
-
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-
-  cartItems     CartItem[]
-  saleItems     SaleItem[]
-}
-
-model Category {
+model category {
   id            Int           @id @default(autoincrement())
-  name          String        @unique
-  subcategories Subcategory[]
-  products      Product[]
+  name          String        @unique(map: "Category_name_key")
+  subcategories subcategory[]
+  products      product[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
 
-model Subcategory {
-  id            Int       @id @default(autoincrement())
+model product {
+  id            Int         @id @default(autoincrement())
+  barcode       String      @unique(map: "Product_barcode_key")
   name          String
-  
-  categoryId    Int
-  category      Category  @relation(fields: [categoryId], references: [id])
-  
-  products      Product[]
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  price         Decimal     @db.Decimal(10, 2)
+  stockQuantity Int         @default(0)
+  categoryId    Int?
+  category      category?   @relation(fields: [categoryId], references: [id])
+  subcategoryId Int?
+  subcategory   subcategory? @relation(fields: [subcategoryId], references: [id])
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  remise        Decimal     @default(0.00) @db.Decimal(5, 2)
+  tva           Decimal     @default(0.00) @db.Decimal(5, 2)
+  purchasePrice Decimal     @default(0.00) @db.Decimal(10, 2)
+  imageUrl      String?     @db.Text
+  saleItems     saleitem[]
+  cartItems     cartitem[]
+
+  @@index([categoryId], map: "Product_categoryId_fkey")
+  @@index([subcategoryId], map: "Product_subcategoryId_fkey")
 }
 
-enum Role {
-  admin
-  cashier
+model sale {
+  id            Int                @id @default(autoincrement())
+  userId        Int
+  user          user               @relation(fields: [userId], references: [id])
+  totalAmount   Decimal            @db.Decimal(10, 2)
+  paymentMethod sale_paymentMethod
+  createdAt     DateTime           @default(now())
+  currency      String             @default("USD")
+  exchangeRate  Decimal            @default(1.0000) @db.Decimal(10, 4)
+  subtotalHT    Decimal            @default(0.00) @db.Decimal(10, 2)
+  tvaAmount     Decimal            @default(0.00) @db.Decimal(10, 2)
+  items         saleitem[]
+
+  @@index([userId], map: "Sale_userId_fkey")
 }
 
-enum PaymentMethod {
+model saleitem {
+  id        Int     @id @default(autoincrement())
+  saleId    Int
+  sale      sale    @relation(fields: [saleId], references: [id])
+  productId Int
+  product   product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+  priceTTC  Decimal @default(0.00) @db.Decimal(10, 2)
+  tvaAmount Decimal @default(0.00) @db.Decimal(10, 2)
+  tvaRate   Decimal @default(0.00) @db.Decimal(5, 2)
+
+  @@index([productId], map: "SaleItem_productId_fkey")
+  @@index([saleId], map: "SaleItem_saleId_fkey")
+}
+
+model subcategory {
+  id         Int       @id @default(autoincrement())
+  name       String
+  categoryId Int
+  category   category  @relation(fields: [categoryId], references: [id])
+  products   product[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([categoryId], map: "Subcategory_categoryId_fkey")
+}
+
+model user {
+  id          Int       @id @default(autoincrement())
+  username    String    @unique(map: "User_username_key")
+  password    String
+  role        user_role @default(cashier)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  fullName    String    @default("")
+  salary      Decimal   @default(0.00) @db.Decimal(10, 2)
+  theme       String    @default("light")
+  workingDays String    @default("")
+  email       String?   @unique(map: "User_email_key")
+  lastLogin   DateTime?
+  phone       String?
+  status      String    @default("Active")
+  sales       sale[]
+  carts       cart[]
+}
+
+enum sale_paymentMethod {
   CASH
   CARD
   VOUCHER
+}
+
+enum user_role {
+  admin
+  cashier
 }

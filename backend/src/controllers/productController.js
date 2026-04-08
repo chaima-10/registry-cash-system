@@ -5,22 +5,32 @@ exports.createProduct = async (req, res) => {
     try {
         const { barcode, name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva } = req.body;
 
-        // Strict EAN-13/UPC barcode validation: numeric only, 1-13 digits
-        if (!barcode || !/^\d{1,13}$/.test(barcode.trim())) {
-            return res.status(400).json({ message: 'Barcode must be numeric only (1-13 digits, e.g. EAN-13 or UPC)' });
+        // Logging for debug (visible in Vercel/Server logs)
+        console.log('Creating product with barcode:', barcode);
+
+        // Strict validation: must exist and be numeric
+        if (!barcode || typeof barcode !== 'string' || !/^\d{12,13}$/.test(barcode.trim())) {
+            return res.status(400).json({ 
+                message: 'Le code-barres est obligatoire et doit être au format EAN-13 (13 chiffres) ou UPC-A (12 chiffres)' 
+            });
         }
 
-        // Check if already exists
-        const existing = await prisma.product.findUnique({ where: { barcode } });
+        const cleanBarcode = barcode.trim();
+
+        // Check if already exists using findFirst for better error resilience if arg is somehow nullish
+        const existing = await prisma.product.findFirst({ 
+            where: { barcode: cleanBarcode } 
+        });
+        
         if (existing) {
-            return res.status(400).json({ message: 'Product with this barcode already exists' });
+            return res.status(400).json({ message: 'Un produit avec ce code-barres existe déjà' });
         }
 
         let validRemise = 0;
-        if (remise !== undefined && remise !== null) {
+        if (remise !== undefined && remise !== null && remise !== '') {
             validRemise = parseFloat(remise);
             if (isNaN(validRemise) || validRemise < 0 || validRemise > 100) {
-                return res.status(400).json({ message: 'Remise must be a percentage between 0 and 100' });
+                return res.status(400).json({ message: 'La remise doit être un pourcentage entre 0 et 100' });
             }
         }
 
@@ -28,21 +38,35 @@ exports.createProduct = async (req, res) => {
         if (tva !== undefined && tva !== null && tva !== '') {
             validTva = parseFloat(tva);
             if (isNaN(validTva) || validTva < 0) {
-                return res.status(400).json({ message: 'TVA must be a valid positive percentage' });
+                return res.status(400).json({ message: 'La TVA doit être un pourcentage positif valide' });
+            }
+        }
+
+        // Handle image URL (supports diskStorage or memoryStorage fallback)
+        let imageUrl = null;
+        if (req.file) {
+            if (req.file.filename) {
+                imageUrl = `/uploads/${req.file.filename}`;
+            } else if (req.file.buffer) {
+                // If using memoryStorage on Vercel, we can't save to disk easily without cloud storage.
+                // We'll use a placeholder or log notice for now.
+                console.log('Image received in memory, but disk persistence is limited on Vercel.');
+                imageUrl = null; // Ideally upload to Cloudinary/S3 here
             }
         }
 
         const product = await prisma.product.create({
             data: {
-                barcode,
-                name,
-                price: parseFloat(price),
+                barcode: cleanBarcode,
+                name: name || 'Produit sans nom',
+                price: parseFloat(price || 0),
                 purchasePrice: purchasePrice !== undefined && purchasePrice !== '' ? parseFloat(purchasePrice) : 0,
-                stockQuantity: parseInt(stockQuantity),
+                stockQuantity: parseInt(stockQuantity || 0),
                 categoryId: categoryId ? parseInt(categoryId) : null,
                 subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
                 remise: validRemise,
                 tva: validTva,
+                imageUrl: imageUrl,
             },
             include: {
                 category: true,
@@ -51,13 +75,18 @@ exports.createProduct = async (req, res) => {
         });
         res.status(201).json(product);
     } catch (error) {
-        res.status(500).json({ message: 'Error creating product', error: error.message });
+        console.error('Create Product Error:', error);
+        res.status(500).json({ message: 'Erreur lors de la création du produit', error: error.message });
     }
 };
 
 // Get All Products
 exports.getAllProducts = async (req, res) => {
     try {
+        console.log('--- FETCH ALL PRODUCTS START ---');
+        const count = await prisma.product.count();
+        console.log('Database product count:', count);
+
         const products = await prisma.product.findMany({
             include: {
                 category: true,
@@ -67,9 +96,20 @@ exports.getAllProducts = async (req, res) => {
                 createdAt: 'desc'
             }
         });
+        
+        console.log('Products found by findMany:', products.length);
+        if (products.length > 0) {
+            console.log('First product sample:', JSON.stringify(products[0]).substring(0, 100));
+        }
+
         res.json(products);
     } catch (error) {
-        res.status(500).json({ message: 'Error fetching products', error: error.message });
+        console.error('CRITICAL Error fetching products:', error);
+        res.status(500).json({ 
+            message: 'Erreur lors du chargement des produits.', 
+            error: error.message,
+            stack: error.stack
+        });
     }
 };
 
@@ -100,8 +140,8 @@ exports.updateProduct = async (req, res) => {
 
         // If barcode is being updated, validate it
         if (barcode !== undefined && barcode !== null && barcode !== '') {
-            if (!/^\d{1,13}$/.test(barcode.trim())) {
-                return res.status(400).json({ message: 'Barcode must be numeric only (1-13 digits)' });
+            if (!/^\d{12,13}$/.test(barcode.trim())) {
+                return res.status(400).json({ message: 'Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)' });
             }
         }
 
@@ -130,6 +170,10 @@ exports.updateProduct = async (req, res) => {
             updateData.tva = validTva;
         }
 
+        if (req.file) {
+            updateData.imageUrl = `/uploads/${req.file.filename}`;
+        }
+
         const product = await prisma.product.update({
             where: { id: parseInt(id) },
             data: updateData,
@@ -155,7 +199,7 @@ exports.deleteProduct = async (req, res) => {
         const productId = parseInt(id);
 
         // Vérifier si le produit est lié à des ventes
-        const existingSales = await prisma.saleItem.findFirst({
+        const existingSales = await prisma.saleitem.findFirst({
             where: { productId }
         });
 
@@ -166,7 +210,7 @@ exports.deleteProduct = async (req, res) => {
         }
 
         // Nettoyer les chariots actifs (qui n'ont pas encore été convertis en ventes)
-        await prisma.cartItem.deleteMany({
+        await prisma.cartitem.deleteMany({
             where: { productId }
         });
 

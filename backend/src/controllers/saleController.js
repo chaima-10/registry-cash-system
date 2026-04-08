@@ -46,7 +46,7 @@ exports.createSale = async (req, res) => {
                 }
             });
 
-            // 4. Create SaleItems and Decrement Stock
+            // 4. Create saleitem and Decrement Stock
             for (const item of cart.items) {
                 const productPrice = parseFloat(item.product.price);
                 const remise = parseFloat(item.product.remise || 0);
@@ -55,7 +55,7 @@ exports.createSale = async (req, res) => {
                 const priceTTC = discountedPrice * (1 + tvaRate / 100);
 
                 // Create sale item with full TVA snapshot
-                await tx.saleItem.create({
+                await tx.saleitem.create({
                     data: {
                         saleId: sale.id,
                         productId: item.productId,
@@ -80,7 +80,7 @@ exports.createSale = async (req, res) => {
             }
 
             // 5. Clear cart
-            await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+            await tx.cartitem.deleteMany({ where: { cartId: cart.id } });
             await tx.cart.update({
                 where: { id: cart.id },
                 data: { totalAmount: 0 }

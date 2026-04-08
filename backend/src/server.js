@@ -17,9 +17,12 @@ const saleRoutes = require('./routes/saleRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const path = require('path');
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));

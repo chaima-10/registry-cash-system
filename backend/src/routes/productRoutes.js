@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
 const authMiddleware = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 // All product routes protected by auth
 router.use(authMiddleware.protect);
@@ -60,7 +61,7 @@ router.get('/', productController.getAllProducts);
  *       201:
  *         description: Product created
  */
-router.post('/', productController.createProduct);
+router.post('/', upload.single('image'), productController.createProduct);
 
 /**
  * @swagger
@@ -117,7 +118,7 @@ router.get('/barcode/:barcode', productController.getProductByBarcode);
  *       200:
  *         description: Product updated
  */
-router.put('/:id', productController.updateProduct);
+router.put('/:id', upload.single('image'), productController.updateProduct);
 
 /**
  * @swagger

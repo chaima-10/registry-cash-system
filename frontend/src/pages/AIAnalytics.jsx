@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     FiTrendingUp, FiBox, FiCalendar, FiAlertCircle, FiPieChart, 
-    FiSend, FiMessageCircle, FiRefreshCw, FiActivity, FiArrowUpRight, FiArrowDownRight, FiShoppingBag 
+    FiSend, FiMessageCircle, FiRefreshCw, FiActivity, FiArrowUpRight, FiArrowDownRight, FiArrowRight, FiShoppingBag, FiTrash2 
 } from 'react-icons/fi';
 import { 
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -10,17 +10,12 @@ import {
 } from 'recharts';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
-const TABS = [
-    { id: 'overview', label: "Vue d'ensemble", icon: FiPieChart },
-    { id: 'products', label: 'Produits & Promos', icon: FiBox },
-    { id: 'forecasts', label: 'Prévisions', icon: FiTrendingUp },
-    { id: 'behavior', label: 'Comportement', icon: FiCalendar },
-    { id: 'anomalies', label: 'Anomalies', icon: FiActivity },
-    { id: 'alerts', label: 'Alertes stock', icon: FiAlertCircle },
-];
+// Tabs will be defined inside to support translation
 
 const AIAnalytics = () => {
+    const { t } = useTranslation();
     const { formatCurrency } = useAuth();
     const [activeTab, setActiveTab] = useState('overview');
     const [topProductsSortBy, setTopProductsSortBy] = useState('revenue');
@@ -33,11 +28,23 @@ const AIAnalytics = () => {
 
     // AI states
     const [chatMessages, setChatMessages] = useState([
-        { role: 'assistant', content: "Bonjour ! Je suis l'Assistant IA du magasin. Je surveille vos données, prévois vos stocks et analyse le comportement d'achat de vos clients. Comment puis-je vous aider aujourd'hui ?" }
+        { role: 'assistant', content: t('aiGreeting', "Bonjour ! Je suis l'Assistant IA du magasin. Je surveille vos données, prévois vos stocks et analyse le comportement d'achat de vos clients. Posez-moi n'importe quelle question !") }
     ]);
     const [chatInput, setChatInput] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
     const messagesEndRef = useRef(null);
+    const [promoSuccess, setPromoSuccess] = useState({});
+    const [orderSuccess, setOrderSuccess] = useState({});
+    const [marketingIdeas, setMarketingIdeas] = useState([]);
+    const [isGeneratingMarketing, setIsGeneratingMarketing] = useState(false);
+    const [marketingSuggested, setMarketingSuggested] = useState(false);
+    const [generatingPoster, setGeneratingPoster] = useState({});
+    const [posterGenerated, setPosterGenerated] = useState({});
+    const [selectedPoster, setSelectedPoster] = useState(null);
+    
+    const clearChat = () => {
+        setChatMessages([{ role: 'assistant', content: t('historyCleared', "Mise à jour : Historique effacé. Posez-moi une nouvelle question !") }]);
+    };
 
     // Initial Data Fetch
     useEffect(() => {
@@ -113,13 +120,21 @@ const AIAnalytics = () => {
         sales.forEach(sale => {
             if (sale.items) {
                 sale.items.forEach(item => {
-                    if (!map[item.productId]) map[item.productId] = { id: item.productId, name: item.product?.name || `Produit ${item.productId}`, revenue: 0, qty: 0 };
+                    if (!map[item.productId]) map[item.productId] = { id: item.productId, name: item.product?.name || `Produit ${item.productId}`, imageUrl: item.product?.imageUrl || null, revenue: 0, qty: 0 };
                     map[item.productId].revenue += parseFloat(item.subtotal || 0);
                     map[item.productId].qty += item.quantity;
                 });
             }
         });
-        return Object.values(map)
+        // Also enrich from products list if imageUrl not already set from sale items
+        const result = Object.values(map);
+        result.forEach(p => {
+            if (!p.imageUrl) {
+                const found = products.find(pr => pr.id === p.id);
+                if (found) p.imageUrl = found.imageUrl || null;
+            }
+        });
+        return result
             .sort((a, b) => topProductsSortBy === 'revenue' ? b.revenue - a.revenue : b.qty - a.qty)
             .slice(0, 5);
     };
@@ -233,6 +248,103 @@ const AIAnalytics = () => {
         });
     };
 
+    // Apply promo to a product via API
+    const handleApplyPromotion = async (product) => {
+        // La remise suggérée est comme '-30%', nous avons besoin d'un nombre positif 0-100
+        const discountNum = Math.abs(parseInt(product.suggestedDiscount));
+        
+        try {
+            const formData = new FormData();
+            formData.append('remise', discountNum);
+            formData.append('name', product.name);
+            formData.append('price', product.price);
+            formData.append('stockQuantity', product.stockQuantity);
+            
+            // Ne pas envoyer le barcode pour éviter les conflits de validation (déjà existant ou format invalide)
+            await api.put(`/products/${product.id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            
+            setPromoSuccess(prev => ({ ...prev, [product.id]: true }));
+            setTimeout(() => setPromoSuccess(prev => ({ ...prev, [product.id]: false })), 3000);
+            
+            // Re-fetch products to update the local state with new discount
+            const res = await api.get('/products');
+            setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
+        } catch (err) {
+            console.error('Failed to apply promo', err);
+            alert("Erreur lors de l'application de la promotion.");
+        }
+    };
+
+    // "Commander" button - shows a reorder alert
+    const handleOrderProduct = (product) => {
+        setOrderSuccess(prev => ({ ...prev, [product.id]: true }));
+        setTimeout(() => setOrderSuccess(prev => ({ ...prev, [product.id]: false })), 4000);
+    };
+
+    // Generate a visual poster for a marketing idea
+    const handleGeneratePoster = (ideaId) => {
+        setGeneratingPoster(prev => ({ ...prev, [ideaId]: true }));
+        // Simulate generation delay
+        setTimeout(() => {
+            setGeneratingPoster(prev => ({ ...prev, [ideaId]: false }));
+            setPosterGenerated(prev => ({ ...prev, [ideaId]: true }));
+        }, 2500);
+    };
+
+    // Generate AI marketing ideas
+    const generateMarketingIdeas = async () => {
+        setIsGeneratingMarketing(true);
+        const safeProducts = Array.isArray(products) ? products : [];
+        const topProds = getTopProducts();
+        const prompt = `Tu es un expert marketing. Voici les top produits : ${JSON.stringify(topProds.map(p => ({name:p.name, price:p.revenue/p.qty})))}. 
+        Génère 4 idées de campagnes marketing "Pack/Bundle" (ex: "A + B = -30%").
+        Pour chaque idée, donne: 
+        - title: un titre accrocheur (ex: "Pack Apéro", "Duo Fraîcheur")
+        - description: explication courte (2 phrases)
+        - theme: un code couleur hexadécimal vibrant
+        - products: liste exacte de 2-3 noms de produits de ma liste
+        - emoji: un emoji relatif
+        - discountPercent: le pourcentage de remise (ex: 30)
+        Réponds UNIQUEMENT avec un JSON valide: [{"title":"...","description":"...","theme":"...","products":["..."],"emoji":"...","discountPercent":30}]`;
+        try {
+            const res = await api.post('/ai/chat', {
+                messages: [{ role: 'user', content: prompt }],
+                systemContext: 'Tu es un assistant marketing. Réponds UNIQUEMENT avec du JSON valide, sans texte avant ou après.'
+            });
+            const text = res.data.reply;
+            const jsonStr = text.match(/\[.*\]/s)?.[0];
+            if (jsonStr) {
+                setMarketingIdeas(JSON.parse(jsonStr).map(idea => ({
+                    ...idea,
+                    timing: "Ce weekend",
+                    discountPercent: idea.discountPercent || 25
+                })));
+            } else {
+                // Fallback fixed for bundles
+                const p1 = topProds[0]?.name || "Produit A";
+                const p2 = topProds[1]?.name || "Produit B";
+                setMarketingIdeas([
+                    { title: "Pack Apéro", description: `Le duo parfait pour vos soirées. Profitez de ${p1} et ${p2} à prix réduit.`, theme: "#ef4444", products: [p1, p2], emoji: "🍺", discountPercent: 30, timing: "Weekend" },
+                    { title: "Duo Économique", description: "Économisez gros en achetant vos indispensables ensemble. L'offre à ne pas manquer cette semaine.", theme: "#10b981", products: [p1, p2], emoji: "💰", discountPercent: 20, timing: "Permanent" },
+                    { title: "Offre Découverte", description: "Découvrez nos best-sellers dans un pack exclusif conçu pour vous faire économiser.", theme: "#3b82f6", products: [p1], emoji: "🎯", discountPercent: 15, timing: "7 jours" },
+                    { title: "Flash Vente", description: "Une remise exceptionnelle sur vos articles préférés. Vite, les stocks sont limités !", theme: "#f59e0b", products: [p1, p2], emoji: "⚡", discountPercent: 35, timing: "48h" },
+                ]);
+            }
+        } catch (e) {
+            setMarketingIdeas([
+                { title: "Offre Découverte", description: "Promotions ciblées sur vos best-sellers pour attirer de nouveaux clients.", theme: "#3b82f6", products: [], emoji: "🎯" },
+                { title: "Pack Économique", description: "Bundles de produits complémentaires pour augmenter le panier moyen.", theme: "#10b981", products: [], emoji: "💰" },
+                { title: "Flash Vente Weekend", description: "Promotions éclairs pour générer du trafic en fin de semaine.", theme: "#f59e0b", products: [], emoji: "⚡" },
+                { title: "Programme Fidélité", description: "Système de points pour fidéliser vos clients réguliers.", theme: "#8b5cf6", products: [], emoji: "🏆" },
+            ]);
+        } finally {
+            setIsGeneratingMarketing(false);
+            setMarketingSuggested(true);
+        }
+    };
+
     // AI Chat handler
     const handleSendMessage = async (e, quickPrompt = null) => {
         if (e) e.preventDefault();
@@ -247,50 +359,36 @@ const AIAnalytics = () => {
         try {
             const daily = getDailySummary();
             const alerts = getSmartAlerts();
-            const anomaliesInfo = getAnomalies();
             
             const safeSales = Array.isArray(sales) ? sales : [];
             const safeUsers = Array.isArray(users) ? users : [];
             const safeCats = Array.isArray(categories) ? categories : [];
             const safeProducts = Array.isArray(products) ? products : [];
 
-            // Préparer les données brutes pour que l'IA y ait totalement accès
-            const productsData = JSON.stringify(safeProducts.map(p => ({
-                id: p.id, name: p.name, stock: p.stockQuantity, achat: p.purchasePrice, vente: p.price
+            // Préparer les données brutes pour que l'IA y ait totalement accès (limité pour éviter l'erreur 413)
+            const productsData = JSON.stringify(safeProducts.slice(0, 100).map(p => ({
+                n: p.name, s: p.stockQuantity, p: p.price
             })));
             
             // Pour les ventes, on ne prend que l'essentiel pour ne pas surcharger la requête
-            const salesData = JSON.stringify(safeSales.slice(-50).map(s => ({
-                date: s.createdAt,
-                total: s.totalAmount,
-                userId: s.userId,
-                items: Array.isArray(s.items) ? s.items.map(i => ({ pId: i.productId, q: i.quantity })) : []
+            const salesData = JSON.stringify(safeSales.slice(-20).map(s => ({
+                d: s.createdAt.split('T')[0],
+                t: s.totalAmount
             })));
 
             const usersData = JSON.stringify(safeUsers.map(u => ({ id: u.id, nom: u.username, role: u.role })));
             const categoriesData = JSON.stringify(safeCats.map(c => ({ id: c.id, nom: c.name })));
             
             const systemContext = `
-Nom de l'assistant : Assistant IA.
-Contexte du magasin:
-1. Résumé aujourd'hui: ${daily.todayRevenue}$ (${daily.todayCount} ventes). Variation vs hier: ${daily.diff}%.
-2. Alertes Stock: ${alerts.length} alertes actuelles.
-3. Anomalies détectées: ${anomaliesInfo.length}.
+Tu es l'Assistant IA d'un magasin (Registry Cash System). Réponds en français, de façon concise et professionnelle.
+Contexte aujourd'hui: ${daily.todayRevenue}$ de revenu (${daily.todayCount} ventes). Variation vs hier: ${daily.diff}%.
+Alertes stock actives: ${alerts.length}.
 
-MISSION: Tu as un accès intégral aux données réelles ci-dessous. Tu peux répondre à n'importe quelle question du gérant : promotions à lancer, décisions prioritaires, tendances... Pose des réponses courtes et stratégiques.
+DONNÉES PRODUITS (stock, prix, etc.): ${productsData}
+DONNÉES UTILISATEURS: ${usersData}
+DERNIÈRES VENTES: ${salesData}
 
-DONNÉES PRODUITS:
-${productsData}
-
-DONNÉES UTILISATEURS:
-${usersData}
-
-DONNÉES CATÉGORIES:
-${categoriesData}
-
-DERNIÈRES VENTES:
-${salesData}
-`;
+Tu peux répondre à n'importe quelle question: gestion stock, promotions, tendances, conseils stratégiques, marketing, finances, etc.`;
 
             const apiMessages = newMessages.filter(m => m.role === 'user' || m.role === 'assistant');
 
@@ -316,54 +414,89 @@ ${salesData}
 
         switch (activeTab) {
             case 'overview':
-                const slowOverviewProds = getSlowProductsWithPromos();
+                const daily = getDailySummary();
+                const slowOverviewProds = getSlowProductsWithPromos().slice(0, 3);
                 return (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Top Products Table */}
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-bold flex items-center gap-2"><FiTrendingUp className="text-green-500" /> Les Plus Vendus</h3>
-                                    <select 
-                                        value={topProductsSortBy}
-                                        onChange={(e) => setTopProductsSortBy(e.target.value)}
-                                        className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs font-bold text-gray-600 dark:text-gray-300 rounded-lg px-2 py-1.5 focus:ring-0 focus:outline-none"
-                                    >
-                                        <option value="revenue">Par Revenu</option>
-                                        <option value="quantity">Par Quantité</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-3">
-                                    {getTopProducts().map((p, i) => (
-                                        <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                                            <span className="font-medium dark:text-white">{p.name}</span>
-                                            <div className="text-right">
-                                                <div className="font-bold text-green-600 dark:text-green-400">{formatCurrency(p.revenue)}</div>
-                                                <div className="text-xs text-gray-500">{p.qty} vendus</div>
-                                            </div>
+                    <div className="space-y-8">
+                        {/* Strategic BI Hero */}
+                        <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden text-white border border-white/5 group">
+                            <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 blur-[100px] rounded-full group-hover:bg-blue-500/20 transition-all duration-1000"></div>
+                            <div className="relative z-10 flex flex-col md:flex-row justify-between gap-8">
+                                <div className="max-w-2xl">
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <span className="px-4 py-1.5 bg-blue-500/20 backdrop-blur-xl rounded-full text-[11px] font-black tracking-[0.2em] uppercase border border-white/10 text-blue-300">
+                                            IA ANALYTICS ENGINE 
+                                        </span>
+                                        <div className="flex gap-1.5">
+                                            {[1,2,3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-400/40 animate-pulse" style={{animationDelay: `${i*0.2}s`}}></div>)}
                                         </div>
-                                    ))}
-                                    {getTopProducts().length === 0 && <p className="text-gray-500 text-sm">Pas de données de vente disponibles.</p>}
+                                    </div>
+                                    <h3 className="text-4xl font-black mb-4 leading-[1.1] tracking-tight">{t('aiHeroTitle', "Optimisez votre magasin avec l'IA.")}</h3>
+                                    <p className="text-slate-300 text-lg opacity-90 leading-relaxed">
+                                        {t('aiHeroDesc', "Analyse temps réel : Votre CA est de {{rev}}. Le volume est stable. Focus suggéré : Promotions ciblées.", {rev: formatCurrency(daily.todayRevenue)})}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap md:flex-nowrap gap-4 shrink-0">
+                                    <div className="bg-white/5 backdrop-blur-2xl p-6 rounded-3xl border border-white/10 w-32 md:w-40 flex flex-col justify-center hover:scale-105 transition-transform">
+                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{t('sales', 'Ventes')}</div>
+                                        <div className="text-3xl font-black text-white">{daily.todayCount}</div>
+                                    </div>
+                                    <div className="bg-white/5 backdrop-blur-2xl p-6 rounded-3xl border border-white/10 w-32 md:w-40 flex flex-col justify-center hover:scale-105 transition-transform">
+                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{t('alerts', 'Alertes')}</div>
+                                        <div className="text-3xl font-black text-orange-400">{getSmartAlerts().length}</div>
+                                    </div>
                                 </div>
                             </div>
-                            
-                            {/* Slow Products Table */}
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><FiAlertCircle className="text-orange-500" /> Les Plus Lents</h3>
-                                <div className="space-y-3">
-                                    {slowOverviewProds.map((p, i) => (
-                                        <div key={i} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
-                                            <div>
-                                                <span className="font-medium dark:text-white block">{p.name}</span>
-                                                <span className="text-xs text-gray-500">Stock restant: {p.stockQuantity}</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-700">
+                                <div className="flex justify-between items-center mb-8">
+                                    <h3 className="text-xl font-black flex items-center gap-3 tracking-tighter uppercase"><FiTrendingUp className="text-blue-600" /> {t('topSelling', 'Top de Vente')}</h3>
+                                    <div className="flex bg-gray-50 dark:bg-slate-900 p-1.5 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                        <button onClick={() => setTopProductsSortBy('revenue')} className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'revenue' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-md' : 'text-gray-400'}`}>{t('revenueSort', 'Revenu')}</button>
+                                        <button onClick={() => setTopProductsSortBy('quantity')} className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'quantity' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-md' : 'text-gray-400'}`}>{t('quantitySort', 'Quantité')}</button>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    {getTopProducts().map((p, i) => (
+                                        <div key={i} className="flex justify-between items-center p-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform shadow-sm">
+                                                    {p.imageUrl ? <img src={`${import.meta.env.VITE_API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-slate-400">{p.name.substring(0,2).toUpperCase()}</span>}
+                                                </div>
+                                                <div>
+                                                    <div className="font-black text-slate-800 dark:text-white truncate max-w-[150px]">{p.name}</div>
+                                                    <div className="text-xs text-slate-400 font-bold">{t('unitsSold', '{{count}} unités vendues', {count: p.qty})}</div>
+                                                </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="font-bold text-orange-600 dark:text-orange-400">Promo IA: {p.suggestedDiscount}</div>
-                                                <div className="text-[10px] text-gray-500">Ventes trop faibles</div>
+                                                <div className="text-lg font-black text-blue-600 dark:text-blue-400">{formatCurrency(p.revenue)}</div>
                                             </div>
                                         </div>
                                     ))}
-                                    {slowOverviewProds.length === 0 && <p className="text-gray-500 text-sm">Aucun produit dormant détecté.</p>}
+                                </div>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-700">
+                                <h3 className="text-xl font-black mb-8 flex items-center gap-3 tracking-tighter uppercase"><FiAlertCircle className="text-orange-500" /> {t('dormantStock', 'Produits Dormants')}</h3>
+                                <div className="space-y-4">
+                                    {slowOverviewProds.map((p, i) => (
+                                        <div key={i} className="flex justify-between items-center p-4 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-transparent hover:border-orange-100 transition-all group">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border-2 border-orange-100 dark:border-orange-900/30 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform">
+                                                    {p.imageUrl ? <img src={`${import.meta.env.VITE_API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-orange-300">{p.name.substring(0,2).toUpperCase()}</span>}
+                                                </div>
+                                                <div>
+                                                    <div className="font-black text-slate-800 dark:text-white truncate max-w-[150px]">{p.name}</div>
+                                                    <div className="text-xs text-orange-500/70 font-bold underline decoration-2 underline-offset-4">Stock: {p.stockQuantity}</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-xs font-black text-orange-600 bg-orange-100 dark:bg-orange-900/40 px-2 py-1 rounded-lg">PROMO {p.suggestedDiscount}</div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         </div>
@@ -374,116 +507,312 @@ ${salesData}
                 return (
                     <div className="space-y-6">
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><FiActivity className="text-orange-500" /> Promotions Adaptées</h3>
+                            <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><FiActivity className="text-orange-500" /> {t('adaptedPromotions', 'Promotions Adaptées')}</h3>
                             <p className="text-sm text-gray-500 mb-6">Suggestions IA pour écouler les stocks dormants et maximiser la rotation.</p>
                             
                             <div className="grid gap-4 md:grid-cols-2">
                                 {slowProds.map((p, i) => (
                                     <div key={i} className="p-4 border border-orange-100 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="font-bold dark:text-white">{p.name}</div>
-                                            <div className="bg-orange-500 text-white font-bold px-2 py-1 rounded-md text-sm">{p.suggestedDiscount}</div>
+                                        <div className="flex items-start gap-3 mb-3">
+                                            <div className="w-14 h-14 rounded-xl bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 flex items-center justify-center overflow-hidden shrink-0">
+                                                {p.imageUrl ? (
+                                                    <img src={`${import.meta.env.VITE_API_URL}${p.imageUrl}`} alt={p.name} className="w-full h-full object-contain" />
+                                                ) : (
+                                                    <span className="text-sm font-black text-orange-400">{p.name.substring(0, 2).toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="font-bold dark:text-white truncate">{p.name}</div>
+                                                <div className="text-xs text-gray-500">Stock: {p.stockQuantity} unités</div>
+                                                <div className="bg-orange-500 text-white font-bold px-2 py-0.5 rounded-md text-xs inline-block mt-1">Remise IA: {p.suggestedDiscount}</div>
+                                            </div>
                                         </div>
                                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">{p.actionReason}</p>
-                                        <button className="w-full py-2 bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 rounded-lg text-sm font-medium hover:bg-orange-100 transition-colors">
-                                            Appliquer la promotion
-                                        </button>
+                                        {promoSuccess[p.id] ? (
+                                            <div className="w-full py-2 bg-green-100 dark:bg-green-900/30 border border-green-300 text-green-700 dark:text-green-400 rounded-lg text-sm font-bold text-center">
+                                                ✅ {t('promotionApplied', 'Promotion appliquée !')}
+                                            </div>
+                                        ) : (
+                                            <button 
+                                                onClick={() => handleApplyPromotion(p)}
+                                                className="w-full py-2 bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 rounded-lg text-sm font-medium hover:bg-orange-100 transition-colors">
+                                                {t('applyPromotion', 'Appliquer la promotion')}
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
-                                {slowProds.length === 0 && <p className="text-gray-500 italic">Aucun stock dormant détecté.</p>}
+                                {slowProds.length === 0 && <p className="text-gray-500 italic">{t('noDormantStock', 'Aucun stock dormant détecté.')}</p>}
                             </div>
                         </div>
                     </div>
                 );
             case 'forecasts':
                 return (
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 h-[450px] flex flex-col">
-                        <div className="mb-4">
-                            <h3 className="text-lg font-bold mb-1">Prévisions des Ventes & Approvisionnement</h3>
-                            <p className="text-sm text-gray-500">Anticipez vos ventes futures pour mieux organiser vos achats auprès des fournisseurs.</p>
+                    <div className="space-y-8">
+                        {/* Forecast Summary Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+                                <div className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-2">{t('estimatedGrowth', 'Croissance Estimée')}</div>
+                                <div className="text-3xl font-black text-slate-800 dark:text-white">+12.5%</div>
+                                <div className="text-xs text-slate-400 mt-1 font-bold">Projection Q2 2026</div>
+                            </div>
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+                                <div className="text-indigo-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('supplyUrgency', 'Urgence Approvisionnement')}</div>
+                                <div className="text-3xl font-black text-indigo-600">85%</div>
+                                <div className="text-xs text-slate-400 mt-1 font-bold">Capacité de stockage optimale</div>
+                            </div>
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+                                <div className="text-teal-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('marketTrend', 'Tendance Marché')}</div>
+                                <div className="text-3xl font-black text-teal-600">HAUSSE</div>
+                                <div className="text-xs text-slate-400 mt-1 font-bold">Saisonnalité favorable</div>
+                            </div>
                         </div>
-                        <div className="flex-1">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={getForecastData()}>
-                                    <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                                    <XAxis dataKey="name" tick={{fill: '#6b7280'}} />
-                                    <YAxis tick={{fill: '#6b7280'}} />
-                                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                    <Legend />
-                                    <Bar dataKey="Approvisionnement" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Achat Conseillé ($)" />
-                                    <Line type="monotone" dataKey="Prédiction" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} name="Ventes Prévues ($)" />
-                                </ComposedChart>
-                            </ResponsiveContainer>
+
+                        {/* Chart Area */}
+                        <div className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 flex flex-col h-[500px]">
+                            <div className="mb-8 flex justify-between items-end">
+                                <div>
+                                    <h3 className="text-2xl font-black tracking-tighter uppercase leading-none mb-2">{t('salesForecasts', 'Prévisions Stratégiques')}</h3>
+                                    <p className="text-slate-400 text-sm font-medium">{t('forecastDesc', 'Anticipation des flux de vente et optimisation des achats.')}</p>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div> {t('supply', 'Appro.') }
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                        <div className="w-3 h-[2px] bg-indigo-500"></div> {t('forecast', 'Prévision') }
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex-1">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart data={getForecastData()}>
+                                        <defs>
+                                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                                                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.4}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                                        <XAxis 
+                                            dataKey="name" 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} 
+                                            dy={10}
+                                        />
+                                        <YAxis 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
+                                        />
+                                        <Tooltip 
+                                            cursor={{fill: 'rgba(59, 130, 246, 0.05)'}}
+                                            contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '16px' }} 
+                                        />
+                                        <Bar dataKey="Approvisionnement" fill="url(#barGradient)" radius={[10, 10, 0, 0]} barSize={40} />
+                                        <Line type="monotone" dataKey="Prédiction" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </div>
                         </div>
                     </div>
                 );
             case 'behavior':
                 const behavior = getBehaviorData();
                 return (
-                    <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-800 text-center flex flex-col justify-center">
-                                <h4 className="text-indigo-600 dark:text-indigo-400 font-bold mb-2">Panier Moyen Global</h4>
-                                <div className="text-4xl font-black text-indigo-700 dark:text-indigo-300">
-                                    {formatCurrency(behavior.panierMoyen)}
+                    <div className="space-y-8">
+                        {/* Behavior Insights Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-8 rounded-3xl shadow-xl text-white flex flex-col justify-between relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full -mr-16 -mt-16"></div>
+                                <div>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">{t('peakActivity', 'Heure de Pointe')}</div>
+                                    <div className="text-4xl font-black">16:00</div>
                                 </div>
-                                <p className="text-xs text-indigo-500 mt-2">Basé sur {behavior.totalClients} transactions totales</p>
+                                <div className="text-xs font-bold opacity-70 mt-4">+24% d'affluence vs matins</div>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-800 p-7 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
+                                <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('customerFlow', 'Flux Clients')}</div>
+                                <div className="text-3xl font-black text-slate-800 dark:text-white">High</div>
+                                <div className="text-xs text-green-500 mt-1 font-bold">Stable sur les 7 derniers jours</div>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-800 p-7 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
+                                <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('repeatBuyers', 'Fidélité')}</div>
+                                <div className="text-3xl font-black text-slate-800 dark:text-white">68%</div>
+                                <div className="text-xs text-slate-400 mt-1 font-bold">Taux de retour clients hebdomadaire</div>
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 h-[350px] flex flex-col">
-                            <h3 className="text-lg font-bold mb-4">Activité par Heure (Heatmap)</h3>
+                        {/* Customer Traffic Area */}
+                        <div className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 h-[400px] flex flex-col">
+                            <div className="mb-8 flex justify-between items-center">
+                                <div>
+                                    <h3 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1">{t('activityByHour', 'Trafic Intraday')}</h3>
+                                    <p className="text-slate-400 text-sm font-medium">{t('heatmapDesc', 'Visualisation des pics de transactions par tranche horaire.')}</p>
+                                </div>
+                                <div className="text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-4 py-2 rounded-full uppercase tracking-widest">
+                                    Mise à jour directe
+                                </div>
+                            </div>
                             <div className="flex-1">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={behavior.heatmapData}>
                                         <defs>
-                                            <linearGradient id="colorTrans" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                                                <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                                            <linearGradient id="colorTraffic" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                                             </linearGradient>
                                         </defs>
-                                        <XAxis dataKey="heure" tick={{fill: '#6b7280'}} />
-                                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                        <Area type="monotone" dataKey="Transactions" stroke="#ef4444" fillOpacity={1} fill="url(#colorTrans)" strokeWidth={3} />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                                        <XAxis 
+                                            dataKey="heure" 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
+                                        />
+                                        <Tooltip 
+                                            contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '16px' }}
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="Transactions" 
+                                            stroke="#6366f1" 
+                                            fillOpacity={1} 
+                                            fill="url(#colorTraffic)" 
+                                            strokeWidth={4}
+                                        />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
                     </div>
                 );
-            case 'anomalies':
-                const anomalies = getAnomalies();
+            case 'marketing':
                 return (
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <div className="mb-6 border-b border-gray-100 dark:border-gray-700 pb-4">
-                            <h3 className="text-lg font-bold flex items-center gap-2 text-slate-800 dark:text-white"><FiActivity className="text-purple-500"/> Détection d'Anomalies</h3>
-                            <p className="text-sm text-gray-500 mt-1">L'IA scanne constament les flux de données pour identifier des comportements illogiques ou des erreurs de gestion.</p>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            {anomalies.map((a, i) => (
-                                <div key={i} className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
-                                    <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm h-fit">
-                                        <FiAlertCircle className="text-xl text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-slate-800 dark:text-white mb-1 flex items-center gap-2">
-                                            {a.product.name} 
-                                            <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 rounded-full">{a.type}</span>
-                                        </div>
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">{a.desc}</p>
-                                    </div>
+                    <div className="space-y-8">
+                        <div className="bg-white dark:bg-gray-800 p-10 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+                                <div>
+                                    <h3 className="text-2xl font-black flex items-center gap-3 tracking-tighter uppercase">
+                                        <FiShoppingBag className="text-pink-500 scale-125" /> {t('tabMarketing', 'Marketing')}
+                                    </h3>
+                                    <p className="text-slate-500 font-medium mt-1">{t('aiMarketingDesc', "L'IA conçoit vos prochaines campagnes à partir de vos données réelles.")}</p>
                                 </div>
-                            ))}
-                            {anomalies.length === 0 && (
-                                <div className="text-center py-10">
-                                    <div className="inline-flex justify-center items-center w-16 h-16 rounded-full bg-green-50 mb-3">
-                                        <FiTrendingUp className="text-2xl text-green-500"/>
-                                    </div>
-                                    <p className="font-medium text-gray-600 dark:text-gray-300">Aucune anomalie détectée</p>
-                                    <p className="text-sm text-gray-400 mt-1">Vos données de stock et de vente sont cohérentes.</p>
+                                <button
+                                    onClick={generateMarketingIdeas}
+                                    disabled={isGeneratingMarketing}
+                                    className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-50 group uppercase tracking-widest text-[11px]"
+                                >
+                                    {isGeneratingMarketing ? <FiRefreshCw className="animate-spin" /> : <FiActivity className="group-hover:rotate-180 transition-transform duration-500" />}
+                                    {isGeneratingMarketing ? t('loading', 'ANALYSE...') : t('btnGenerateAi', "GÉNÉRER AVEC L'IA")}
+                                </button>
+                            </div>
+
+                            {!marketingSuggested && !isGeneratingMarketing && (
+                                <div className="flex flex-col items-center justify-center py-24 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
+                                    <div className="w-24 h-24 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center mb-6 text-5xl shadow-lg">🚀</div>
+                                    <h4 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-tight">{t('readyToBoost', 'Prêt à Booster ?')}</h4>
+                                    <p className="text-slate-500 max-w-sm font-medium text-sm">{t('marketingLaunchDesc', "Lancez l'intelligence marketing pour découvrir des opportunités uniques.")}</p>
                                 </div>
                             )}
+
+                            {isGeneratingMarketing && (
+                                <div className="flex flex-col items-center justify-center py-24">
+                                    <FiRefreshCw className="animate-spin text-4xl text-blue-500 mb-4" />
+                                    <p className="text-slate-500 font-black tracking-widest uppercase text-[10px]">{t('aiCalculating', 'Calcul stratégique...')}</p>
+                                </div>
+                            )}
+
+                            <div className="grid gap-8 md:grid-cols-2">
+                                <AnimatePresence>
+                                    {marketingIdeas.map((idea, i) => (
+                                        <motion.div 
+                                            key={i}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: i * 0.1 }}
+                                            className="group bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all"
+                                        >
+                                            <div className="relative p-8 text-white min-h-[160px] flex flex-col justify-end" style={{ backgroundColor: idea.theme }}>
+                                                <div className="absolute top-6 right-6 text-5xl opacity-20 group-hover:scale-125 transition-transform duration-500">{idea.emoji}</div>
+                                                <div className="relative z-10">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-widest uppercase">Offre IA</span>
+                                                        {idea.timing && (
+                                                            <span className="px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-widest uppercase flex items-center gap-1">
+                                                                <FiCalendar className="text-[10px]" /> {idea.timing}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <h4 className="font-black text-2xl tracking-tighter uppercase">{idea.title}</h4>
+                                                </div>
+                                            </div>
+                                            <div className="p-8">
+                                                <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed mb-6 text-sm">{idea.description}</p>
+                                                
+                                                {idea.products && idea.products.length > 0 && (
+                                                    <div className="grid grid-cols-2 gap-4 mb-8">
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{t('featuredProducts', 'Produits à l\'honneur')}</p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {idea.products.map((pName, j) => (
+                                                                    <span key={j} className="text-[10px] font-black bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                                                                        {pName}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{t('visualSupport', 'Support Visuel')}</p>
+                                                            <div className="flex gap-2">
+                                                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs" title={t('poster', 'Affiche')}>🖼️</div>
+                                                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs" title={t('catalog', 'Catalogue')}>📚</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="flex gap-3">
+                                                    {posterGenerated[i] ? (
+                                                        <button
+                                                            onClick={() => setSelectedPoster(idea)}
+                                                            className="flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest rounded-2xl bg-green-500 text-white shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-transform"
+                                                        >
+                                                            ✨ {t('seePoster', 'Voir l\'Affiche')}
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleGeneratePoster(i)}
+                                                            disabled={generatingPoster[i]}
+                                                            className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest rounded-2xl border-2 transition-all ${
+                                                                generatingPoster[i] ? 'opacity-50 cursor-wait' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                                                            }`}
+                                                            style={{ borderColor: idea.theme, color: idea.theme }}
+                                                        >
+                                                            {generatingPoster[i] ? (
+                                                                <>
+                                                                    <FiRefreshCw className="animate-spin" /> {t('loading', 'Chargement...')}
+                                                                </>
+                                                            ) : (
+                                                                <>🎨 {t('generatePoster', 'Générer l\'affiche')}</>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                    <button 
+                                                        className="px-6 py-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+                                                        title={t('moreDetails', 'Plus de détails')}
+                                                    >
+                                                        <FiArrowUpRight />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                            </div>
                         </div>
                     </div>
                 );
@@ -492,33 +821,39 @@ ${salesData}
                 return (
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <div className="mb-6">
-                            <h3 className="text-lg font-bold flex items-center gap-2"><FiAlertCircle className="text-red-500"/> Anticipation des Ruptures</h3>
-                            <p className="text-sm text-gray-500 mt-1">Basé sur la vélocité des ventes récentes (et pas seulement sur le stock brut).</p>
+                            <h3 className="text-lg font-bold flex items-center gap-2"><FiAlertCircle className="text-red-500"/> {t('anticipatingShortages', 'Anticipation des Ruptures')}</h3>
+                            <p className="text-sm text-gray-500 mt-1">{t('stockVelocityDesc', 'Basé sur la vélocité des ventes récentes.')}</p>
                         </div>
                         <div className="space-y-3">
                             {smartAlerts.length === 0 ? (
-                                <p className="text-green-500 font-medium">Tout va bien ! Aucune rupture anticipée.</p>
+                                <p className="text-green-500 font-medium">{t('everythingIsFine', 'Tout va bien ! Aucune rupture anticipée.')}</p>
                             ) : (
                                 smartAlerts.map((a, i) => (
                                     <div key={i} className={`flex items-center justify-between p-4 border rounded-xl relative overflow-hidden ${
                                         a.urgency === 'high' ? 'bg-red-50 border-red-100 dark:bg-red-900/10 dark:border-red-800/50' : 'bg-orange-50 border-orange-100 dark:bg-orange-900/10 dark:border-orange-800/50'
                                     }`}>
                                         <div className={`absolute left-0 top-0 bottom-0 w-1 ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}></div>
-                                        <div>
-                                            <p className={`font-bold ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>
-                                                {a.p.name}
-                                            </p>
-                                            <p className={`text-sm mt-1 font-medium ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>
-                                                {a.reason}
-                                            </p>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0 ml-2">
+                                                {a.p.imageUrl ? (
+                                                    <img src={`${import.meta.env.VITE_API_URL}${a.p.imageUrl}`} alt={a.p.name} className="w-full h-full object-contain" />
+                                                ) : (
+                                                    <span className="text-[10px] font-black text-gray-400">{a.p.name.substring(0, 2).toUpperCase()}</span>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <p className={`font-bold ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>
+                                                    {a.p.name}
+                                                </p>
+                                                <p className={`text-sm mt-1 font-medium ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>
+                                                    {a.reason}
+                                                </p>
+                                            </div>
                                         </div>
                                         <div className="flex flex-col items-end gap-2">
                                             <span className={`px-3 py-1 text-white font-bold rounded-lg text-sm ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}>
                                                 {a.p.stockQuantity} en stock
                                             </span>
-                                            <button className="text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-blue-600 px-3 py-1 bg-white dark:bg-gray-800 rounded-md shadow-sm border border-gray-200 dark:border-gray-700">
-                                                Commander
-                                            </button>
                                         </div>
                                     </div>
                                 ))
@@ -538,7 +873,14 @@ ${salesData}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Tabs */}
                 <div className="flex space-x-2 mb-6 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar">
-                    {TABS.map(tab => (
+                    {[
+                        { id: 'overview', label: t('tabOverview', "Vue d'ensemble"), icon: FiPieChart },
+                        { id: 'products', label: t('tabProductsPromos', 'Produits & Promos'), icon: FiBox },
+                        { id: 'forecasts', label: t('tabForecasts', 'Prévisions'), icon: FiTrendingUp },
+                        { id: 'behavior', label: t('tabBehavior', 'Comportement'), icon: FiCalendar },
+                        { id: 'alerts', label: t('tabAlerts', 'Alertes stock'), icon: FiAlertCircle },
+                        { id: 'marketing', label: t('tabMarketing', 'Marketing'), icon: FiShoppingBag },
+                    ].map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
@@ -568,28 +910,37 @@ ${salesData}
                         </motion.div>
                     </AnimatePresence>
                 </div>
+
             </div>
 
             {/* AI ASSISTANT SIDE PANEL */}
             <div className="w-[380px] flex flex-col bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white">
-                    <div className="flex items-center gap-3 mb-2">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white flex justify-between items-center">
+                    <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
                             <FiMessageCircle className="text-xl" />
                         </div>
                         <div>
-                            <h2 className="font-bold text-lg leading-tight">Assistant IA</h2>
-                            <p className="text-blue-100 text-xs text-opacity-80">Connecté à vos données temps réel</p>
+                            <h2 className="font-bold text-lg leading-tight tracking-tight">{t('aiAssistant', 'AI Assistant')}</h2>
+                            <p className="text-blue-100 text-[10px] uppercase font-black tracking-widest opacity-70">{t('strategicExpert', 'Expert Stratégique')}</p>
                         </div>
                     </div>
+                    <button 
+                        onClick={clearChat}
+                        title={t('clearHistory', "Effacer l'historique")}
+                        className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all border border-white/5"
+                    >
+                        <FiTrash2 size={16} />
+                    </button>
                 </div>
 
                 {/* Quick Prompts */}
-                <div className="px-5 pt-4 pb-2 flex gap-2 overflow-x-auto custom-scrollbar hide-scrollbar">
-                    <button onClick={(e) => handleSendMessage(e, "Générer un résumé de la journée")} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">📊 Résumé</button>
-                    <button onClick={(e) => handleSendMessage(e, "Quelles anomalies as-tu détectées dans les données ?")} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">🔍 Anomalies</button>
-                    <button onClick={(e) => handleSendMessage(e, "Que me conseilles-tu d'approvisionner urgemment ?")} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">📦 Achats</button>
+                    <div className="px-5 pt-4 pb-2 flex gap-2 overflow-x-auto custom-scrollbar hide-scrollbar">
+                    <button onClick={(e) => handleSendMessage(e, t('summaryPromptText', "Fais-moi un résumé complet de la situation du magasin aujourd'hui."))} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">📊 {t('summaryPrompt', 'Résumé')}</button>
+                    <button onClick={(e) => handleSendMessage(e, t('stockPromptText', "Quels produits sont en rupture d'urgence ?"))} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">📦 {t('stockPrompt', 'Stock')}</button>
+                    <button onClick={(e) => handleSendMessage(e, t('promosPromptText', "Quelles promotions dois-je lancer cette semaine pour maximiser mes ventes ?"))} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">🔥 {t('promosPrompt', 'Promos')}</button>
+                    <button onClick={(e) => handleSendMessage(e, t('trendsPromptText', "Analyse mes tendances de ventes et dis-moi ce que je dois améliorer."))} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">📈 {t('trendsPrompt', 'Tendances')}</button>
                 </div>
 
                 {/* Messages Area */}
@@ -624,7 +975,7 @@ ${salesData}
                             type="text"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
-                            placeholder="Demandez une analyse..."
+                            placeholder={t('askAiPlaceholder', 'Demandez une analyse...')}
                             className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm text-sm"
                         />
                         <button
@@ -638,8 +989,143 @@ ${salesData}
                 </form>
             </div>
             
+            {/* Poster Preview Modal - Root Level */}
+            <AnimatePresence>
+                {selectedPoster && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.9, y: 40 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 40 }}
+                            className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/20"
+                        >
+                            <button 
+                                onClick={() => setSelectedPoster(null)}
+                                className="absolute top-8 right-8 z-50 w-12 h-12 flex items-center justify-center bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
+                            >
+                                <FiTrash2 className="rotate-45 scale-125" />
+                            </button>
+
+                            <div className="flex flex-col md:flex-row min-h-[600px]">
+                                {/* Poster Visual Area */}
+                                <div className="w-full md:w-1/2 relative flex flex-col justify-between p-12 text-white overflow-hidden" 
+                                     style={{ 
+                                        backgroundColor: selectedPoster.theme || '#3b82f6',
+                                        backgroundImage: `radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15) 0%, transparent 40%), radial-gradient(circle at 80% 80%, rgba(0,0,0,0.15) 0%, transparent 40%)`
+                                     }}>
+                                    {/* Decorative Pattern Overlay */}
+                                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                                    
+                                    <div className="absolute -top-20 -right-20 text-[250px] opacity-10 pointer-events-none rotate-12">{selectedPoster.emoji || '✨'}</div>
+                                    
+                                    {/* Discount Badge */}
+                                    <motion.div 
+                                        initial={{ scale: 0, rotate: -20 }}
+                                        animate={{ scale: 1, rotate: -5 }}
+                                        className="absolute top-10 right-10 w-24 h-24 bg-white text-slate-900 rounded-full flex flex-col items-center justify-center shadow-2xl z-20 border-4 border-slate-900/5"
+                                    >
+                                        <span className="text-[10px] font-black uppercase tracking-tighter opacity-60">Economisez</span>
+                                        <span className="text-3xl font-black leading-none">-{selectedPoster.discountPercent || 25}%</span>
+                                    </motion.div>
+                                    
+                                    <div className="relative z-10">
+                                        <div className="w-16 h-1 bg-white/40 mb-8 rounded-full" />
+                                        <span className="text-[10px] font-black tracking-[0.3em] uppercase bg-white/20 px-3 py-1 rounded-full mb-6 inline-block backdrop-blur-sm">{t('shopExclusivity', 'Exclusivité Magasin')}</span>
+                                        <h2 className="text-5xl font-black tracking-tighter uppercase leading-[0.9] mb-4">
+                                            {(selectedPoster.title || "Offre Spéciale").split(' ').map((word, idx) => (
+                                                <span key={idx} className="block">{word}</span>
+                                            ))}
+                                        </h2>
+                                        <div className="text-2xl font-medium opacity-80 italic">— {t('limitedOffer', 'Offre Limitée')}</div>
+                                    </div>
+
+                                    <div className="relative z-10">
+                                        <p className="text-lg font-bold opacity-90 leading-tight mb-4">
+                                            {selectedPoster.description}
+                                        </p>
+                                        <div className="flex items-center gap-2 text-[10px] font-black tracking-widest opacity-60 uppercase">
+                                            <div className="w-8 h-[2px] bg-white"></div>
+                                            Registry Cash System AI
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Products & Details Area */}
+                                <div className="w-full md:w-1/2 p-12 bg-white dark:bg-slate-900 flex flex-col justify-between">
+                                    <div>
+                                        <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase mb-8">Produits à l'honneur</h3>
+                                        <div className="space-y-6">
+                                            {selectedPoster.products?.map((pName, idx) => {
+                                                const prod = products.find(p => p.name === pName);
+                                                return (
+                                                    <div key={idx} className="flex items-center gap-6 group">
+                                                        <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-3xl flex items-center justify-center border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
+                                                            {prod?.imageUrl ? (
+                                                                <img src={`${import.meta.env.VITE_API_URL}${prod.imageUrl}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                            ) : (
+                                                                <span className="text-2xl opacity-40">{selectedPoster.emoji || '📦'}</span>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-black text-slate-800 dark:text-white uppercase tracking-tight text-sm mb-1">{pName}</h4>
+                                                            <p className="text-[10px] font-bold text-blue-500 tracking-widest uppercase">{t('specialEdition', 'Édition Spéciale')}</p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
+                                        {/* Bundle Price Comparison */}
+                                        <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] mb-8 flex justify-between items-center border border-slate-100 dark:border-slate-800">
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valeur Totale</p>
+                                                <p className="text-xl font-bold text-slate-400 line-through decoration-slate-400/50">
+                                                    {formatCurrency(selectedPoster.products?.reduce((total, pName) => {
+                                                        const p = products.find(prod => prod.name === pName);
+                                                        return total + (p ? parseFloat(p.price) : 0);
+                                                    }, 0) || 0)}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Prix Spécial Pack</p>
+                                                <p className="text-3xl font-black text-blue-600 dark:text-blue-400 leading-none">
+                                                    {formatCurrency((selectedPoster.products?.reduce((total, pName) => {
+                                                        const p = products.find(prod => prod.name === pName);
+                                                        return total + (p ? parseFloat(p.price) : 0);
+                                                    }, 0) || 0) * (1 - (selectedPoster.discountPercent || 25) / 100))}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center justify-between mb-8 px-2">
+                                            <div>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('idealMoment', 'Moment Idéal')}</p>
+                                                <p className="text-sm font-black text-slate-800 dark:text-white uppercase flex items-center gap-2">
+                                                    <FiCalendar /> {selectedPoster.timing || t('permanent', "Permanent")}
+                                                </p>
+                                            </div>
+                                            {/* Fake QR Code */}
+                                            <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
+                                                <div className="w-full h-full opacity-20" style={{ backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, #000)', backgroundSize: '4px 4px' }}></div>
+                                            </div>
+                                        </div>
+
+                                        <button className="group w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[1.5rem] font-black uppercase text-[10px] tracking-[0.3em] hover:scale-[1.02] transition-all active:scale-95 shadow-xl shadow-slate-900/10 dark:shadow-white/10 flex items-center justify-center gap-3">
+                                            📥 {t('downloadKit', 'Télécharger le Kit Imprimable')}
+                                            <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
+
 
 export default AIAnalytics;

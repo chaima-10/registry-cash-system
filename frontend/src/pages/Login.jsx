@@ -18,7 +18,11 @@ const Login = () => {
         e.preventDefault();
         setError('');
         try {
-            await login(identifier, password);
+            // Robust input handling: trim to prevent accidental spaces issues
+            const cleanIdentifier = identifier.trim();
+            const cleanPassword = password.trim();
+            
+            await login(cleanIdentifier, cleanPassword);
             navigate('/');
         } catch (err) {
             // Axios error handling

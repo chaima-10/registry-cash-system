@@ -3,10 +3,13 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 
 // Protected Route Wrapper
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
     const { user } = useAuth();
     if (!user) {
         return <Navigate to="/login" replace />;
+    }
+    if (allowedRoles && !allowedRoles.includes(user.role)) {
+        return <Navigate to={user.role === 'cashier' ? '/pos' : '/'} replace />;
     }
     return children;
 };
@@ -26,15 +29,19 @@ function AppRoutes() {
         <Routes>
             <Route path="/login" element={<Login />} />
 
-            {/* Protected Layout Routes */}
-            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            {/* Admin Only Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['admin']}><Layout /></ProtectedRoute>}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/users" element={<Users />} />
+                <Route path="/analytics" element={<AIAnalytics />} />
+            </Route>
+
+            {/* Shared Routes (Admin + Cashier) */}
+            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="/pos" element={<POS />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/analytics" element={<AIAnalytics />} />
             </Route>
         </Routes>
     );
