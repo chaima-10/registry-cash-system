@@ -1,19 +1,9 @@
 import axios from 'axios';
 
-<<<<<<< HEAD
-// Use Vercel serverless functions as fallback
-const baseURL = import.meta.env.VITE_API_URL 
-    ? `${import.meta.env.VITE_API_URL}/api`
-    : '/api'; // Vercel serverless functions
-
-const api = axios.create({
-    baseURL,
-=======
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const api = axios.create({
     baseURL: `${API_URL.replace(/\/$/, '')}/api`,
->>>>>>> dfc2ff4 (ajout module AI marketing)
 
     headers: {
         'Content-Type': 'application/json',
