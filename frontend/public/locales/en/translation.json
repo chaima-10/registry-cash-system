@@ -317,5 +317,21 @@
   "cogsDesc": "Purchase value of sold products",
   "potentialSales": "Residual CA potential",
   "periodTransactions": "{{count}} transactions this {{period}}",
-  "aiAnalytics": "AI Analytics"
+  "aiAnalytics": "AI Analytics",
+  "marketingStudio": "Marketing Studio",
+  "marketingStudioDesc": "Manage your campaigns and catalogs powered by AI.",
+  "posters": "Posters",
+  "catalogs": "Catalogs",
+  "currentMoment": "Current Moment",
+  "ramadan": "Ramadan",
+  "eid": "Eid Al-Fitr",
+  "summerSeason": "Summer Season",
+  "blackFriday": "Black Friday",
+  "aiThinking": "AI is thinking...",
+  "smartSuggestions": "AI Suggestions",
+  "eventCampaigns": "Event Campaigns",
+  "marketingCopilot": "Marketing Copilot",
+  "chatPlaceholder": "Type here...",
+  "featuredProducts": "Featured Products",
+  "publishNow": "Publish Now"
 }

@@ -25,26 +25,10 @@ const AIAnalytics = () => {
     const [users, setUsers] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    // AI states
-    const [chatMessages, setChatMessages] = useState([
-        { role: 'assistant', content: t('aiGreeting', "Bonjour ! Je suis l'Assistant IA du magasin. Je surveille vos données, prévois vos stocks et analyse le comportement d'achat de vos clients. Posez-moi n'importe quelle question !") }
-    ]);
-    const [chatInput, setChatInput] = useState('');
-    const [isAiTyping, setIsAiTyping] = useState(false);
-    const messagesEndRef = useRef(null);
-    const [promoSuccess, setPromoSuccess] = useState({});
-    const [orderSuccess, setOrderSuccess] = useState({});
-    const [marketingIdeas, setMarketingIdeas] = useState([]);
-    const [isGeneratingMarketing, setIsGeneratingMarketing] = useState(false);
-    const [marketingSuggested, setMarketingSuggested] = useState(false);
-    const [generatingPoster, setGeneratingPoster] = useState({});
-    const [posterGenerated, setPosterGenerated] = useState({});
-    const [selectedPoster, setSelectedPoster] = useState(null);
-    
-    const clearChat = () => {
-        setChatMessages([{ role: 'assistant', content: t('historyCleared', "Mise à jour : Historique effacé. Posez-moi une nouvelle question !") }]);
-    };
+    // AI states (Marketing removed)
+    // Removed old chat hooks and marketing specific generation logic
 
     // Initial Data Fetch
     useEffect(() => {
@@ -69,11 +53,6 @@ const AIAnalytics = () => {
         };
         fetchDashboardData();
     }, []);
-
-    // Scroll chat to bottom
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [chatMessages]);
 
     // Derived Date Helpers
     const isToday = (dateStr) => {
@@ -293,120 +272,6 @@ const AIAnalytics = () => {
         }, 2500);
     };
 
-    // Generate AI marketing ideas
-    const generateMarketingIdeas = async () => {
-        setIsGeneratingMarketing(true);
-        const safeProducts = Array.isArray(products) ? products : [];
-        const topProds = getTopProducts();
-        const prompt = `Tu es un expert marketing. Voici les top produits : ${JSON.stringify(topProds.map(p => ({name:p.name, price:p.revenue/p.qty})))}. 
-        Génère 4 idées de campagnes marketing "Pack/Bundle" (ex: "A + B = -30%").
-        Pour chaque idée, donne: 
-        - title: un titre accrocheur (ex: "Pack Apéro", "Duo Fraîcheur")
-        - description: explication courte (2 phrases)
-        - theme: un code couleur hexadécimal vibrant
-        - products: liste exacte de 2-3 noms de produits de ma liste
-        - emoji: un emoji relatif
-        - discountPercent: le pourcentage de remise (ex: 30)
-        Réponds UNIQUEMENT avec un JSON valide: [{"title":"...","description":"...","theme":"...","products":["..."],"emoji":"...","discountPercent":30}]`;
-        try {
-            const res = await api.post('/ai/chat', {
-                messages: [{ role: 'user', content: prompt }],
-                systemContext: 'Tu es un assistant marketing. Réponds UNIQUEMENT avec du JSON valide, sans texte avant ou après.'
-            });
-            const text = res.data.reply;
-            const jsonStr = text.match(/\[.*\]/s)?.[0];
-            if (jsonStr) {
-                setMarketingIdeas(JSON.parse(jsonStr).map(idea => ({
-                    ...idea,
-                    timing: "Ce weekend",
-                    discountPercent: idea.discountPercent || 25
-                })));
-            } else {
-                // Fallback fixed for bundles
-                const p1 = topProds[0]?.name || "Produit A";
-                const p2 = topProds[1]?.name || "Produit B";
-                setMarketingIdeas([
-                    { title: "Pack Apéro", description: `Le duo parfait pour vos soirées. Profitez de ${p1} et ${p2} à prix réduit.`, theme: "#ef4444", products: [p1, p2], emoji: "🍺", discountPercent: 30, timing: "Weekend" },
-                    { title: "Duo Économique", description: "Économisez gros en achetant vos indispensables ensemble. L'offre à ne pas manquer cette semaine.", theme: "#10b981", products: [p1, p2], emoji: "💰", discountPercent: 20, timing: "Permanent" },
-                    { title: "Offre Découverte", description: "Découvrez nos best-sellers dans un pack exclusif conçu pour vous faire économiser.", theme: "#3b82f6", products: [p1], emoji: "🎯", discountPercent: 15, timing: "7 jours" },
-                    { title: "Flash Vente", description: "Une remise exceptionnelle sur vos articles préférés. Vite, les stocks sont limités !", theme: "#f59e0b", products: [p1, p2], emoji: "⚡", discountPercent: 35, timing: "48h" },
-                ]);
-            }
-        } catch (e) {
-            setMarketingIdeas([
-                { title: "Offre Découverte", description: "Promotions ciblées sur vos best-sellers pour attirer de nouveaux clients.", theme: "#3b82f6", products: [], emoji: "🎯" },
-                { title: "Pack Économique", description: "Bundles de produits complémentaires pour augmenter le panier moyen.", theme: "#10b981", products: [], emoji: "💰" },
-                { title: "Flash Vente Weekend", description: "Promotions éclairs pour générer du trafic en fin de semaine.", theme: "#f59e0b", products: [], emoji: "⚡" },
-                { title: "Programme Fidélité", description: "Système de points pour fidéliser vos clients réguliers.", theme: "#8b5cf6", products: [], emoji: "🏆" },
-            ]);
-        } finally {
-            setIsGeneratingMarketing(false);
-            setMarketingSuggested(true);
-        }
-    };
-
-    // AI Chat handler
-    const handleSendMessage = async (e, quickPrompt = null) => {
-        if (e) e.preventDefault();
-        const userText = quickPrompt || chatInput;
-        if (!userText.trim()) return;
-
-        const newMessages = [...chatMessages, { role: 'user', content: userText }];
-        setChatMessages(newMessages);
-        setChatInput('');
-        setIsAiTyping(true);
-
-        try {
-            const daily = getDailySummary();
-            const alerts = getSmartAlerts();
-            
-            const safeSales = Array.isArray(sales) ? sales : [];
-            const safeUsers = Array.isArray(users) ? users : [];
-            const safeCats = Array.isArray(categories) ? categories : [];
-            const safeProducts = Array.isArray(products) ? products : [];
-
-            // Préparer les données brutes pour que l'IA y ait totalement accès (limité pour éviter l'erreur 413)
-            const productsData = JSON.stringify(safeProducts.slice(0, 100).map(p => ({
-                n: p.name, s: p.stockQuantity, p: p.price
-            })));
-            
-            // Pour les ventes, on ne prend que l'essentiel pour ne pas surcharger la requête
-            const salesData = JSON.stringify(safeSales.slice(-20).map(s => ({
-                d: s.createdAt.split('T')[0],
-                t: s.totalAmount
-            })));
-
-            const usersData = JSON.stringify(safeUsers.map(u => ({ id: u.id, nom: u.username, role: u.role })));
-            const categoriesData = JSON.stringify(safeCats.map(c => ({ id: c.id, nom: c.name })));
-            
-            const systemContext = `
-Tu es l'Assistant IA d'un magasin (Registry Cash System). Réponds en français, de façon concise et professionnelle.
-Contexte aujourd'hui: ${daily.todayRevenue}$ de revenu (${daily.todayCount} ventes). Variation vs hier: ${daily.diff}%.
-Alertes stock actives: ${alerts.length}.
-
-DONNÉES PRODUITS (stock, prix, etc.): ${productsData}
-DONNÉES UTILISATEURS: ${usersData}
-DERNIÈRES VENTES: ${salesData}
-
-Tu peux répondre à n'importe quelle question: gestion stock, promotions, tendances, conseils stratégiques, marketing, finances, etc.`;
-
-            const apiMessages = newMessages.filter(m => m.role === 'user' || m.role === 'assistant');
-
-            const response = await api.post('/ai/chat', {
-                messages: apiMessages,
-                systemContext: systemContext
-            });
-
-            setChatMessages(prev => [...prev, { role: 'assistant', content: response.data.reply }]);
-        } catch (error) {
-            console.error("Erreur AI", error);
-            const errorMessage = error.response?.data?.message || 'Désolé, une erreur technique est survenue lors de la connexion.';
-            setChatMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
-        } finally {
-            setIsAiTyping(false);
-        }
-    };
-
     const renderTabContent = () => {
         if (loadingData) {
             return <div className="flex h-64 items-center justify-center"><FiRefreshCw className="animate-spin text-4xl text-blue-500" /></div>;
@@ -463,7 +328,7 @@ Tu peux répondre à n'importe quelle question: gestion stock, promotions, tenda
                                         <div key={i} className="flex justify-between items-center p-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform shadow-sm">
-                                                    {p.imageUrl ? <img src={`${import.meta.env.VITE_API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-slate-400">{p.name.substring(0,2).toUpperCase()}</span>}
+                                                    {p.imageUrl ? <img src={`${API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-slate-400">{p.name.substring(0,2).toUpperCase()}</span>}
                                                 </div>
                                                 <div>
                                                     <div className="font-black text-slate-800 dark:text-white truncate max-w-[150px]">{p.name}</div>
@@ -485,7 +350,7 @@ Tu peux répondre à n'importe quelle question: gestion stock, promotions, tenda
                                         <div key={i} className="flex justify-between items-center p-4 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-transparent hover:border-orange-100 transition-all group">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border-2 border-orange-100 dark:border-orange-900/30 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform">
-                                                    {p.imageUrl ? <img src={`${import.meta.env.VITE_API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-orange-300">{p.name.substring(0,2).toUpperCase()}</span>}
+                                                    {p.imageUrl ? <img src={`${API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-orange-300">{p.name.substring(0,2).toUpperCase()}</span>}
                                                 </div>
                                                 <div>
                                                     <div className="font-black text-slate-800 dark:text-white truncate max-w-[150px]">{p.name}</div>
@@ -516,7 +381,7 @@ Tu peux répondre à n'importe quelle question: gestion stock, promotions, tenda
                                         <div className="flex items-start gap-3 mb-3">
                                             <div className="w-14 h-14 rounded-xl bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 flex items-center justify-center overflow-hidden shrink-0">
                                                 {p.imageUrl ? (
-                                                    <img src={`${import.meta.env.VITE_API_URL}${p.imageUrl}`} alt={p.name} className="w-full h-full object-contain" />
+                                                    <img src={`${API_URL}${p.imageUrl}`} alt={p.name} className="w-full h-full object-contain" />
                                                 ) : (
                                                     <span className="text-sm font-black text-orange-400">{p.name.substring(0, 2).toUpperCase()}</span>
                                                 )}
@@ -836,7 +701,7 @@ Tu peux répondre à n'importe quelle question: gestion stock, promotions, tenda
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0 ml-2">
                                                 {a.p.imageUrl ? (
-                                                    <img src={`${import.meta.env.VITE_API_URL}${a.p.imageUrl}`} alt={a.p.name} className="w-full h-full object-contain" />
+                                                    <img src={`${API_URL}${a.p.imageUrl}`} alt={a.p.name} className="w-full h-full object-contain" />
                                                 ) : (
                                                     <span className="text-[10px] font-black text-gray-400">{a.p.name.substring(0, 2).toUpperCase()}</span>
                                                 )}
@@ -878,8 +743,7 @@ Tu peux répondre à n'importe quelle question: gestion stock, promotions, tenda
                         { id: 'products', label: t('tabProductsPromos', 'Produits & Promos'), icon: FiBox },
                         { id: 'forecasts', label: t('tabForecasts', 'Prévisions'), icon: FiTrendingUp },
                         { id: 'behavior', label: t('tabBehavior', 'Comportement'), icon: FiCalendar },
-                        { id: 'alerts', label: t('tabAlerts', 'Alertes stock'), icon: FiAlertCircle },
-                        { id: 'marketing', label: t('tabMarketing', 'Marketing'), icon: FiShoppingBag },
+                        { id: 'alerts', label: t('tabAlerts', 'Alertes stock'), icon: FiAlertCircle }
                     ].map(tab => (
                         <button
                             key={tab.id}
@@ -912,217 +776,6 @@ Tu peux répondre à n'importe quelle question: gestion stock, promotions, tenda
                 </div>
 
             </div>
-
-            {/* AI ASSISTANT SIDE PANEL */}
-            <div className="w-[380px] flex flex-col bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden shrink-0">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                            <FiMessageCircle className="text-xl" />
-                        </div>
-                        <div>
-                            <h2 className="font-bold text-lg leading-tight tracking-tight">{t('aiAssistant', 'AI Assistant')}</h2>
-                            <p className="text-blue-100 text-[10px] uppercase font-black tracking-widest opacity-70">{t('strategicExpert', 'Expert Stratégique')}</p>
-                        </div>
-                    </div>
-                    <button 
-                        onClick={clearChat}
-                        title={t('clearHistory', "Effacer l'historique")}
-                        className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl transition-all border border-white/5"
-                    >
-                        <FiTrash2 size={16} />
-                    </button>
-                </div>
-
-                {/* Quick Prompts */}
-                    <div className="px-5 pt-4 pb-2 flex gap-2 overflow-x-auto custom-scrollbar hide-scrollbar">
-                    <button onClick={(e) => handleSendMessage(e, t('summaryPromptText', "Fais-moi un résumé complet de la situation du magasin aujourd'hui."))} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">📊 {t('summaryPrompt', 'Résumé')}</button>
-                    <button onClick={(e) => handleSendMessage(e, t('stockPromptText', "Quels produits sont en rupture d'urgence ?"))} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">📦 {t('stockPrompt', 'Stock')}</button>
-                    <button onClick={(e) => handleSendMessage(e, t('promosPromptText', "Quelles promotions dois-je lancer cette semaine pour maximiser mes ventes ?"))} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">🔥 {t('promosPrompt', 'Promos')}</button>
-                    <button onClick={(e) => handleSendMessage(e, t('trendsPromptText', "Analyse mes tendances de ventes et dis-moi ce que je dois améliorer."))} className="whitespace-nowrap px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-[11px] font-bold tracking-wide hover:bg-blue-100 transition-colors uppercase">📈 {t('trendsPrompt', 'Tendances')}</button>
-                </div>
-
-                {/* Messages Area */}
-                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4">
-                    {chatMessages.map((msg, i) => (
-                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                                msg.role === 'user' 
-                                ? 'bg-blue-600 text-white rounded-br-sm shadow-md' 
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-sm border border-gray-200 dark:border-gray-600'
-                            }`}>
-                                <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                            </div>
-                        </div>
-                    ))}
-                    {isAiTyping && (
-                        <div className="flex justify-start">
-                            <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-bl-sm px-4 py-3 flex items-center gap-1.5">
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
-                                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></span>
-                            </div>
-                        </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input Area */}
-                <form onSubmit={handleSendMessage} className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
-                    <div className="relative flex items-center">
-                        <input
-                            type="text"
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            placeholder={t('askAiPlaceholder', 'Demandez une analyse...')}
-                            className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-xl pl-4 pr-12 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 shadow-sm text-sm"
-                        />
-                        <button
-                            type="submit"
-                            disabled={!chatInput.trim() || isAiTyping}
-                            className="absolute right-2 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
-                        >
-                            <FiSend className="text-lg" />
-                        </button>
-                    </div>
-                </form>
-            </div>
-            
-            {/* Poster Preview Modal - Root Level */}
-            <AnimatePresence>
-                {selectedPoster && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl">
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.9, y: 40 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 40 }}
-                            className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[3rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/20"
-                        >
-                            <button 
-                                onClick={() => setSelectedPoster(null)}
-                                className="absolute top-8 right-8 z-50 w-12 h-12 flex items-center justify-center bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors"
-                            >
-                                <FiTrash2 className="rotate-45 scale-125" />
-                            </button>
-
-                            <div className="flex flex-col md:flex-row min-h-[600px]">
-                                {/* Poster Visual Area */}
-                                <div className="w-full md:w-1/2 relative flex flex-col justify-between p-12 text-white overflow-hidden" 
-                                     style={{ 
-                                        backgroundColor: selectedPoster.theme || '#3b82f6',
-                                        backgroundImage: `radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15) 0%, transparent 40%), radial-gradient(circle at 80% 80%, rgba(0,0,0,0.15) 0%, transparent 40%)`
-                                     }}>
-                                    {/* Decorative Pattern Overlay */}
-                                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-                                    
-                                    <div className="absolute -top-20 -right-20 text-[250px] opacity-10 pointer-events-none rotate-12">{selectedPoster.emoji || '✨'}</div>
-                                    
-                                    {/* Discount Badge */}
-                                    <motion.div 
-                                        initial={{ scale: 0, rotate: -20 }}
-                                        animate={{ scale: 1, rotate: -5 }}
-                                        className="absolute top-10 right-10 w-24 h-24 bg-white text-slate-900 rounded-full flex flex-col items-center justify-center shadow-2xl z-20 border-4 border-slate-900/5"
-                                    >
-                                        <span className="text-[10px] font-black uppercase tracking-tighter opacity-60">Economisez</span>
-                                        <span className="text-3xl font-black leading-none">-{selectedPoster.discountPercent || 25}%</span>
-                                    </motion.div>
-                                    
-                                    <div className="relative z-10">
-                                        <div className="w-16 h-1 bg-white/40 mb-8 rounded-full" />
-                                        <span className="text-[10px] font-black tracking-[0.3em] uppercase bg-white/20 px-3 py-1 rounded-full mb-6 inline-block backdrop-blur-sm">{t('shopExclusivity', 'Exclusivité Magasin')}</span>
-                                        <h2 className="text-5xl font-black tracking-tighter uppercase leading-[0.9] mb-4">
-                                            {(selectedPoster.title || "Offre Spéciale").split(' ').map((word, idx) => (
-                                                <span key={idx} className="block">{word}</span>
-                                            ))}
-                                        </h2>
-                                        <div className="text-2xl font-medium opacity-80 italic">— {t('limitedOffer', 'Offre Limitée')}</div>
-                                    </div>
-
-                                    <div className="relative z-10">
-                                        <p className="text-lg font-bold opacity-90 leading-tight mb-4">
-                                            {selectedPoster.description}
-                                        </p>
-                                        <div className="flex items-center gap-2 text-[10px] font-black tracking-widest opacity-60 uppercase">
-                                            <div className="w-8 h-[2px] bg-white"></div>
-                                            Registry Cash System AI
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Products & Details Area */}
-                                <div className="w-full md:w-1/2 p-12 bg-white dark:bg-slate-900 flex flex-col justify-between">
-                                    <div>
-                                        <h3 className="text-xs font-black tracking-widest text-slate-400 uppercase mb-8">Produits à l'honneur</h3>
-                                        <div className="space-y-6">
-                                            {selectedPoster.products?.map((pName, idx) => {
-                                                const prod = products.find(p => p.name === pName);
-                                                return (
-                                                    <div key={idx} className="flex items-center gap-6 group">
-                                                        <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-3xl flex items-center justify-center border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden">
-                                                            {prod?.imageUrl ? (
-                                                                <img src={`${import.meta.env.VITE_API_URL}${prod.imageUrl}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                                            ) : (
-                                                                <span className="text-2xl opacity-40">{selectedPoster.emoji || '📦'}</span>
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <h4 className="font-black text-slate-800 dark:text-white uppercase tracking-tight text-sm mb-1">{pName}</h4>
-                                                            <p className="text-[10px] font-bold text-blue-500 tracking-widest uppercase">{t('specialEdition', 'Édition Spéciale')}</p>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
-                                        {/* Bundle Price Comparison */}
-                                        <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] mb-8 flex justify-between items-center border border-slate-100 dark:border-slate-800">
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valeur Totale</p>
-                                                <p className="text-xl font-bold text-slate-400 line-through decoration-slate-400/50">
-                                                    {formatCurrency(selectedPoster.products?.reduce((total, pName) => {
-                                                        const p = products.find(prod => prod.name === pName);
-                                                        return total + (p ? parseFloat(p.price) : 0);
-                                                    }, 0) || 0)}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Prix Spécial Pack</p>
-                                                <p className="text-3xl font-black text-blue-600 dark:text-blue-400 leading-none">
-                                                    {formatCurrency((selectedPoster.products?.reduce((total, pName) => {
-                                                        const p = products.find(prod => prod.name === pName);
-                                                        return total + (p ? parseFloat(p.price) : 0);
-                                                    }, 0) || 0) * (1 - (selectedPoster.discountPercent || 25) / 100))}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between mb-8 px-2">
-                                            <div>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('idealMoment', 'Moment Idéal')}</p>
-                                                <p className="text-sm font-black text-slate-800 dark:text-white uppercase flex items-center gap-2">
-                                                    <FiCalendar /> {selectedPoster.timing || t('permanent', "Permanent")}
-                                                </p>
-                                            </div>
-                                            {/* Fake QR Code */}
-                                            <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
-                                                <div className="w-full h-full opacity-20" style={{ backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, #000)', backgroundSize: '4px 4px' }}></div>
-                                            </div>
-                                        </div>
-
-                                        <button className="group w-full py-5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-[1.5rem] font-black uppercase text-[10px] tracking-[0.3em] hover:scale-[1.02] transition-all active:scale-95 shadow-xl shadow-slate-900/10 dark:shadow-white/10 flex items-center justify-center gap-3">
-                                            📥 {t('downloadKit', 'Télécharger le Kit Imprimable')}
-                                            <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };
