@@ -3,6 +3,7 @@ import { FiX, FiCreditCard, FiDollarSign, FiGift, FiCheck, FiCheckCircle, FiActi
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import QRScannerModal from './QRScannerModal';
 
 const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const { t } = useTranslation();
@@ -14,6 +15,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     // Gift voucher states
     const [voucherCode, setVoucherCode] = useState('');
     const [voucherQR, setVoucherQR] = useState('');
+    const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
     
     // Credit card states
     const [cardNumber, setCardNumber] = useState('');
@@ -110,6 +112,12 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
             return v.slice(0, 2) + '/' + v.slice(2, 4);
         }
         return v;
+    };
+
+    // Handle QR code scan
+    const handleQRScan = (qrData) => {
+        setVoucherQR(qrData);
+        setIsQRScannerOpen(false);
     };
 
     return (
@@ -229,15 +237,25 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                                 <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
                                                     {t('scanQRCode') || 'Scan QR Code'}
                                                 </label>
-                                                <div className="relative">
-                                                    <textarea
-                                                        value={voucherQR}
-                                                        onChange={(e) => setVoucherQR(e.target.value)}
-                                                        placeholder={t('pasteQRData') || 'Paste QR code data or scan with camera'}
-                                                        rows={3}
-                                                        className="w-full px-4 py-3 pl-12 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors resize-none"
-                                                    />
-                                                    <FiCamera className="absolute left-4 top-4 text-gray-400" size={18} />
+                                                <div className="space-y-3">
+                                                    <div className="relative">
+                                                        <textarea
+                                                            value={voucherQR}
+                                                            onChange={(e) => setVoucherQR(e.target.value)}
+                                                            placeholder={t('pasteQRData') || 'Paste QR code data or scan with camera'}
+                                                            rows={3}
+                                                            className="w-full px-4 py-3 pl-12 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors resize-none"
+                                                        />
+                                                        <FiCamera className="absolute left-4 top-4 text-gray-400" size={18} />
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsQRScannerOpen(true)}
+                                                        className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        <FiCamera size={18} />
+                                                        {t('openQRScanner', 'Open QR Scanner')}
+                                                    </button>
                                                 </div>
                                             </div>
                                         </motion.div>
@@ -363,6 +381,12 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                     </motion.div>
                 </div>
             )}
+        {/* QR Scanner Modal */}
+            <QRScannerModal
+                isOpen={isQRScannerOpen}
+                onClose={() => setIsQRScannerOpen(false)}
+                onScan={handleQRScan}
+            />
         </AnimatePresence>
     );
 };

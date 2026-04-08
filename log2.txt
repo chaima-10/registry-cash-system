@@ -1,0 +1,31 @@
+﻿commit 4f13690f8f9d78132fcfbdbbcfc2a54f819ff76f
+Author: Aya Ltaief <ayaltaief2003@gmail.com>
+Date:   Wed Apr 1 20:58:54 2026 +0100
+
+    fix IA and Dashboard
+
+commit 15816abbf68c5e27da3f490adef9f25d3ab56b09
+Author: Aya Ltaief <ayaltaief2003@gmail.com>
+Date:   Wed Apr 1 18:45:24 2026 +0100
+
+    add category & subcategory  and prix achat and vent
+
+commit 2add711e1897b0988cda219fff4d240fe217b8bc
+Author: Aya Ltaief <ayaltaief2003@gmail.com>
+Date:   Tue Mar 31 16:05:34 2026 +0100
+
+    feat: AI Analytics Proxy and Subcategory fixes
+
+commit d7208b31733134b62b0a021a665d42d908739903
+Merge: 173b7f6 cf49d85
+Author: Aya Ltaief <ayaltaief2003@gmail.com>
+Date:   Tue Mar 31 15:27:27 2026 +0100
+
+    payment
+
+commit 173b7f69dd69c46ab04d38eaf2bfac16a2afe857
+Merge: 3a69a18 225ec83
+Author: Aya Ltaief <ayaltaief2003@gmail.com>
+Date:   Tue Mar 31 15:23:08 2026 +0100
+
+    resolve merge conflicts and update project

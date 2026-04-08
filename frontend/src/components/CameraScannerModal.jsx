@@ -10,10 +10,10 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
     useEffect(() => {
         if (!isOpen) return;
 
-        // Configuration for the scanner
+        // Configuration for scanner
         const config = {
             fps: 10,
-            qrbox: { width: 250, height: 150 },
+            qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
         };
 
