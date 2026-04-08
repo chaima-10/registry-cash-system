@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FiX, FiCreditCard, FiDollarSign, FiGift, FiCheck, FiCheckCircle, FiActivity, FiCamera, FiKeyboard } from 'react-icons/fi';
+import { FiX, FiCreditCard, FiDollarSign, FiGift, FiCheck, FiCheckCircle, FiActivity, FiCamera, FiEdit } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -221,7 +221,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                                         placeholder={t('enterVoucherCode') || 'Enter voucher code'}
                                                         className="w-full px-4 py-3 pl-12 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
                                                     />
-                                                    <FiKeyboard className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                                    <FiEdit className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                                                 </div>
                                             </div>
                                             
