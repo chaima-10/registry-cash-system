@@ -118,7 +118,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const handleQRScan = (qrData) => {
         setVoucherQR(qrData);
         setIsQRScannerOpen(false);
-    };
+    }; // Updated for Vercel deployment
 
     return (
         <AnimatePresence>
