@@ -1,21 +1,26 @@
 import api from './axios';
 
-export const loginUser = async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
+export const login = async (credentials) => {
+    const response = await api.post('/auth-real/login', credentials);
     if (response.data.token) {
         localStorage.setItem('token', response.data.token);
     }
     return response.data;
 };
 
-export const registerUser = async (userData) => {
-    const response = await api.post('/auth/register', userData);
+export const register = async (userData) => {
+    const response = await api.post('/auth-real/register', userData);
+    return response.data;
+};
+
+export const getCurrentUser = async () => {
+    const response = await api.get('/auth-real/me');
     return response.data;
 };
 
 export const logoutUser = async () => {
     try {
-        await api.post('/auth/logout');
+        await api.post('/auth-real/logout');
     } catch (error) {
         console.error("Logout error", error);
     }

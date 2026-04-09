@@ -5,6 +5,8 @@ generator client {
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+  // Aiven MySQL requires SSL
+  directUrl = env("DATABASE_URL")
 }
 
 model cart {
