@@ -71,6 +71,195 @@ app.delete('/api/products/:id', (req, res) => {
     }
 });
 
+// Mock Giveaway Data
+let mockGiveaways = [
+    {
+        id: 1,
+        title: "Test Giveaway 1",
+        description: "Test giveaway for demo purposes",
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+        winnerCount: 1,
+        status: "ACTIVE",
+        createdBy: 1,
+        createdAt: new Date(),
+        updatedAt: new Date()
+    }
+];
+
+let mockParticipants = [];
+let mockWinners = [];
+
+// Giveaway Routes
+app.get('/api/giveaways', (req, res) => {
+    try {
+        const formattedGiveaways = mockGiveaways.map(giveaway => ({
+            ...giveaway,
+            participantCount: mockParticipants.filter(p => p.giveawayId === giveaway.id).length,
+            creator: { id: 1, username: "admin" }
+        }));
+        res.json(formattedGiveaways);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching giveaways', error: error.message });
+    }
+});
+
+app.get('/api/giveaways/:id', (req, res) => {
+    try {
+        const { id } = req.params;
+        const giveawayId = parseInt(id);
+        const giveaway = mockGiveaways.find(g => g.id === giveawayId);
+        
+        if (!giveaway) {
+            return res.status(404).json({ message: 'Giveaway not found' });
+        }
+
+        const participants = mockParticipants.filter(p => p.giveawayId === giveawayId);
+        const winners = mockWinners.filter(w => w.giveawayId === giveawayId);
+
+        res.json({
+            ...giveaway,
+            participants: participants.map(p => ({
+                ...p,
+                user: { id: p.userId, username: `user${p.userId}` }
+            })),
+            winners: winners.map(w => ({
+                ...w,
+                user: { id: w.userId, username: `user${w.userId}` }
+            }))
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching giveaway', error: error.message });
+    }
+});
+
+app.post('/api/giveaways', (req, res) => {
+    try {
+        const { title, description, startDate, endDate, winnerCount } = req.body;
+        
+        if (!title || !endDate) {
+            return res.status(400).json({ message: 'Title and end date are required' });
+        }
+
+        if (new Date(endDate) <= new Date()) {
+            return res.status(400).json({ message: 'End date must be in the future' });
+        }
+
+        const newGiveaway = {
+            id: mockGiveaways.length + 1,
+            title,
+            description,
+            startDate: startDate ? new Date(startDate) : new Date(),
+            endDate: new Date(endDate),
+            winnerCount: parseInt(winnerCount) || 1,
+            status: 'ACTIVE',
+            createdBy: 1,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
+
+        mockGiveaways.push(newGiveaway);
+        res.status(201).json(newGiveaway);
+    } catch (error) {
+        res.status(500).json({ message: 'Error creating giveaway', error: error.message });
+    }
+});
+
+app.post('/api/giveaways/:id/participate', (req, res) => {
+    try {
+        const { id } = req.params;
+        const giveawayId = parseInt(id);
+        const userId = 1; // Mock user ID
+
+        const giveaway = mockGiveaways.find(g => g.id === giveawayId);
+        
+        if (!giveaway) {
+            return res.status(404).json({ message: 'Giveaway not found' });
+        }
+
+        if (giveaway.status !== 'ACTIVE') {
+            return res.status(400).json({ message: 'Giveaway is not active' });
+        }
+
+        if (new Date(giveaway.endDate) <= new Date()) {
+            return res.status(400).json({ message: 'Giveaway has ended' });
+        }
+
+        const existingParticipation = mockParticipants.find(p => p.giveawayId === giveawayId && p.userId === userId);
+        
+        if (existingParticipation) {
+            return res.status(400).json({ message: 'You have already participated in this giveaway' });
+        }
+
+        const participation = {
+            id: mockParticipants.length + 1,
+            giveawayId,
+            userId,
+            joinedAt: new Date()
+        };
+
+        mockParticipants.push(participation);
+        res.status(201).json({ message: 'Successfully participated in giveaway', participation });
+    } catch (error) {
+        res.status(500).json({ message: 'Error participating in giveaway', error: error.message });
+    }
+});
+
+app.post('/api/giveaways/:id/select-winners', (req, res) => {
+    try {
+        const { id } = req.params;
+        const giveawayId = parseInt(id);
+
+        const giveaway = mockGiveaways.find(g => g.id === giveawayId);
+        
+        if (!giveaway) {
+            return res.status(404).json({ message: 'Giveaway not found' });
+        }
+
+        if (giveaway.status !== 'ACTIVE') {
+            return res.status(400).json({ message: 'Giveaway is not active' });
+        }
+
+        const participants = mockParticipants.filter(p => p.giveawayId === giveawayId);
+        
+        if (participants.length === 0) {
+            return res.status(400).json({ message: 'No participants in this giveaway' });
+        }
+
+        const existingWinners = mockWinners.filter(w => w.giveawayId === giveawayId);
+        if (existingWinners.length > 0) {
+            return res.status(400).json({ message: 'Winners have already been selected' });
+        }
+
+        // Random winner selection
+        const shuffledParticipants = [...participants].sort(() => 0.5 - Math.random());
+        const selectedWinners = shuffledParticipants.slice(0, Math.min(giveaway.winnerCount, participants.length));
+
+        // Create winner records
+        const winnerData = selectedWinners.map((participant, index) => ({
+            id: mockWinners.length + index + 1,
+            giveawayId,
+            userId: participant.userId,
+            rank: index + 1,
+            selectedAt: new Date()
+        }));
+
+        mockWinners.push(...winnerData);
+
+        // Update giveaway status
+        const giveawayIndex = mockGiveaways.findIndex(g => g.id === giveawayId);
+        mockGiveaways[giveawayIndex].status = 'ENDED';
+
+        res.json({ 
+            message: 'Winners selected successfully', 
+            winners: winnerData,
+            totalParticipants: participants.length 
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error selecting winners', error: error.message });
+    }
+});
+
 app.get('/', (req, res) => {
     res.send('Backend is running in simple mode!');
 });

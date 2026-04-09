@@ -39,7 +39,11 @@ export const AuthProvider = ({ children }) => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
-                    const userData = await getProfile();
+                    // Race the profile call against a 10s timeout to prevent infinite blank screen
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Auth timeout')), 10000)
+                    );
+                    const userData = await Promise.race([getProfile(), timeoutPromise]);
                     setUser(userData);
                 } catch (error) {
                     console.error("Auth init failed", error);
@@ -136,9 +140,37 @@ export const AuthProvider = ({ children }) => {
         }
     }, [user?.id]); // Only sync when the user itself changes (login/init)
 
+    if (loading) {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100vh',
+                background: '#0f172a',
+                color: '#94a3b8',
+                fontSize: '1rem',
+                fontFamily: 'sans-serif',
+                flexDirection: 'column',
+                gap: '1rem'
+            }}>
+                <div style={{
+                    width: '40px',
+                    height: '40px',
+                    border: '3px solid #334155',
+                    borderTop: '3px solid #6366f1',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                }} />
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                <span>Loading System...</span>
+            </div>
+        );
+    }
+
     return (
         <AuthContext.Provider value={{ user, login, logout, loading, updateUser, applyTheme, toggleTheme, currency, changeCurrency, exchangeRates, formatCurrency }}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };

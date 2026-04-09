@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    FiHome, FiBox, FiUsers, FiLogOut, FiMenu, FiX, FiShoppingCart, FiSettings, FiUser, FiMoon, FiSun, FiChevronDown, FiActivity, FiShoppingBag
+    FiHome, FiBox, FiUsers, FiLogOut, FiMenu, FiX, FiShoppingCart, FiSettings, FiUser, FiMoon, FiSun, FiChevronDown, FiActivity, FiShoppingBag, FiGift
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -69,6 +69,7 @@ const Layout = () => {
         { to: '/products', icon: FiBox, label: t('products'), adminOnly: true },
         { to: '/users', icon: FiUsers, label: t('users'), adminOnly: true },
         { to: '/analytics', icon: FiActivity, label: t('aiAnalytics', 'AI Analytics'), adminOnly: true },
+        { to: '/giveaways', icon: FiGift, label: t('giveaways', 'Giveaways'), adminOnly: true },
         { to: '/marketing', icon: FiShoppingBag, label: t('aiMarketing', 'AI Marketing'), adminOnly: true },
     ];
 

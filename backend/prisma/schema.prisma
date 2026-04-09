@@ -118,25 +118,78 @@ model user {
   id          Int       @id @default(autoincrement())
   username    String    @unique(map: "User_username_key")
   password    String
-  role        user_role @default(cashier)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  role        user_role @default(CASHIER)
+  theme       String    @default("light")
+  sales       sale[]
+  carts       cart[]
+  giveawaysCreated giveaway[] @relation("GiveawayCreator")
+  giveawayParticipations giveawayparticipation[]
+  giveawayWins giveawaywinner[]
   fullName    String    @default("")
   salary      Decimal   @default(0.00) @db.Decimal(10, 2)
-  theme       String    @default("light")
   workingDays String    @default("")
   email       String?   @unique(map: "User_email_key")
   lastLogin   DateTime?
   phone       String?
   status      String    @default("Active")
-  sales       sale[]
-  carts       cart[]
 }
 
 enum sale_paymentMethod {
   CASH
   CARD
   VOUCHER
+}
+
+model giveaway {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  startDate   DateTime @default(now())
+  endDate     DateTime
+  winnerCount Int      @default(1)
+  status      giveaway_status @default(ACTIVE)
+  createdBy   Int
+  creator     user     @relation(fields: [createdBy], references: [id])
+  participants giveawayparticipation[]
+  winners     giveawaywinner[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([endDate])
+}
+
+model giveawayparticipation {
+  id         Int      @id @default(autoincrement())
+  giveawayId  Int
+  giveaway    giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        user     @relation(fields: [userId], references: [id])
+  joinedAt    DateTime @default(now())
+
+  @@unique([giveawayId, userId], map: "GiveawayParticipation_user_giveaway_unique")
+  @@index([giveawayId])
+  @@index([userId])
+}
+
+model giveawaywinner {
+  id         Int      @id @default(autoincrement())
+  giveawayId  Int
+  giveaway    giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        user     @relation(fields: [userId], references: [id])
+  selectedAt  DateTime @default(now())
+  rank        Int      // 1st, 2nd, 3rd winner, etc.
+
+  @@unique([giveawayId, userId], map: "GiveawayWinner_user_giveaway_unique")
+  @@index([giveawayId])
+  @@index([userId])
+}
+
+enum giveaway_status {
+  ACTIVE
+  ENDED
+  DRAFT
 }
 
 enum user_role {
