@@ -69,6 +69,7 @@ const Layout = () => {
         { to: '/products', icon: FiBox, label: t('products'), adminOnly: true },
         { to: '/users', icon: FiUsers, label: t('users'), adminOnly: true },
         { to: '/analytics', icon: FiActivity, label: t('aiAnalytics', 'AI Analytics'), adminOnly: true },
+        { to: '/giveaways', icon: FiGift, label: t('giveaways', 'Giveaways'), adminOnly: true },
     ];
 
     // Filtrer le menu pour le caissier
