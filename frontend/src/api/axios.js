@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+<<<<<<< HEAD
 // Use Vercel serverless functions as fallback
 const baseURL = import.meta.env.VITE_API_URL 
     ? `${import.meta.env.VITE_API_URL}/api`
@@ -7,6 +8,12 @@ const baseURL = import.meta.env.VITE_API_URL
 
 const api = axios.create({
     baseURL,
+=======
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const api = axios.create({
+    baseURL: `${API_URL.replace(/\/$/, '')}/api`,
+>>>>>>> dfc2ff4 (ajout module AI marketing)
 
     headers: {
         'Content-Type': 'application/json',
@@ -29,7 +36,14 @@ api.interceptors.request.use(
 
 // Add a response interceptor to handle 401 errors globally
 api.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        // If we accidentally hit a Vite Dev Server SPA route, it returns HTML. Reject it.
+        if (typeof response.data === 'string' && response.data.trim().startsWith('<')) {
+            console.error("API received HTML instead of JSON. Check the API URL.");
+            return Promise.reject(new Error("Received HTML instead of JSON. API might be incorrectly routed."));
+        }
+        return response;
+    },
     (error) => {
         if (error.response && error.response.status === 401) {
             localStorage.removeItem('token');

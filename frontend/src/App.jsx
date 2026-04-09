@@ -23,6 +23,7 @@ import POS from './pages/POS';
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import AIAnalytics from './pages/AIAnalytics';
+import AIMarketing from './pages/AIMarketing';
 
 function AppRoutes() {
     return (
@@ -35,6 +36,7 @@ function AppRoutes() {
                 <Route path="/products" element={<Products />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/analytics" element={<AIAnalytics />} />
+                <Route path="/marketing" element={<AIMarketing />} />
             </Route>
 
             {/* Shared Routes (Admin + Cashier) */}

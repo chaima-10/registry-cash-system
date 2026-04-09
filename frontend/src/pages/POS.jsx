@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 const POS = () => {
     const { t } = useTranslation();
     const { currency, exchangeRates, formatCurrency } = useAuth();
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState({ items: [], totalAmount: 0 });
     const [searchTerm, setSearchTerm] = useState('');
@@ -201,7 +202,7 @@ const POS = () => {
                                 <div className="h-24 bg-gray-100 dark:bg-gray-900 rounded-lg mb-3 flex items-center justify-center relative transition-colors overflow-hidden">
                                     {product.imageUrl ? (
                                         <img
-                                            src={`${import.meta.env.VITE_API_URL}${product.imageUrl}`}
+                                            src={`${API_URL}${product.imageUrl}`}
                                             alt={product.name}
                                             className="w-full h-full object-contain"
                                         />
@@ -264,7 +265,7 @@ const POS = () => {
                             <div className="w-12 h-12 rounded-lg overflow-hidden bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0">
                                 {item.product.imageUrl ? (
                                     <img
-                                        src={`${import.meta.env.VITE_API_URL}${item.product.imageUrl}`}
+                                        src={`${API_URL}${item.product.imageUrl}`}
                                         alt={item.product.name}
                                         className="w-full h-full object-contain"
                                     />
