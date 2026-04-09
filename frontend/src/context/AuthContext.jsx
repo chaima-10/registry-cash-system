@@ -1,5 +1,5 @@
 import { createContext, useState, useContext, useEffect } from 'react';
-import { loginUser, logoutUser, getProfile } from '../api/auth';
+import { login as loginApi, logoutUser, getCurrentUser } from '../api/auth';
 
 const AuthContext = createContext();
 
@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
                     const timeoutPromise = new Promise((_, reject) =>
                         setTimeout(() => reject(new Error('Auth timeout')), 10000)
                     );
-                    const userData = await Promise.race([getProfile(), timeoutPromise]);
+                    const userData = await Promise.race([getCurrentUser(), timeoutPromise]);
                     setUser(userData);
                 } catch (error) {
                     console.error("Auth init failed", error);
@@ -72,9 +72,9 @@ export const AuthProvider = ({ children }) => {
             ? { email: identifier, password } 
             : { username: identifier, password };
             
-        const data = await loginUser(credentials);
+        const data = await loginApi(credentials);
         if (data.token) {
-            const userData = await getProfile();
+            const userData = await getCurrentUser();
             setUser(userData);
             applyTheme(userData.theme);
         }
