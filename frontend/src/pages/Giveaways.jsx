@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiGift, FiUsers, FiCalendar, FiTrophy, FiPlus, FiEdit2, FiTrash2, FiPlay, FiCheckCircle, FiClock, FiUser } from 'react-icons/fi';
+import { FiGift, FiUsers, FiCalendar, FiAward, FiPlus, FiEdit2, FiTrash2, FiPlay, FiCheckCircle, FiClock, FiUser } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -312,7 +312,7 @@ const Giveaways = () => {
                                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-500">
                                     {giveaway.winners && giveaway.winners.length > 0 && (
                                         <div className="flex items-center gap-2">
-                                            <FiTrophy size={16} className="text-yellow-500" />
+                                            <FiAward size={16} className="text-yellow-500" />
                                             <span>{giveaway.winners.length} {t('winners', 'winners')}</span>
                                         </div>
                                     )}
@@ -348,7 +348,7 @@ const Giveaways = () => {
                                                     className="px-3 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
                                                     title={t('selectWinners', 'Select Winners')}
                                                 >
-                                                    <FiTrophy size={16} />
+                                                    <FiAward size={16} />
                                                 </button>
                                             )}
                                             <button
@@ -367,7 +367,7 @@ const Giveaways = () => {
                             {giveaway.status === 'ENDED' && giveaway.winners && giveaway.winners.length > 0 && (
                                 <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                                     <h4 className="font-bold text-yellow-700 dark:text-yellow-400 mb-2 flex items-center gap-2">
-                                        <FiTrophy size={18} />
+                                        <FiAward size={18} />
                                         {t('winners', 'Winners')}
                                     </h4>
                                     <div className="space-y-2">
