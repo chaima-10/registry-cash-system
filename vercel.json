@@ -11,5 +11,10 @@
       "destination": "/index.html"
     }
   ],
-  "framework": null
+  "framework": null,
+  "functions": {
+    "api/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  }
 }
