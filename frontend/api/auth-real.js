@@ -40,9 +40,19 @@ const generateToken = (user) => {
 export default async function handler(req, res) {
   try {
     const { method } = req;
-    const { action } = req.query;
+    const url = req.url;
+    
+    // Parse URL to determine action
+    let action = '';
+    if (url && url.includes('/login')) {
+      action = 'login';
+    } else if (url && url.includes('/register')) {
+      action = 'register';
+    } else if (url && url.includes('/me')) {
+      action = 'me';
+    }
 
-    console.log(`[${new Date().toISOString()}] ${method} /api/auth-real${action ? '/' + action : ''}`);
+    console.log(`[${new Date().toISOString()}] ${method} ${url} (action: ${action})`);
 
     switch (method) {
       case 'POST':
