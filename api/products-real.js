@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     const { id } = req.query;
     const startTime = Date.now();
 
-    console.log(`[${new Date().toISOString()}] ${method} /api/products-real${id ? '/' + id : ''}`);
+    console.log(`[${new Date().toISOString()}] ${method} /api/products${id ? '/' + id : ''}`);
     console.log('DATABASE_URL configured:', !!process.env.DATABASE_URL);
 
     switch (method) {

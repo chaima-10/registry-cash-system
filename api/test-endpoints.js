@@ -15,8 +15,8 @@ export default function handler(req, res) {
           availableEndpoints: [
             '/api/test-endpoints',
             '/api/test-db-connection',
-            '/api/products-real',
-            '/api/categories-real',
+            '/api/products',
+            '/api/categories',
             '/api/auth-real',
             '/api/giveaways-real'
           ],

@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     const { method } = req;
     const { id } = req.query;
 
-    console.log(`[${new Date().toISOString()}] ${method} /api/categories-real${id ? '/' + id : ''}`);
+    console.log(`[${new Date().toISOString()}] ${method} /api/categories${id ? '/' + id : ''}`);
 
     switch (method) {
       case 'GET':
