@@ -25,6 +25,11 @@ const AIAnalytics = () => {
     const [users, setUsers] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
+    const [promoSuccess, setPromoSuccess] = useState({});
+    const [orderSuccess, setOrderSuccess] = useState({});
+    const [generatingPoster, setGeneratingPoster] = useState({});
+    const [posterGenerated, setPosterGenerated] = useState({});
+    const [selectedPoster, setSelectedPoster] = useState(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     // AI states (Marketing removed)
