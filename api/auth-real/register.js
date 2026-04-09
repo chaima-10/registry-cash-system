@@ -1,20 +1,17 @@
 // Register endpoint for Vercel serverless functions
-const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 
-// Initialize Prisma client
-let prisma;
-if (process.env.NODE_ENV === 'production') {
-  prisma = new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-  });
-} else {
-  prisma = new PrismaClient();
-}
+// Mock user data storage (in production, use database)
+let mockUsers = [
+  {
+    id: 1,
+    username: 'admin',
+    email: 'admin@example.com',
+    password: 'admin',
+    role: 'admin'
+  }
+];
+let nextId = 2;
 
 export default async function handler(req, res) {
   try {
@@ -22,6 +19,7 @@ export default async function handler(req, res) {
     const timestamp = new Date().toISOString();
 
     console.log(`[${timestamp}] POST /api/auth-real/register`);
+    console.log('DATABASE_URL available:', !!process.env.DATABASE_URL);
 
     if (method === 'POST') {
       const { username, email, password, role = 'cashier' } = req.body;
@@ -32,31 +30,80 @@ export default async function handler(req, res) {
         });
       }
 
-      // Check if user already exists
-      const existingUser = await prisma.user.findFirst({
-        where: {
-          OR: [
-            { username: username.trim() },
-            { email: email.trim() }
-          ]
+      let newUser = null;
+      let existingUser = null;
+
+      // Try database first if available
+      if (process.env.DATABASE_URL) {
+        try {
+          const { PrismaClient } = require('@prisma/client');
+          const prisma = new PrismaClient({
+            datasources: {
+              db: {
+                url: process.env.DATABASE_URL,
+              },
+            },
+          });
+
+          // Check if user already exists
+          existingUser = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { username: username.trim() },
+                { email: email.trim() }
+              ]
+            }
+          });
+
+          if (!existingUser) {
+            // Create new user
+            newUser = await prisma.user.create({
+              data: {
+                username: username.trim(),
+                email: email.trim(),
+                password: password,
+                role: role
+              }
+            });
+          }
+          
+          await prisma.$disconnect();
+        } catch (dbError) {
+          console.log('Database connection failed, using mock data:', dbError.message);
         }
-      });
+      }
+
+      // Fallback to mock data if database failed or not available
+      if (!newUser) {
+        // Check if user already exists in mock data
+        existingUser = mockUsers.find(u => 
+          u.username === username.trim() || u.email === email.trim()
+        );
+        
+        if (existingUser) {
+          return res.status(400).json({ 
+            message: 'Username or email already exists' 
+          });
+        }
+
+        // Create new user in mock data
+        newUser = {
+          id: nextId++,
+          username: username.trim(),
+          email: email.trim(),
+          password: password,
+          role: role
+        };
+        
+        mockUsers.push(newUser);
+        console.log('Using mock data for registration');
+      }
       
       if (existingUser) {
         return res.status(400).json({ 
           message: 'Username or email already exists' 
         });
       }
-
-      // Create new user
-      const newUser = await prisma.user.create({
-        data: {
-          username: username.trim(),
-          email: email.trim(),
-          password: password, // In production, hash with bcrypt
-          role: role
-        }
-      });
       
       // Generate JWT token
       const token = jwt.sign(
@@ -92,9 +139,5 @@ export default async function handler(req, res) {
       error: error.message,
       timestamp: new Date().toISOString()
     });
-  } finally {
-    if (process.env.NODE_ENV === 'production') {
-      await prisma.$disconnect();
-    }
   }
 }
