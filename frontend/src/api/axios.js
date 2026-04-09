@@ -1,9 +1,12 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+// Use Vercel serverless functions as fallback
+const baseURL = import.meta.env.VITE_API_URL 
+    ? `${import.meta.env.VITE_API_URL}/api`
+    : '/api'; // Vercel serverless functions
 
 const api = axios.create({
-    baseURL: `${API_URL.replace(/\/$/, '')}/api`,
+    baseURL,
 
     headers: {
         'Content-Type': 'application/json',
