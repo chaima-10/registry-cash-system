@@ -120,7 +120,7 @@ model user {
   id          Int       @id @default(autoincrement())
   username    String    @unique(map: "User_username_key")
   password    String
-  role        user_role @default(CASHIER)
+  role        user_role @default(cashier)
   theme       String    @default("light")
   sales       sale[]
   carts       cart[]
