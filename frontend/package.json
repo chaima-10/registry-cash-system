@@ -1,5 +1,4 @@
 {
-  "main": "../electron/main.js",
   "name": "registry-cash-system-frontend",
   "private": true,
   "version": "0.0.0",
