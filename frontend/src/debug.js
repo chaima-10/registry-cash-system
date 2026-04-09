@@ -1,6 +1,5 @@
 // Debug script to identify rendering issues
 console.log('=== DEBUG: App Initialization ===');
-console.log('React version:', React.version);
 console.log('Environment:', import.meta.env.MODE);
 console.log('API URL:', import.meta.env.VITE_API_URL);
 
@@ -19,10 +18,15 @@ try {
 }
 
 // Test API connectivity
-try {
-  const response = await fetch('/api/giveaways');
-  const data = await response.json();
-  console.log('=== DEBUG: API Response:', data);
-} catch (error) {
-  console.error('=== DEBUG: API Error:', error);
-}
+const testAPI = async () => {
+  try {
+    const response = await fetch('/api/giveaways');
+    const data = await response.json();
+    console.log('=== DEBUG: API Response:', data);
+  } catch (error) {
+    console.error('=== DEBUG: API Error:', error);
+  }
+};
+
+// Call the async function
+testAPI();
