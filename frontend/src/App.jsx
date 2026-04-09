@@ -19,6 +19,7 @@ import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Users from './pages/Users';
 import POS from './pages/POS';
+import Giveaways from './pages/Giveaways';
 
 import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
@@ -36,6 +37,7 @@ function AppRoutes() {
                 <Route path="/products" element={<Products />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/analytics" element={<AIAnalytics />} />
+                <Route path="/giveaways" element={<Giveaways />} />
                 <Route path="/marketing" element={<AIMarketing />} />
             </Route>
 
