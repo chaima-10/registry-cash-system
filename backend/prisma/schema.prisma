@@ -21,6 +21,7 @@ model cart {
   tvaAmount   Decimal    @default(0.00) @db.Decimal(10, 2)
 
   @@index([userId], map: "Cart_userId_fkey")
+  @@map("Cart")
 }
 
 model cartitem {
@@ -37,6 +38,7 @@ model cartitem {
 
   @@index([cartId], map: "CartItem_cartId_fkey")
   @@index([productId], map: "CartItem_productId_fkey")
+  @@map("CartItem")
 }
 
 model category {
@@ -46,6 +48,8 @@ model category {
   products      product[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  @@map("Category")
 }
 
 model product {
@@ -69,6 +73,7 @@ model product {
 
   @@index([categoryId], map: "Product_categoryId_fkey")
   @@index([subcategoryId], map: "Product_subcategoryId_fkey")
+  @@map("Product")
 }
 
 model sale {
@@ -85,6 +90,7 @@ model sale {
   items         saleitem[]
 
   @@index([userId], map: "Sale_userId_fkey")
+  @@map("Sale")
 }
 
 model saleitem {
@@ -102,6 +108,7 @@ model saleitem {
 
   @@index([productId], map: "SaleItem_productId_fkey")
   @@index([saleId], map: "SaleItem_saleId_fkey")
+  @@map("SaleItem")
 }
 
 model subcategory {
@@ -114,6 +121,7 @@ model subcategory {
   updatedAt  DateTime  @updatedAt
 
   @@index([categoryId], map: "Subcategory_categoryId_fkey")
+  @@map("Subcategory")
 }
 
 model user {
@@ -134,6 +142,8 @@ model user {
   lastLogin              DateTime?
   phone                  String?
   status                 String                  @default("Active")
+
+  @@map("User")
 }
 
 enum sale_paymentMethod {

@@ -1,48 +1,48 @@
 -- DropIndex
-DROP INDEX `Cart_userId_fkey` ON `cart`;
+DROP INDEX `Cart_userId_fkey` ON `Cart`;
 
 -- DropIndex
-DROP INDEX `CartItem_cartId_fkey` ON `cartitem`;
+DROP INDEX `CartItem_cartId_fkey` ON `CartItem`;
 
 -- DropIndex
-DROP INDEX `CartItem_productId_fkey` ON `cartitem`;
+DROP INDEX `CartItem_productId_fkey` ON `CartItem`;
 
 -- DropIndex
-DROP INDEX `Product_categoryId_fkey` ON `product`;
+DROP INDEX `Product_categoryId_fkey` ON `Product`;
 
 -- DropIndex
-DROP INDEX `Product_subcategoryId_fkey` ON `product`;
+DROP INDEX `Product_subcategoryId_fkey` ON `Product`;
 
 -- DropIndex
-DROP INDEX `Sale_userId_fkey` ON `sale`;
+DROP INDEX `Sale_userId_fkey` ON `Sale`;
 
 -- DropIndex
-DROP INDEX `SaleItem_productId_fkey` ON `saleitem`;
+DROP INDEX `SaleItem_productId_fkey` ON `SaleItem`;
 
 -- DropIndex
-DROP INDEX `SaleItem_saleId_fkey` ON `saleitem`;
+DROP INDEX `SaleItem_saleId_fkey` ON `SaleItem`;
 
 -- DropIndex
-DROP INDEX `Subcategory_categoryId_fkey` ON `subcategory`;
+DROP INDEX `Subcategory_categoryId_fkey` ON `Subcategory`;
 
 -- AlterTable
-ALTER TABLE `cart` ADD COLUMN `subtotalHT` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+ALTER TABLE `Cart` ADD COLUMN `subtotalHT` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     ADD COLUMN `tvaAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00;
 
 -- AlterTable
-ALTER TABLE `cartitem` ADD COLUMN `tvaAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+ALTER TABLE `CartItem` ADD COLUMN `tvaAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     ADD COLUMN `tvaRate` DECIMAL(5, 2) NOT NULL DEFAULT 0.00;
 
 -- AlterTable
-ALTER TABLE `product` ADD COLUMN `tva` DECIMAL(5, 2) NOT NULL DEFAULT 0.00;
+ALTER TABLE `Product` ADD COLUMN `tva` DECIMAL(5, 2) NOT NULL DEFAULT 0.00;
 
 -- AlterTable
-ALTER TABLE `sale` ADD COLUMN `currency` VARCHAR(191) NOT NULL DEFAULT 'USD',
+ALTER TABLE `Sale` ADD COLUMN `currency` VARCHAR(191) NOT NULL DEFAULT 'USD',
     ADD COLUMN `subtotalHT` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     ADD COLUMN `tvaAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00;
 
 -- AlterTable
-ALTER TABLE `saleitem` ADD COLUMN `tvaAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+ALTER TABLE `SaleItem` ADD COLUMN `tvaAmount` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
     ADD COLUMN `tvaRate` DECIMAL(5, 2) NOT NULL DEFAULT 0.00;
 
 -- AddForeignKey
