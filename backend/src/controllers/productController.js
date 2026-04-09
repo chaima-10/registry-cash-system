@@ -198,6 +198,20 @@ exports.deleteProduct = async (req, res) => {
         const { id } = req.params;
         const productId = parseInt(id);
 
+        // Check if productId is valid
+        if (isNaN(productId)) {
+            return res.status(400).json({ message: 'Invalid product ID' });
+        }
+
+        // Check if product exists
+        const product = await prisma.product.findUnique({
+            where: { id: productId }
+        });
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
         // Vérifier si le produit est lié à des ventes
         const existingSales = await prisma.saleitem.findFirst({
             where: { productId }
@@ -221,6 +235,7 @@ exports.deleteProduct = async (req, res) => {
         
         res.json({ message: 'Product deleted successfully' });
     } catch (error) {
+        console.error('Delete product error:', error);
         if (error.code === 'P2025') {
             return res.status(404).json({ message: 'Product not found' });
         }
