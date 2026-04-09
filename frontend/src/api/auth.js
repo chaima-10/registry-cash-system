@@ -1,4 +1,4 @@
-import api from '../../axios';
+import api from '../axios';
 
 export const login = async (credentials) => {
     const response = await api.post('/auth-real/login', credentials);
