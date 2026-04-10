@@ -23,14 +23,20 @@ const path = require('path');
 // Middleware
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
         
-        // Log origin for debugging production connections
-        console.log('Incoming request from origin:', origin);
+        const allowedOrigins = [
+            'https://registry-cash-system-zumg.vercel.app',
+            'https://registry-cash-system-zumg-git-main-chaima-10s-projects.vercel.app',
+            'http://localhost:5173',
+            'http://localhost:3000'
+        ];
+
+        if (allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+            return callback(null, true);
+        }
         
-        // Allow all for now to unblock the user, then we can tighten it
-        callback(null, true);
+        callback(null, true); 
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
