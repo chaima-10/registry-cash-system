@@ -1,4 +1,5 @@
 -- DropIndex
+ALTER TABLE `Cart` DROP FOREIGN KEY `Cart_userId_fkey`;
 DROP INDEX `Cart_userId_fkey` ON `Cart`;
 
 -- DropIndex
