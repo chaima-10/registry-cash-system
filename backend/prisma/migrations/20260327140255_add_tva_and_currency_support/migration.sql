@@ -1,6 +1,6 @@
 -- DropIndex
-ALTER TABLE `Cart` DROP FOREIGN KEY `Cart_userId_fkey`;
-DROP INDEX `Cart_userId_fkey` ON `Cart`;
+ALTER TABLE `Cart` DROP FOREIGN KEY IF EXISTS `Cart_userId_fkey`;
+DROP INDEX IF EXISTS `Cart_userId_fkey` ON `Cart`;
 
 -- DropIndex
 DROP INDEX `CartItem_cartId_fkey` ON `CartItem`;
