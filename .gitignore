@@ -44,3 +44,7 @@ yarn-error.log*
 # OS
 Thumbs.db
 .vercel
+
+*.txt
+*.md
+!README.md
