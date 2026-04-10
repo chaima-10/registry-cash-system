@@ -11,9 +11,9 @@ npm install
 echo "Generating Prisma Client..."
 npx prisma generate
 
-# Step 3: Resolve failed migration (Workaround for Render/Aiven P3009 error)
-echo "Ensuring database state is clean..."
-npx prisma migrate resolve --rolled-back 20260327140255_add_tva_and_currency_support || true
+# Step 3: Resolve failed migration (Workaround for Render/Aiven P3018/P3009 errors)
+echo "Synchronizing migration history..."
+npx prisma migrate resolve --applied 20260327140255_add_tva_and_currency_support || true
 
 # Step 4: Run Database Migrations
 echo "Applying database migrations..."
