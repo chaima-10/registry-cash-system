@@ -11,14 +11,11 @@ npm install
 echo "Generating Prisma Client..."
 npx prisma generate
 
-# Step 3: Resolve failed migrations (Workaround for Render/Aiven P3018/P3009 errors)
-echo "Synchronizing migration history..."
-npx prisma migrate resolve --rolled-back 20260327140255_add_tva_and_currency_support || true
-npx prisma migrate resolve --rolled-back 20260327145959_add_price_ttc_and_exchange_rate || true
-
-# Step 4: Run Database Migrations
-echo "Applying database migrations..."
-npx prisma migrate deploy
+# Step 3: Repair and Synchronize Schema
+# Prisma thinks migrations are done, but columns are missing. 
+# db push will force the database to match the schema.prisma.
+echo "Forcing database schema synchronization..."
+npx prisma db push --accept-data-loss
 
 # Step 4: Seed the database
 # This ensures your admin user and default data exist in the production DB
