@@ -1,18 +1,18 @@
 -- Drop existing foreign keys (safe way for MySQL)
-ALTER TABLE `Cart` DROP FOREIGN KEY IF EXISTS `Cart_userId_fkey`;
+ALTER TABLE `Cart` DROP FOREIGN KEY `Cart_userId_fkey`;
 
-ALTER TABLE `CartItem` DROP FOREIGN KEY IF EXISTS `CartItem_cartId_fkey`;
-ALTER TABLE `CartItem` DROP FOREIGN KEY IF EXISTS `CartItem_productId_fkey`;
+ALTER TABLE `CartItem` DROP FOREIGN KEY `CartItem_cartId_fkey`;
+ALTER TABLE `CartItem` DROP FOREIGN KEY `CartItem_productId_fkey`;
 
-ALTER TABLE `Product` DROP FOREIGN KEY IF EXISTS `Product_categoryId_fkey`;
-ALTER TABLE `Product` DROP FOREIGN KEY IF EXISTS `Product_subcategoryId_fkey`;
+ALTER TABLE `Product` DROP FOREIGN KEY `Product_categoryId_fkey`;
+ALTER TABLE `Product` DROP FOREIGN KEY `Product_subcategoryId_fkey`;
 
-ALTER TABLE `Sale` DROP FOREIGN KEY IF EXISTS `Sale_userId_fkey`;
+ALTER TABLE `Sale` DROP FOREIGN KEY `Sale_userId_fkey`;
 
-ALTER TABLE `SaleItem` DROP FOREIGN KEY IF EXISTS `SaleItem_productId_fkey`;
-ALTER TABLE `SaleItem` DROP FOREIGN KEY IF EXISTS `SaleItem_saleId_fkey`;
+ALTER TABLE `SaleItem` DROP FOREIGN KEY `SaleItem_productId_fkey`;
+ALTER TABLE `SaleItem` DROP FOREIGN KEY `SaleItem_saleId_fkey`;
 
-ALTER TABLE `Subcategory` DROP FOREIGN KEY IF EXISTS `Subcategory_categoryId_fkey`;
+ALTER TABLE `Subcategory` DROP FOREIGN KEY `Subcategory_categoryId_fkey`;
 
 -- Note: We removed the DROP INDEX lines because MySQL does not support `DROP INDEX IF EXISTS` in this format (this was causing the 1064 error).
 
