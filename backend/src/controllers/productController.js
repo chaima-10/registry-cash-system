@@ -204,15 +204,15 @@ exports.deleteProduct = async (req, res) => {
         }
 
         // Vérifier si le produit est lié à des ventes
-        const existingSales = await prisma.saleitem.findFirst({
-            where: { productId }
-        });
+        // const existingSales = await prisma.saleitem.findFirst({
+        //     where: { productId }
+        // });
 
-        if (existingSales) {
-            return res.status(400).json({ 
-                message: 'Impossible de supprimer ce produit car il est lié à un historique de ventes existant. Vous devriez plutôt désactiver le produit ou mettre son stock à zéro.' 
-            });
-        }
+        // if (existingSales) {
+        //     return res.status(400).json({ 
+        //         message: 'Impossible de supprimer ce produit car il est lié à un historique de ventes existant. Vous devriez plutôt désactiver le produit ou mettre son stock à zéro.' 
+        //     });
+        // }
 
         // Nettoyer les chariots actifs (qui n'ont pas encore été convertis en ventes)
         await prisma.cartitem.deleteMany({
