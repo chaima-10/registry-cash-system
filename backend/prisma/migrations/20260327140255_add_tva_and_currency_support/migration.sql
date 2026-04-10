@@ -3,28 +3,36 @@ ALTER TABLE `Cart` DROP FOREIGN KEY IF EXISTS `Cart_userId_fkey`;
 DROP INDEX IF EXISTS `Cart_userId_fkey` ON `Cart`;
 
 -- DropIndex
-DROP INDEX `CartItem_cartId_fkey` ON `CartItem`;
+ALTER TABLE `CartItem` DROP FOREIGN KEY IF EXISTS `CartItem_cartId_fkey`;
+DROP INDEX IF EXISTS `CartItem_cartId_fkey` ON `CartItem`;
 
 -- DropIndex
-DROP INDEX `CartItem_productId_fkey` ON `CartItem`;
+ALTER TABLE `CartItem` DROP FOREIGN KEY IF EXISTS `CartItem_productId_fkey`;
+DROP INDEX IF EXISTS `CartItem_productId_fkey` ON `CartItem`;
 
 -- DropIndex
-DROP INDEX `Product_categoryId_fkey` ON `Product`;
+ALTER TABLE `Product` DROP FOREIGN KEY IF EXISTS `Product_categoryId_fkey`;
+DROP INDEX IF EXISTS `Product_categoryId_fkey` ON `Product`;
 
 -- DropIndex
-DROP INDEX `Product_subcategoryId_fkey` ON `Product`;
+ALTER TABLE `Product` DROP FOREIGN KEY IF EXISTS `Product_subcategoryId_fkey`;
+DROP INDEX IF EXISTS `Product_subcategoryId_fkey` ON `Product`;
 
 -- DropIndex
-DROP INDEX `Sale_userId_fkey` ON `Sale`;
+ALTER TABLE `Sale` DROP FOREIGN KEY IF EXISTS `Sale_userId_fkey`;
+DROP INDEX IF EXISTS `Sale_userId_fkey` ON `Sale`;
 
 -- DropIndex
-DROP INDEX `SaleItem_productId_fkey` ON `SaleItem`;
+ALTER TABLE `SaleItem` DROP FOREIGN KEY IF EXISTS `SaleItem_productId_fkey`;
+DROP INDEX IF EXISTS `SaleItem_productId_fkey` ON `SaleItem`;
 
 -- DropIndex
-DROP INDEX `SaleItem_saleId_fkey` ON `SaleItem`;
+ALTER TABLE `SaleItem` DROP FOREIGN KEY IF EXISTS `SaleItem_saleId_fkey`;
+DROP INDEX IF EXISTS `SaleItem_saleId_fkey` ON `SaleItem`;
 
 -- DropIndex
-DROP INDEX `Subcategory_categoryId_fkey` ON `Subcategory`;
+ALTER TABLE `Subcategory` DROP FOREIGN KEY IF EXISTS `Subcategory_categoryId_fkey`;
+DROP INDEX IF EXISTS `Subcategory_categoryId_fkey` ON `Subcategory`;
 
 -- AlterTable
 ALTER TABLE `Cart` ADD COLUMN `subtotalHT` DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
