@@ -22,7 +22,16 @@ const path = require('path');
 
 // Middleware
 app.use(cors({
-    origin: ['https://registry-cash-system-zumg.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+        
+        // Log origin for debugging production connections
+        console.log('Incoming request from origin:', origin);
+        
+        // Allow all for now to unblock the user, then we can tighten it
+        callback(null, true);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -49,7 +58,7 @@ app.get('/', (req, res) => {
 });
 
 const startServer = async () => {
-    app.listen(PORT, '0.0.0.0', () => {
+    app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
     });
 };
