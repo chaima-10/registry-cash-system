@@ -23,24 +23,19 @@ const path = require('path');
 // Middleware
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin) return callback(null, true);
-        
-        const allowedOrigins = [
-            'https://registry-cash-system-zumg.vercel.app',
-            'https://registry-cash-system-zumg-git-main-chaima-10s-projects.vercel.app',
-            'http://localhost:5173',
-            'http://localhost:3000'
-        ];
-
-        if (allowedOrigins.includes(origin) || origin.includes('vercel.app')) {
+        // Allow local development and any Vercel deployment
+        if (!origin || 
+            origin.includes('vercel.app') || 
+            origin.includes('localhost') || 
+            origin.includes('127.0.0.1')) {
             return callback(null, true);
         }
-        
-        callback(null, true); 
+        callback(null, true); // Fallback to allow all for now to maintain stability
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    credentials: true,
+    optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
