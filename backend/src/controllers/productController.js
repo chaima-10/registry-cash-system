@@ -83,10 +83,6 @@ exports.createProduct = async (req, res) => {
 // Get All Products
 exports.getAllProducts = async (req, res) => {
     try {
-        console.log('--- FETCH ALL PRODUCTS START ---');
-        const count = await prisma.product.count();
-        console.log('Database product count:', count);
-
         const products = await prisma.product.findMany({
             include: {
                 category: true,
@@ -97,11 +93,6 @@ exports.getAllProducts = async (req, res) => {
             }
         });
         
-        console.log('Products found by findMany:', products.length);
-        if (products.length > 0) {
-            console.log('First product sample:', JSON.stringify(products[0]).substring(0, 100));
-        }
-
         res.json(products);
     } catch (error) {
         console.error('CRITICAL Error fetching products:', error);
