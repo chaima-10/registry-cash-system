@@ -38,17 +38,29 @@ const generateToken = (user) => {
 };
 
 export default async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*'); 
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   try {
     const { method } = req;
     const url = req.url;
     
     // Parse URL to determine action
     let action = '';
-    if (url && url.includes('/login')) {
+    if (url && (url.includes('/login') || url === 'login')) {
       action = 'login';
-    } else if (url && url.includes('/register')) {
+    } else if (url && (url.includes('/register') || url === 'register')) {
       action = 'register';
-    } else if (url && url.includes('/me')) {
+    } else if (url && (url.includes('/me') || url === 'me')) {
       action = 'me';
     }
 
