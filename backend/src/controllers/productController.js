@@ -84,6 +84,7 @@ exports.createProduct = async (req, res) => {
 exports.getAllProducts = async (req, res) => {
     try {
         const products = await prisma.product.findMany({
+            where: { status: 'Active' },
             include: {
                 category: true,
                 subcategory: true,
@@ -204,27 +205,29 @@ exports.deleteProduct = async (req, res) => {
         }
 
         // Vérifier si le produit est lié à des ventes
-        // const existingSales = await prisma.saleitem.findFirst({
-        //     where: { productId }
-        // });
+        const existingSales = await prisma.saleitem.findFirst({
+            where: { productId }
+        });
 
-        // if (existingSales) {
-        //     return res.status(400).json({ 
-        //         message: 'Impossible de supprimer ce produit car il est lié à un historique de ventes existant. Vous devriez plutôt désactiver le produit ou mettre son stock à zéro.' 
-        //     });
-        // }
+        if (existingSales) {
+            // SOFT DELETE: Mark as Archived if there is history
+            await prisma.product.update({
+                where: { id: productId },
+                data: { status: 'Archived' }
+            });
+            return res.json({ message: 'Produit archivé avec succès (conservé dans l\'historique des ventes)' });
+        }
 
-        // Nettoyer les chariots actifs (qui n'ont pas encore été convertis en ventes)
+        // HARD DELETE: Clean up carts and delete if NO history
         await prisma.cartitem.deleteMany({
             where: { productId }
         });
 
-        // Supprimer le produit
         await prisma.product.delete({
             where: { id: productId },
         });
         
-        res.json({ message: 'Product deleted successfully' });
+        res.json({ message: 'Produit supprimé définitively' });
     } catch (error) {
         console.error('Delete product error:', error);
         if (error.code === 'P2025') {
