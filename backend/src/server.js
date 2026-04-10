@@ -13,6 +13,7 @@ const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const saleRoutes = require('./routes/saleRoutes');
+const giveawayRoutes = require('./routes/giveawayRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +36,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/sales', saleRoutes);
+app.use('/api/giveaways', giveawayRoutes);
 app.use('/api/ai', require('./routes/aiRoutes'));
 
 app.get('/', (req, res) => {
