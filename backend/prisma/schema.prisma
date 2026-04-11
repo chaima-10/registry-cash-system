@@ -69,6 +69,7 @@ model product {
   purchasePrice Decimal      @default(0.00) @db.Decimal(10, 2)
   imageUrl      String?      @db.Text
   status        String       @default("Active")
+  isDeleted     Boolean      @default(false)
   saleItems     saleitem[]
   cartItems     cartitem[]
 
@@ -95,17 +96,17 @@ model sale {
 }
 
 model saleitem {
-  id        Int     @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   saleId    Int
-  sale      sale    @relation(fields: [saleId], references: [id])
-  productId Int
-  product   product @relation(fields: [productId], references: [id])
+  sale      sale     @relation(fields: [saleId], references: [id])
+  productId Int? // ← add ?
+  product   product? @relation(fields: [productId], references: [id]) // ← add ?
   quantity  Int
-  price     Decimal @db.Decimal(10, 2)
-  subtotal  Decimal @db.Decimal(10, 2)
-  priceTTC  Decimal @default(0.00) @db.Decimal(10, 2)
-  tvaAmount Decimal @default(0.00) @db.Decimal(10, 2)
-  tvaRate   Decimal @default(0.00) @db.Decimal(5, 2)
+  price     Decimal  @db.Decimal(10, 2)
+  subtotal  Decimal  @db.Decimal(10, 2)
+  priceTTC  Decimal  @default(0.00) @db.Decimal(10, 2)
+  tvaAmount Decimal  @default(0.00) @db.Decimal(10, 2)
+  tvaRate   Decimal  @default(0.00) @db.Decimal(5, 2)
 
   @@index([productId], map: "SaleItem_productId_fkey")
   @@index([saleId], map: "SaleItem_saleId_fkey")

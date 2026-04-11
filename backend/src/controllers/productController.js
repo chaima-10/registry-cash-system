@@ -19,7 +19,7 @@ exports.createProduct = async (req, res) => {
 
         // Check if already exists using findFirst for better error resilience if arg is somehow nullish
         const existing = await prisma.product.findFirst({ 
-            where: { barcode: cleanBarcode } 
+            where: { barcode: cleanBarcode, isDeleted: false } 
         });
         
         if (existing) {
@@ -84,7 +84,7 @@ exports.createProduct = async (req, res) => {
 exports.getAllProducts = async (req, res) => {
     try {
         const products = await prisma.product.findMany({
-            where: { status: 'Active' },
+            where: { status: 'Active', isDeleted: false },
             include: {
                 category: true,
                 subcategory: true,
@@ -108,8 +108,8 @@ exports.getAllProducts = async (req, res) => {
 // Get Product by Barcode
 exports.getProductByBarcode = async (req, res) => {
     try {
-        const product = await prisma.product.findUnique({
-            where: { barcode: req.params.barcode },
+        const product = await prisma.product.findFirst({
+            where: { barcode: req.params.barcode, isDeleted: false },
             include: {
                 category: true,
                 subcategory: true,
@@ -184,52 +184,31 @@ exports.updateProduct = async (req, res) => {
     }
 };
 
-// Delete Product
 exports.deleteProduct = async (req, res) => {
     try {
         const { id } = req.params;
         const productId = parseInt(id);
 
-        // Check if productId is valid
-        if (isNaN(productId)) {
-            return res.status(400).json({ message: 'Invalid product ID' });
-        }
-
-        // Check if product exists
-        const product = await prisma.product.findUnique({
-            where: { id: productId }
-        });
-
+        const product = await prisma.product.findUnique({ where: { id: productId } });
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Vérifier si le produit est lié à des ventes
-        const existingSales = await prisma.saleitem.findFirst({
-            where: { productId }
-        });
+        // 1. Remove from all active carts
+        await prisma.cartItem.deleteMany({ where: { productId } });
 
-        if (existingSales) {
-            // SOFT DELETE: Mark as Archived if there is history
-            await prisma.product.update({
-                where: { id: productId },
-                data: { status: 'Archived' }
-            });
-            return res.json({ message: 'Produit archivé avec succès (conservé dans l\'historique des ventes)' });
-        }
-
-        // HARD DELETE: Clean up carts and delete if NO history
-        await prisma.cartitem.deleteMany({
-            where: { productId }
-        });
-
-        await prisma.product.delete({
+        // 2. Soft delete: Keep sale history intact, just mark as deleted and change barcode to free it up
+        await prisma.product.update({
             where: { id: productId },
+            data: {
+                isDeleted: true,
+                status: 'Deleted',
+                barcode: `${product.barcode}-deleted-${Date.now()}`
+            }
         });
-        
-        res.json({ message: 'Produit supprimé définitively' });
+
+        res.json({ message: 'Product deleted' });
     } catch (error) {
-        console.error('Delete product error:', error);
         if (error.code === 'P2025') {
             return res.status(404).json({ message: 'Product not found' });
         }
