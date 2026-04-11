@@ -104,7 +104,18 @@ const AIAnalytics = () => {
         sales.forEach(sale => {
             if (sale.items) {
                 sale.items.forEach(item => {
-                    if (!map[item.productId]) map[item.productId] = { id: item.productId, name: item.product?.name || `Produit ${item.productId}`, imageUrl: item.product?.imageUrl || null, revenue: 0, qty: 0 };
+                    // Ignore products that have been deleted
+                    if (!item.product || item.product.isDeleted || item.product.status === 'Deleted') return;
+
+                    if (!map[item.productId]) {
+                        map[item.productId] = { 
+                            id: item.productId, 
+                            name: item.product.name, 
+                            imageUrl: item.product.imageUrl || null, 
+                            revenue: 0, 
+                            qty: 0 
+                        };
+                    }
                     map[item.productId].revenue += parseFloat(item.subtotal || 0);
                     map[item.productId].qty += item.quantity;
                 });
