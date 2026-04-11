@@ -104,8 +104,8 @@ const AIAnalytics = () => {
         sales.forEach(sale => {
             if (sale.items) {
                 sale.items.forEach(item => {
-                    // Ignore products that have been deleted
-                    if (!item.product || item.product.isDeleted || item.product.status === 'Deleted') return;
+                    // Strictly match the getAllProducts filter: must be Active and not deleted
+                    if (!item.product || item.product.isDeleted || item.product.status !== 'Active') return;
 
                     if (!map[item.productId]) {
                         map[item.productId] = { 
