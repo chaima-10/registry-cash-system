@@ -49,7 +49,7 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
             }
 
             // Make real API calls using the Gemini endpoint
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
