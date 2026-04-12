@@ -1,6 +1,6 @@
 /**
  * AI Service to handle external API communication
- * Wired directly to Claude API via /v1/messages
+ * Wired directly to Google Gemini API via generateContent
  */
 class AIService {
     async generateResponse(messages, systemContext) {
@@ -13,24 +13,28 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
             // Use the provided system context, or default to the Marketing Copilot prompt
             const systemPrompt = systemContext || defaultSystemPrompt;
 
-            // Normalize messages: Anthropic requires alternating user/assistant roles.
+            // Normalize messages: Gemini requires alternating 'user' and 'model' roles.
             let normalizedMessages = [];
             let lastAddedRole = null;
 
             for (const msg of messages) {
-                if (msg.role === 'user' || msg.role === 'assistant') {
+                if (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'ai' || msg.role === 'model') {
+                    const geminiRole = msg.role === 'user' ? 'user' : 'model';
                     // Skip if same role as last one (to maintain alternating pattern)
-                    if (msg.role !== lastAddedRole) {
+                    if (geminiRole !== lastAddedRole) {
                         normalizedMessages.push({
-                            role: msg.role,
-                            content: msg.content || "..."
+                            role: geminiRole,
+                            parts: [{ text: msg.content || "..." }]
                         });
-                        lastAddedRole = msg.role;
+                        lastAddedRole = geminiRole;
+                    } else {
+                        // Append to the existing part if same role consecutively
+                        normalizedMessages[normalizedMessages.length - 1].parts[0].text += "\n" + (msg.content || "...");
                     }
                 }
             }
 
-            // Ensure the last message is from the user (required by Anthropic)
+            // Ensure the last message is from the user (required by Gemini)
             if (normalizedMessages.length > 0 && normalizedMessages[normalizedMessages.length - 1].role !== 'user') {
                 normalizedMessages.pop();
             }
@@ -39,38 +43,40 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                 return "Comment puis-je vous aider en tant que Marketing Copilot ?";
             }
 
-            const apiKey = process.env.ANTHROPIC_API_KEY || '';
-            if (!apiKey || apiKey === 'votre_cle_api_ici' || apiKey.length < 10) {
-                throw new Error("Clé API Anthropic (ANTHROPIC_API_KEY) manquante ou invalide dans le fichier .env.");
+            const apiKey = process.env.GEMINI_API_KEY || '';
+            if (!apiKey || apiKey.length < 10) {
+                throw new Error("Clé API Gemini (GEMINI_API_KEY) manquante ou invalide dans le fichier .env.");
             }
 
-            // Make real API calls using the /v1/messages endpoint
-            const response = await fetch('https://api.anthropic.com/v1/messages', {
+            // Make real API calls using the Gemini endpoint
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01',
-                    'content-type': 'application/json'
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    model: 'claude-sonnet-4-20250514',
-                    max_tokens: 1500,
-                    system: systemPrompt,
-                    messages: normalizedMessages // Full conversation history for context
+                    systemInstruction: {
+                        parts: [{ text: systemPrompt }]
+                    },
+                    contents: normalizedMessages, // Full conversation history for context
+                    generationConfig: {
+                        maxOutputTokens: 1500
+                    }
                 })
             });
 
             if (!response.ok) {
                 const errBody = await response.text();
-                throw new Error(`API Anthropic a renvoyé l'erreur ${response.status}: ${errBody}`);
+                throw new Error(`API Gemini a renvoyé l'erreur ${response.status}: ${errBody}`);
             }
 
             const data = await response.json();
-            if (data && data.content && data.content.length > 0) {
-                return data.content[0].text;
+            if (data && data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts.length > 0) {
+                return data.candidates[0].content.parts[0].text;
             }
 
-            throw new Error("Format de réponse inattendu de l'API Claude.");
+            throw new Error("Format de réponse inattendu de l'API Gemini.");
 
         } catch (err) {
             console.error("AI Service Error:", err.message);
