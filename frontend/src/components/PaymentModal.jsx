@@ -13,21 +13,17 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const [processing, setProcessing] = useState(false);
     
     // Gift voucher states
-    const [voucherCode, setVoucherCode] = useState('');
     const [voucherQR, setVoucherQR] = useState('');
     const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
     
     // Credit card states
-    const [cardNumber, setCardNumber] = useState('');
-    const [cardExpiry, setCardExpiry] = useState('');
-    const [cardCVV, setCardCVV] = useState('');
-    const [cardName, setCardName] = useState('');
+    const [cardPin, setCardPin] = useState('');
 
     // Convert raw USD amount to current display currency
     const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
-    const amount = (Number(cart?.totalAmount) || 0) * rate;   // in display currency
-    const tendered = parseFloat(cashTendered) || 0;
-    const change = tendered - amount;                          // both in display currency
+    const amount = Number(((Number(cart?.totalAmount) || 0) * rate).toFixed(3));
+    const tendered = typeof cashTendered === 'string' ? parseFloat(cashTendered.replace(/,/g, '.')) || 0 : parseFloat(cashTendered) || 0;
+    const change = Number((tendered - amount).toFixed(3));
 
     // Format a value that is already in display currency (no rate multiplication)
     const formatRaw = (val) => {
@@ -42,19 +38,14 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
             return;
         }
         
-        if (selectedMethod === 'VOUCHER' && !voucherCode && !voucherQR) {
-            alert(t('voucherRequired') || 'Please enter voucher code or scan QR code');
+        if (selectedMethod === 'VOUCHER' && !voucherQR) {
+            alert(t('voucherRequired') || 'Please scan QR code');
             return;
         }
         
         if (selectedMethod === 'CARD') {
-            if (!cardNumber || !cardExpiry || !cardCVV || !cardName) {
-                alert(t('cardDetailsRequired') || 'Please fill in all card details');
-                return;
-            }
-            // Basic card validation
-            if (cardNumber.replace(/\s/g, '').length < 13) {
-                alert(t('invalidCardNumber') || 'Invalid card number');
+            if (!cardPin) {
+                alert(t('pinRequired') || 'Please enter PIN code');
                 return;
             }
         }
@@ -64,25 +55,17 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
             const paymentData = {
                 method: selectedMethod,
                 cashTendered: selectedMethod === 'CASH' ? tendered : null,
-                voucherCode: selectedMethod === 'VOUCHER' ? voucherCode : null,
                 voucherQR: selectedMethod === 'VOUCHER' ? voucherQR : null,
                 cardDetails: selectedMethod === 'CARD' ? {
-                    number: cardNumber,
-                    expiry: cardExpiry,
-                    cvv: cardCVV,
-                    name: cardName
+                    pin: cardPin
                 } : null
             };
             await onConfirm(selectedMethod, paymentData);
             // Reset form
             setCashTendered('');
             setSelectedMethod('CASH');
-            setVoucherCode('');
             setVoucherQR('');
-            setCardNumber('');
-            setCardExpiry('');
-            setCardCVV('');
-            setCardName('');
+            setCardPin('');
         } catch (error) {
             console.error('Payment error:', error);
         } finally {
@@ -90,29 +73,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
         }
     };
     
-    // Format card number with spaces
-    const formatCardNumber = (value) => {
-        const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-        const matches = v.match(/\d{4,16}/g);
-        const match = matches && matches[0] || '';
-        const parts = [];
-        for (let i = 0, len = match.length; i < len; i += 4) {
-            parts.push(match.substring(i, i + 4));
-        }
-        if (parts.length) {
-            return parts.join(' ');
-        }
-        return v;
-    };
-    
-    // Format expiry date
-    const formatExpiry = (value) => {
-        const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-        if (v.length >= 2) {
-            return v.slice(0, 2) + '/' + v.slice(2, 4);
-        }
-        return v;
-    };
+
 
     // Handle QR code scan
     const handleQRScan = (qrData) => {
@@ -217,46 +178,15 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                             exit={{ opacity: 0, height: 0 }}
                                             className="overflow-hidden space-y-4"
                                         >
-                                            <div>
-                                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                                                    {t('voucherCode') || 'Voucher Code'}
-                                                </label>
-                                                <div className="relative">
-                                                    <input
-                                                        type="text"
-                                                        value={voucherCode}
-                                                        onChange={(e) => setVoucherCode(e.target.value)}
-                                                        placeholder={t('enterVoucherCode') || 'Enter voucher code'}
-                                                        className="w-full px-4 py-3 pl-12 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
-                                                    />
-                                                    <FiEdit className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                                                </div>
-                                            </div>
-                                            
-                                            <div>
-                                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                                                    {t('scanQRCode') || 'Scan QR Code'}
-                                                </label>
-                                                <div className="space-y-3">
-                                                    <div className="relative">
-                                                        <textarea
-                                                            value={voucherQR}
-                                                            onChange={(e) => setVoucherQR(e.target.value)}
-                                                            placeholder={t('pasteQRData') || 'Paste QR code data or scan with camera'}
-                                                            rows={3}
-                                                            className="w-full px-4 py-3 pl-12 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors resize-none"
-                                                        />
-                                                        <FiCamera className="absolute left-4 top-4 text-gray-400" size={18} />
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setIsQRScannerOpen(true)}
-                                                        className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
-                                                    >
-                                                        <FiCamera size={18} />
-                                                        {t('openQRScanner', 'Open QR Scanner')}
-                                                    </button>
-                                                </div>
+                                            <div className="pt-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsQRScannerOpen(true)}
+                                                    className="w-full py-6 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-bold transition-all shadow-xl shadow-purple-500/30 flex items-center justify-center gap-3 active:scale-95"
+                                                >
+                                                    <FiCamera size={24} />
+                                                    {voucherQR ? t('qrCodeScanned', 'QR Code Scanned') : t('openQRScanner', 'Open QR Scanner')}
+                                                </button>
                                             </div>
                                         </motion.div>
                                     )}
@@ -271,57 +201,15 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                         >
                                             <div>
                                                 <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                                                    {t('cardNumber') || 'Card Number'}
+                                                    {t('pinCode', 'PIN Code')}
                                                 </label>
                                                 <input
-                                                    type="text"
-                                                    value={cardNumber}
-                                                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                                                    placeholder="1234 5678 9012 3456"
-                                                    maxLength={19}
-                                                    className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
-                                                />
-                                            </div>
-                                            
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div>
-                                                    <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                                                        {t('expiry') || 'Expiry'}
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={cardExpiry}
-                                                        onChange={(e) => setCardExpiry(formatExpiry(e.target.value))}
-                                                        placeholder="MM/YY"
-                                                        maxLength={5}
-                                                        className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                                                        {t('cvv') || 'CVV'}
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={cardCVV}
-                                                        onChange={(e) => setCardCVV(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-                                                        placeholder="123"
-                                                        maxLength={4}
-                                                        className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
-                                                    />
-                                                </div>
-                                            </div>
-                                            
-                                            <div>
-                                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">
-                                                    {t('cardholderName') || 'Cardholder Name'}
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={cardName}
-                                                    onChange={(e) => setCardName(e.target.value)}
-                                                    placeholder={t('enterCardholderName') || 'Enter cardholder name'}
-                                                    className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors"
+                                                    type="password"
+                                                    value={cardPin}
+                                                    onChange={(e) => setCardPin(e.target.value)}
+                                                    placeholder="****"
+                                                    maxLength={4}
+                                                    className="w-full px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 transition-colors tracking-widest text-center text-xl"
                                                 />
                                             </div>
                                         </motion.div>
