@@ -69,8 +69,8 @@ const Layout = () => {
         { to: '/products', icon: FiBox, label: t('products'), adminOnly: true },
         { to: '/users', icon: FiUsers, label: t('users'), adminOnly: true },
         { to: '/analytics', icon: FiActivity, label: t('aiAnalytics', 'AI Analytics'), adminOnly: true },
-        { to: '/giveaways', icon: FiGift, label: t('giveaways', 'Giveaways'), adminOnly: true },
-        { to: '/marketing', icon: FiShoppingBag, label: t('aiMarketing', 'AI Marketing'), adminOnly: true },
+        { to: '/giveaways', icon: FiGift, label: t('giveaways', 'Giveaways'), adminOnly: false },
+        { to: '/marketing', icon: FiShoppingBag, label: t('marketingStudio', 'Marketing Studio'), adminOnly: true },
     ];
 
     // Filtrer le menu pour le caissier
@@ -155,7 +155,7 @@ const Layout = () => {
                                 </div>
                                 <div className="hidden md:block text-left">
                                     <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">{user?.username}</p>
-                                    <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">{user?.role}</p>
+                                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">{t(user?.role, user?.role)}</p>
                                 </div>
                                 <FiChevronDown className={`text-gray-500 dark:text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
                             </button>

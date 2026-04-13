@@ -37,13 +37,13 @@ function AppRoutes() {
                 <Route path="/products" element={<Products />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/analytics" element={<AIAnalytics />} />
-                <Route path="/giveaways" element={<Giveaways />} />
                 <Route path="/marketing" element={<AIMarketing />} />
             </Route>
 
             {/* Shared Routes (Admin + Cashier) */}
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="/pos" element={<POS />} />
+                <Route path="/giveaways" element={<Giveaways />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
             </Route>
