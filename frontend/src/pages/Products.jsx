@@ -273,9 +273,9 @@ const Products = () => {
                                 filteredProducts.map(product => (
                                     <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
                                         <td className="p-4">
-                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shadow-sm">
                                                 {product.imageUrl ? (
-                                                    <img src={`${API_URL}${product.imageUrl}`} alt={product.name} className="w-full h-full object-cover" />
+                                                    <img src={`${API_URL}${product.imageUrl}`} alt={product.name} className="w-full h-full object-contain" />
                                                 ) : (
                                                     <span className="text-[10px] font-bold text-gray-400">{product.name.substring(0, 2).toUpperCase()}</span>
                                                 )}
@@ -360,22 +360,22 @@ const Products = () => {
                             <form onSubmit={handleSubmit} className="p-6 space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('barcode')}</label>
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">
+                                            {t('barcode')}
+                                            {isEditing && <span className="ml-2 text-[10px] text-orange-500 font-medium normal-case">⚠ modifying barcode will update it</span>}
+                                        </label>
                                         <div className="flex gap-2">
                                             <input required type="text" pattern="\d{12,13}" title="Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)"
                                                 className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all font-mono"
                                                 value={formData.barcode}
                                                 onChange={e => setFormData({ ...formData, barcode: e.target.value.replace(/\D/g, '').slice(0, 13) })}
-                                                disabled={isEditing}
                                                 placeholder="e.g. 5901234123457" />
-                                            {!isEditing && (
-                                                <button type="button"
-                                                    onClick={() => setFormData({ ...formData, barcode: generateEAN13() })}
-                                                    className="px-3 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-800/60 text-blue-700 dark:text-blue-300 rounded-xl text-xs font-bold transition-all border border-blue-200 dark:border-blue-700 whitespace-nowrap"
-                                                    title="Auto-generate a valid EAN-13 barcode">
-                                                    EAN-13
-                                                </button>
-                                            )}
+                                            <button type="button"
+                                                onClick={() => setFormData({ ...formData, barcode: generateEAN13() })}
+                                                className="px-3 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-800/60 text-blue-700 dark:text-blue-300 rounded-xl text-xs font-bold transition-all border border-blue-200 dark:border-blue-700 whitespace-nowrap"
+                                                title="Auto-generate a valid EAN-13 barcode">
+                                                EAN-13
+                                            </button>
                                         </div>
                                     </div>
                                     <div className="space-y-1">
@@ -450,7 +450,7 @@ const Products = () => {
                                     <div className="flex items-center gap-4">
                                         <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800">
                                             {imagePreview ? (
-                                                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                                <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
                                             ) : (
                                                 <FiCamera size={24} className="text-gray-400" />
                                             )}

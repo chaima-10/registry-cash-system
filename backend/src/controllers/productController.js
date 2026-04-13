@@ -130,19 +130,28 @@ exports.updateProduct = async (req, res) => {
         const { id } = req.params;
         const { name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva, barcode } = req.body;
 
-        // If barcode is being updated, validate it
-        if (barcode !== undefined && barcode !== null && barcode !== '') {
-            if (!/^\d{12,13}$/.test(barcode.trim())) {
-                return res.status(400).json({ message: 'Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)' });
-            }
-        }
-
         let updateData = {
             name,
             price: price !== undefined ? parseFloat(price) : undefined,
             purchasePrice: purchasePrice !== undefined && purchasePrice !== '' ? parseFloat(purchasePrice) : undefined,
             stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : undefined,
         };
+
+        // If barcode is being updated, validate it and ensure no conflict with other products
+        if (barcode !== undefined && barcode !== null && barcode !== '') {
+            const cleanBarcode = barcode.trim();
+            if (!/^\d{12,13}$/.test(cleanBarcode)) {
+                return res.status(400).json({ message: 'Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)' });
+            }
+            // Check if another product (not this one) already uses this barcode
+            const conflict = await prisma.product.findFirst({
+                where: { barcode: cleanBarcode, isDeleted: false, NOT: { id: parseInt(id) } }
+            });
+            if (conflict) {
+                return res.status(400).json({ message: 'A product with this barcode already exists' });
+            }
+            updateData.barcode = cleanBarcode;
+        }
 
         // Only update category/subcategory if they were explicitly included in the request
         if ('categoryId' in req.body) {
