@@ -142,9 +142,15 @@ exports.updateProduct = async (req, res) => {
             price: price !== undefined ? parseFloat(price) : undefined,
             purchasePrice: purchasePrice !== undefined && purchasePrice !== '' ? parseFloat(purchasePrice) : undefined,
             stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : undefined,
-            categoryId: categoryId ? parseInt(categoryId) : null,
-            subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
         };
+
+        // Only update category/subcategory if they were explicitly included in the request
+        if ('categoryId' in req.body) {
+            updateData.categoryId = categoryId ? parseInt(categoryId) : null;
+        }
+        if ('subcategoryId' in req.body) {
+            updateData.subcategoryId = subcategoryId ? parseInt(subcategoryId) : null;
+        }
 
         if (remise !== undefined && remise !== null && remise !== '') {
             let validRemise = parseFloat(remise);
