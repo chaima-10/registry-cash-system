@@ -4,7 +4,7 @@
  */
 class AIService {
     async generateResponse(messages, systemContext) {
-        const models = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+        const models = ['gemini-2.5-flash', 'gemini-2.5-pro'];
         
         const callGemini = async (model, retryCount = 0) => {
             try {
@@ -88,7 +88,7 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
 
             } catch (err) {
                 if (model === models[0] && retryCount >= 2) {
-                    console.warn("Falling back to gemini-1.5-pro due to failure in gemini-1.5-flash");
+                    console.warn(`Falling back to ${models[1]} due to failure in ${models[0]}`);
                     return callGemini(models[1], 0);
                 }
                 throw err;
