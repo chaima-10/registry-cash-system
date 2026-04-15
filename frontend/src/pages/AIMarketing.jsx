@@ -14,10 +14,20 @@ const AIMarketing = () => {
     const [isLoading, setIsLoading] = useState(true);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     
-    // Marketing Chat State
-    const [chatMessages, setChatMessages] = useState([
-        { role: 'ai', content: t('marketingWelcomeAi', "Bonjour ! Je suis votre assistant expert en Marketing. Je suis là pour vous aider à créer des slogans percutants et des visuels attrayants.") }
-    ]);
+    // Marketing Chat State with LocalStorage Persistence
+    const [chatMessages, setChatMessages] = useState(() => {
+        const saved = localStorage.getItem('marketing_chat_history');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                console.error("Failed to parse chat history", e);
+            }
+        }
+        return [
+            { role: 'ai', content: t('marketingWelcomeAi', "Bonjour ! Je suis votre assistant expert en Marketing. Je suis là pour vous aider à créer des slogans percutants et des visuels attrayants.") }
+        ];
+    });
     const [chatInput, setChatInput] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
     const messagesEndRef = useRef(null);
@@ -36,8 +46,10 @@ const AIMarketing = () => {
         fetchData();
     }, []);
 
+    // Scroll to bottom and save history
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        localStorage.setItem('marketing_chat_history', JSON.stringify(chatMessages));
     }, [chatMessages, isAiTyping]);
 
     const fetchData = async () => {
@@ -59,39 +71,50 @@ const AIMarketing = () => {
         setActiveEventName(eventName || 'Général');
         const eventLabel = eventName || 'Général';
         
-        // V3: Increased model volume and better prompt engineering
+        // V4: Improved prompt and forced JSON structure
         const prompt = `Génère 6 idées de campagnes marketing extrêmement créatives pour l'événement "${eventLabel}". 
-        Utilise ces produits disponibles: ${JSON.stringify(prods.slice(0,20).map(p => ({name:p.name, price:p.price, img: p.imageUrl})))}.
-        Réponds UNIQUEMENT en JSON: 
-        [{
-            "title": "Titre", 
-            "description": "Description", 
-            "products": ["Nom Produit 1", "Nom Produit 2", "Nom Produit 3", "Nom Produit 4"], 
-            "discountPercent": 25, 
-            "timing": "Période", 
-            "emoji": "✨", 
-            "theme": "#hexcolor",
-            "type": "catalog"
-        }]`;
+        Utilise ces produits de ma base de données: ${JSON.stringify(prods.slice(0,25).map(p => ({name:p.name, price:p.price, img: p.imageUrl})))}.
+        Règles : 
+        1. Réponds UNIQUEMENT avec un tableau JSON. Pas de texte avant ou après.
+        2. Format attendu : [{"title": "...", "description": "...", "products": ["Nom Exact 1", "Nom Exact 2"], "discountPercent": 20, "timing": "...", "emoji": "...", "theme": "#hex", "type": "catalog"}]
+        3. Choisis des couleurs (theme) vives et modernes.`;
 
         try {
             const response = await api.post('/ai/chat', {
                 messages: [{ role: 'user', content: prompt }],
-                systemContext: "Tu es un expert en design marketing de classe mondiale. Réponds UNIQUEMENT avec du JSON valide. Propose des campagnes avec BEAUCOUP de produits (4-6 par campagne)."
+                systemContext: "Tu es un expert en design marketing. Tu communiques uniquement en JSON pur. INTERDIT d'utiliser des balises markdown comme ```json. Réponds par un tableau d'objets."
             });
             
-            const text = response.data.reply;
-            const jsonStr = text.match(/\[.*\]/s)?.[0];
+            let text = response.data.reply;
+            // Robust parsing: extract content between square brackets to catch common AI formatting errors
+            const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
+            const jsonStr = jsonMatch ? jsonMatch[0] : (text.startsWith('[') ? text : null);
+
             if (jsonStr) {
-                setPromotions(JSON.parse(jsonStr));
+                try {
+                    const parsedData = JSON.parse(jsonStr);
+                    setPromotions(parsedData);
+                } catch (parseError) {
+                    console.error("JSON Parse Error:", parseError, "Original string:", jsonStr);
+                    throw new Error("Format JSON corrompu");
+                }
             } else {
-                throw new Error("Invalid JSON from AI");
+                throw new Error("L'IA n'a pas renvoyé de JSON valide");
             }
         } catch (error) {
             console.error("AI Generation failed, using fallbacks:", error);
-            // Fallback richer static data
+            // Dynamic Fallback in case of failure: adapt fallback to the event name
             setPromotions([
-                { title: t('megaBackToSchool', 'Grand Pack Rentrée'), description: t('megaBackToSchoolDesc', 'Tout le nécessaire pour une rentrée réussie.'), products: prods.slice(0,6).map(p => p.name), discountPercent: 30, timing: 'Septembre', emoji: '📚', theme: '#4f46e5', type: 'catalog' }
+                { 
+                    title: `${eventLabel} - Offre Spéciale`, 
+                    description: `Découvrez notre sélection exclusive pour célébrer ${eventLabel} avec style.`, 
+                    products: prods.slice(0,6).map(p => p.name), 
+                    discountPercent: 25, 
+                    timing: 'Offre Limitée', 
+                    emoji: '🎁', 
+                    theme: '#2563eb', 
+                    type: 'catalog' 
+                }
             ]);
         } finally {
             setIsGeneratingPromos(false);
@@ -113,16 +136,24 @@ const AIMarketing = () => {
         setIsAiTyping(true);
 
         try {
-            const systemContext = "Tu es un expert en copywriting pour les réseaux sociaux. Ta SEULE tâche est de créer des textes ultra accrocheurs (copywriting) pour accompagner des affiches promotionnelles publiées sur FB/Insta. Réponds en " + (isRtl ? "Arabe" : "Français/Anglais") + ". Ne donne aucune explication stratégique financière. Seulement le texte prêt à être publié avec des hashtags et emojis.";
+            const systemContext = "Tu es un expert en copywriting pour les réseaux sociaux. Ta SEULE tâche est de créer des textes ultra accrocheurs pour accompagner des affiches promotionnelles publiées sur FB/Insta. Réponds en " + (isRtl ? "Arabe" : "Français/Anglais") + ". Ne donne aucune explication stratégique. Seulement le texte prêt à être publié avec des hashtags et emojis.";
             const apiMessages = chatMessages.concat({ role: 'user', content: message })
                 .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
 
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
             setChatMessages(prev => [...prev, { role: 'ai', content: response.data.reply }]);
         } catch (error) {
-            setChatMessages(prev => [...prev, { role: 'ai', content: t('errorProcessing', "Erreur AI.") }]);
+            setChatMessages(prev => [...prev, { role: 'ai', content: t('errorProcessing', "Désolé, j'ai rencontré une erreur. Veuillez réessayer.") }]);
         } finally {
             setIsAiTyping(false);
+        }
+    };
+
+    const clearChatHistory = () => {
+        if (window.confirm("Voulez-vous vraiment effacer l'historique de la discussion ?")) {
+            const initialMsg = [{ role: 'ai', content: t('marketingWelcomeAi', "Bonjour ! Je suis votre assistant expert en Marketing. Je suis là pour vous aider à créer des slogans percutants et des visuels attrayants.") }];
+            setChatMessages(initialMsg);
+            localStorage.setItem('marketing_chat_history', JSON.stringify(initialMsg));
         }
     };
 
@@ -221,7 +252,7 @@ const AIMarketing = () => {
 
                                         <div className="mt-auto space-y-6">
                                             <div className="flex -space-x-4 overflow-hidden mb-2">
-                                                {promo.products.slice(0,6).map((pName, i) => {
+                                                {promo.products && promo.products.slice(0,6).map((pName, i) => {
                                                     const prod = getProductByName(pName);
                                                     return (
                                                         <motion.div 
@@ -238,7 +269,7 @@ const AIMarketing = () => {
                                                         </motion.div>
                                                     );
                                                 })}
-                                                {promo.products.length > 6 && (
+                                                {promo.products && promo.products.length > 6 && (
                                                     <div className="w-14 h-14 rounded-[1.25rem] border-4 border-white dark:border-slate-900 bg-slate-800 flex items-center justify-center text-white text-xs font-black shadow-lg">
                                                         +{promo.products.length - 6}
                                                     </div>
@@ -274,17 +305,26 @@ const AIMarketing = () => {
                     <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-400/20 rounded-full -ml-12 -mb-12 blur-2xl opacity-50" />
                     
                     <div className="relative z-10">
-                        <div className="flex items-center gap-5 mb-4">
-                            <div className="w-14 h-14 bg-white/20 rounded-[1.25rem] flex items-center justify-center backdrop-blur-xl border border-white/20 shadow-xl">
-                                <FiMessageCircle size={28} />
-                            </div>
-                            <div>
-                                <h2 className="font-black text-xl tracking-tighter uppercase leading-none mb-1">{t('marketingCopilot', 'Marketing Copilot')}</h2>
-                                <div className="flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"></span>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-200 opacity-80">AI Strategy Mode</span>
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 bg-white/20 rounded-[1.25rem] flex items-center justify-center backdrop-blur-xl border border-white/20 shadow-xl">
+                                    <FiMessageCircle size={28} />
+                                </div>
+                                <div>
+                                    <h2 className="font-black text-xl tracking-tighter uppercase leading-none mb-1">{t('marketingCopilot', 'Marketing Copilot')}</h2>
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"></span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-200 opacity-80">AI Strategy Mode</span>
+                                    </div>
                                 </div>
                             </div>
+                            <button 
+                                onClick={clearChatHistory}
+                                title="Effacer l'historique"
+                                className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all text-white/60 hover:text-white"
+                            >
+                                <FiTrash2 size={18} />
+                            </button>
                         </div>
                         <p className="text-blue-100 text-xs font-medium leading-relaxed opacity-70 border-l-2 border-white/20 pl-4">
                             {t('askAiMarketing', 'Demandez des slogans percutants, des stratégies de réseaux sociaux ou créez des catalogues sur mesure.')}
@@ -438,7 +478,7 @@ const AIMarketing = () => {
                                         <div>
                                             <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-400 mb-2">{t('featuredProducts', 'Produits Inclus')}</h3>
                                             <div className="flex gap-2">
-                                                <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700">{selectedPoster.products.length} Items Selected</span>
+                                                <span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700">{selectedPoster.products ? selectedPoster.products.length : 0} Items Selected</span>
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-end">
@@ -449,7 +489,7 @@ const AIMarketing = () => {
 
                                     {/* Scrollable Catalog Grid */}
                                     <div className="grid grid-cols-2 gap-6 overflow-y-auto custom-scrollbar pr-4 pb-10">
-                                        {selectedPoster.products.map((pName, idx) => {
+                                        {selectedPoster.products && selectedPoster.products.map((pName, idx) => {
                                             const prod = getProductByName(pName);
                                             return (
                                                 <motion.div 
@@ -488,7 +528,7 @@ const AIMarketing = () => {
                                         <div className="relative z-10">
                                             <div className="text-[10px] font-black uppercase tracking-[0.3em] mb-2 opacity-50 dark:opacity-40">Total Bundle Price</div>
                                             <div className="text-5xl font-black tracking-tighter text-white dark:text-slate-900">
-                                                {formatCurrency(selectedPoster.products.reduce((acc, p) => acc + (parseFloat(getProductByName(p)?.price) || 0), 0) * (1 - selectedPoster.discountPercent/100))}
+                                                {formatCurrency(selectedPoster.products ? selectedPoster.products.reduce((acc, p) => acc + (parseFloat(getProductByName(p)?.price) || 0), 0) * (1 - selectedPoster.discountPercent/100) : 0)}
                                             </div>
                                         </div>
                                         <div className="w-20 h-20 bg-white/10 dark:bg-slate-900/10 rounded-[2rem] flex items-center justify-center relative z-10 group-hover:bg-white/20 transition-all">
