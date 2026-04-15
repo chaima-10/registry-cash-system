@@ -19,7 +19,7 @@ exports.createProduct = async (req, res) => {
 
         // Check if already exists using findFirst for better error resilience if arg is somehow nullish
         const existing = await prisma.product.findFirst({ 
-            where: { barcode: cleanBarcode } 
+            where: { barcode: cleanBarcode, isDeleted: false } 
         });
         
         if (existing) {
@@ -83,11 +83,8 @@ exports.createProduct = async (req, res) => {
 // Get All Products
 exports.getAllProducts = async (req, res) => {
     try {
-        console.log('--- FETCH ALL PRODUCTS START ---');
-        const count = await prisma.product.count();
-        console.log('Database product count:', count);
-
         const products = await prisma.product.findMany({
+            where: { status: 'Active', isDeleted: false },
             include: {
                 category: true,
                 subcategory: true,
@@ -97,11 +94,6 @@ exports.getAllProducts = async (req, res) => {
             }
         });
         
-        console.log('Products found by findMany:', products.length);
-        if (products.length > 0) {
-            console.log('First product sample:', JSON.stringify(products[0]).substring(0, 100));
-        }
-
         res.json(products);
     } catch (error) {
         console.error('CRITICAL Error fetching products:', error);
@@ -116,8 +108,8 @@ exports.getAllProducts = async (req, res) => {
 // Get Product by Barcode
 exports.getProductByBarcode = async (req, res) => {
     try {
-        const product = await prisma.product.findUnique({
-            where: { barcode: req.params.barcode },
+        const product = await prisma.product.findFirst({
+            where: { barcode: req.params.barcode, isDeleted: false },
             include: {
                 category: true,
                 subcategory: true,
@@ -138,21 +130,36 @@ exports.updateProduct = async (req, res) => {
         const { id } = req.params;
         const { name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva, barcode } = req.body;
 
-        // If barcode is being updated, validate it
-        if (barcode !== undefined && barcode !== null && barcode !== '') {
-            if (!/^\d{12,13}$/.test(barcode.trim())) {
-                return res.status(400).json({ message: 'Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)' });
-            }
-        }
-
         let updateData = {
             name,
             price: price !== undefined ? parseFloat(price) : undefined,
             purchasePrice: purchasePrice !== undefined && purchasePrice !== '' ? parseFloat(purchasePrice) : undefined,
             stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : undefined,
-            categoryId: categoryId ? parseInt(categoryId) : null,
-            subcategoryId: subcategoryId ? parseInt(subcategoryId) : null,
         };
+
+        // If barcode is being updated, validate it and ensure no conflict with other products
+        if (barcode !== undefined && barcode !== null && barcode !== '') {
+            const cleanBarcode = barcode.trim();
+            if (!/^\d{12,13}$/.test(cleanBarcode)) {
+                return res.status(400).json({ message: 'Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)' });
+            }
+            // Check if another product (not this one) already uses this barcode
+            const conflict = await prisma.product.findFirst({
+                where: { barcode: cleanBarcode, isDeleted: false, NOT: { id: parseInt(id) } }
+            });
+            if (conflict) {
+                return res.status(400).json({ message: 'A product with this barcode already exists' });
+            }
+            updateData.barcode = cleanBarcode;
+        }
+
+        // Only update category/subcategory if they were explicitly included in the request
+        if ('categoryId' in req.body) {
+            updateData.categoryId = categoryId ? parseInt(categoryId) : null;
+        }
+        if ('subcategoryId' in req.body) {
+            updateData.subcategoryId = subcategoryId ? parseInt(subcategoryId) : null;
+        }
 
         if (remise !== undefined && remise !== null && remise !== '') {
             let validRemise = parseFloat(remise);
@@ -192,34 +199,30 @@ exports.updateProduct = async (req, res) => {
     }
 };
 
-// Delete Product
 exports.deleteProduct = async (req, res) => {
     try {
         const { id } = req.params;
         const productId = parseInt(id);
 
-        // Vérifier si le produit est lié à des ventes
-        const existingSales = await prisma.saleitem.findFirst({
-            where: { productId }
-        });
-
-        if (existingSales) {
-            return res.status(400).json({ 
-                message: 'Impossible de supprimer ce produit car il est lié à un historique de ventes existant. Vous devriez plutôt désactiver le produit ou mettre son stock à zéro.' 
-            });
+        const product = await prisma.product.findUnique({ where: { id: productId } });
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
         }
 
-        // Nettoyer les chariots actifs (qui n'ont pas encore été convertis en ventes)
-        await prisma.cartitem.deleteMany({
-            where: { productId }
+        // 1. Remove from all active carts
+        await prisma.cartItem.deleteMany({ where: { productId } });
+
+        // 2. Soft delete: Keep sale history intact, just mark as deleted and change barcode to free it up
+        await prisma.product.update({
+            where: { id: productId },
+            data: {
+                isDeleted: true,
+                status: 'Deleted',
+                barcode: `${product.barcode}-deleted-${Date.now()}`
+            }
         });
 
-        // Supprimer le produit
-        await prisma.product.delete({
-            where: { id: productId },
-        });
-        
-        res.json({ message: 'Product deleted successfully' });
+        res.json({ message: 'Product deleted' });
     } catch (error) {
         if (error.code === 'P2025') {
             return res.status(404).json({ message: 'Product not found' });

@@ -1,6 +1,6 @@
 import api from './axios';
 
-export const loginUser = async (credentials) => {
+export const login = async (credentials) => {
     const response = await api.post('/auth/login', credentials);
     if (response.data.token) {
         localStorage.setItem('token', response.data.token);
@@ -8,7 +8,7 @@ export const loginUser = async (credentials) => {
     return response.data;
 };
 
-export const registerUser = async (userData) => {
+export const register = async (userData) => {
     const response = await api.post('/auth/register', userData);
     return response.data;
 };
@@ -23,9 +23,9 @@ export const logoutUser = async () => {
 };
 
 export const getProfile = async () => {
-    // Check both auth and users routes depending on backend implementation
-    // Switching to /users/profile as per new implementation
-    const response = await api.get('/users/profile');
+    // Use the backend profile route (which is located in either /auth/profile or /users/profile)
+    // Currently backend has it at /auth/profile as well as /users/profile. We will use /auth/profile.
+    const response = await api.get('/auth/profile');
     return response.data;
 };
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiUser, FiUserCheck, FiShield } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
-import { registerUser } from '../api/auth';
+import { register } from '../api/auth';
 import { getUsers, updateUser, deleteUser } from '../api/users';
 import CashierTable from '../components/CashierTable';
 import EditUserModal from '../components/EditUserModal';
@@ -36,7 +36,7 @@ const Users = () => {
         e.preventDefault();
         setMessage(null);
         try {
-            await registerUser(formData);
+            await register(formData);
             setMessage({ type: 'success', text: t('userRegisteredSuccess') });
             setFormData({ username: '', password: '', role: 'cashier', fullName: '' });
             fetchUsers(); // Refresh list

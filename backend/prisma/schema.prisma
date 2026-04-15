@@ -3,8 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "mysql"
+  url       = env("DATABASE_URL")
+  // Aiven MySQL requires SSL
+  directUrl = env("DATABASE_URL")
 }
 
 model cart {
@@ -19,6 +21,7 @@ model cart {
   tvaAmount   Decimal    @default(0.00) @db.Decimal(10, 2)
 
   @@index([userId], map: "Cart_userId_fkey")
+  @@map("Cart")
 }
 
 model cartitem {
@@ -35,6 +38,7 @@ model cartitem {
 
   @@index([cartId], map: "CartItem_cartId_fkey")
   @@index([productId], map: "CartItem_productId_fkey")
+  @@map("CartItem")
 }
 
 model category {
@@ -44,29 +48,34 @@ model category {
   products      product[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  @@map("Category")
 }
 
 model product {
-  id            Int         @id @default(autoincrement())
-  barcode       String      @unique(map: "Product_barcode_key")
+  id            Int          @id @default(autoincrement())
+  barcode       String       @unique(map: "Product_barcode_key")
   name          String
-  price         Decimal     @db.Decimal(10, 2)
-  stockQuantity Int         @default(0)
+  price         Decimal      @db.Decimal(10, 2)
+  stockQuantity Int          @default(0)
   categoryId    Int?
-  category      category?   @relation(fields: [categoryId], references: [id])
+  category      category?    @relation(fields: [categoryId], references: [id])
   subcategoryId Int?
   subcategory   subcategory? @relation(fields: [subcategoryId], references: [id])
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  remise        Decimal     @default(0.00) @db.Decimal(5, 2)
-  tva           Decimal     @default(0.00) @db.Decimal(5, 2)
-  purchasePrice Decimal     @default(0.00) @db.Decimal(10, 2)
-  imageUrl      String?     @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  remise        Decimal      @default(0.00) @db.Decimal(5, 2)
+  tva           Decimal      @default(0.00) @db.Decimal(5, 2)
+  purchasePrice Decimal      @default(0.00) @db.Decimal(10, 2)
+  imageUrl      String?      @db.Text
+  status        String       @default("Active")
+  isDeleted     Boolean      @default(false)
   saleItems     saleitem[]
   cartItems     cartitem[]
 
   @@index([categoryId], map: "Product_categoryId_fkey")
   @@index([subcategoryId], map: "Product_subcategoryId_fkey")
+  @@map("Product")
 }
 
 model sale {
@@ -83,23 +92,25 @@ model sale {
   items         saleitem[]
 
   @@index([userId], map: "Sale_userId_fkey")
+  @@map("Sale")
 }
 
 model saleitem {
-  id        Int     @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   saleId    Int
-  sale      sale    @relation(fields: [saleId], references: [id])
-  productId Int
-  product   product @relation(fields: [productId], references: [id])
+  sale      sale     @relation(fields: [saleId], references: [id])
+  productId Int? // ← add ?
+  product   product? @relation(fields: [productId], references: [id]) // ← add ?
   quantity  Int
-  price     Decimal @db.Decimal(10, 2)
-  subtotal  Decimal @db.Decimal(10, 2)
-  priceTTC  Decimal @default(0.00) @db.Decimal(10, 2)
-  tvaAmount Decimal @default(0.00) @db.Decimal(10, 2)
-  tvaRate   Decimal @default(0.00) @db.Decimal(5, 2)
+  price     Decimal  @db.Decimal(10, 2)
+  subtotal  Decimal  @db.Decimal(10, 2)
+  priceTTC  Decimal  @default(0.00) @db.Decimal(10, 2)
+  tvaAmount Decimal  @default(0.00) @db.Decimal(10, 2)
+  tvaRate   Decimal  @default(0.00) @db.Decimal(5, 2)
 
   @@index([productId], map: "SaleItem_productId_fkey")
   @@index([saleId], map: "SaleItem_saleId_fkey")
+  @@map("SaleItem")
 }
 
 model subcategory {
@@ -112,26 +123,31 @@ model subcategory {
   updatedAt  DateTime  @updatedAt
 
   @@index([categoryId], map: "Subcategory_categoryId_fkey")
+  @@map("Subcategory")
 }
 
 model user {
-  id          Int       @id @default(autoincrement())
-  username    String    @unique(map: "User_username_key")
-  password    String
-  role        user_role @default(CASHIER)
-  theme       String    @default("light")
-  sales       sale[]
-  carts       cart[]
-  giveawaysCreated giveaway[] @relation("GiveawayCreator")
+  id                     Int                     @id @default(autoincrement())
+  username               String                  @unique(map: "User_username_key")
+  password               String
+  role                   user_role               @default(cashier)
+  theme                  String                  @default("light")
+  sales                  sale[]
+  carts                  cart[]
+  giveawaysCreated       giveaway[]              @relation("GiveawayCreator")
   giveawayParticipations giveawayparticipation[]
-  giveawayWins giveawaywinner[]
-  fullName    String    @default("")
-  salary      Decimal   @default(0.00) @db.Decimal(10, 2)
-  workingDays String    @default("")
-  email       String?   @unique(map: "User_email_key")
-  lastLogin   DateTime?
-  phone       String?
-  status      String    @default("Active")
+  giveawayWins           giveawaywinner[]
+  fullName               String                  @default("")
+  salary                 Decimal                 @default(0.00) @db.Decimal(10, 2)
+  workingDays            String                  @default("")
+  email                  String?                 @unique(map: "User_email_key")
+  lastLogin              DateTime?
+  phone                  String?
+  status                 String                  @default("Active")
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  @@map("User")
 }
 
 enum sale_paymentMethod {
@@ -141,19 +157,19 @@ enum sale_paymentMethod {
 }
 
 model giveaway {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String?
-  startDate   DateTime @default(now())
-  endDate     DateTime
-  winnerCount Int      @default(1)
-  status      giveaway_status @default(ACTIVE)
-  createdBy   Int
-  creator     user     @relation(fields: [createdBy], references: [id])
+  id           Int                     @id @default(autoincrement())
+  title        String
+  description  String?
+  startDate    DateTime                @default(now())
+  endDate      DateTime
+  winnerCount  Int                     @default(1)
+  status       giveaway_status         @default(ACTIVE)
+  createdBy    Int
+  creator      user                    @relation("GiveawayCreator", fields: [createdBy], references: [id])
   participants giveawayparticipation[]
-  winners     giveawaywinner[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  winners      giveawaywinner[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
 
   @@index([status])
   @@index([endDate])
@@ -161,11 +177,11 @@ model giveaway {
 
 model giveawayparticipation {
   id         Int      @id @default(autoincrement())
-  giveawayId  Int
-  giveaway    giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  userId      Int
-  user        user     @relation(fields: [userId], references: [id])
-  joinedAt    DateTime @default(now())
+  giveawayId Int
+  giveaway   giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       user     @relation(fields: [userId], references: [id])
+  joinedAt   DateTime @default(now())
 
   @@unique([giveawayId, userId], map: "GiveawayParticipation_user_giveaway_unique")
   @@index([giveawayId])
@@ -174,12 +190,12 @@ model giveawayparticipation {
 
 model giveawaywinner {
   id         Int      @id @default(autoincrement())
-  giveawayId  Int
-  giveaway    giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  userId      Int
-  user        user     @relation(fields: [userId], references: [id])
-  selectedAt  DateTime @default(now())
-  rank        Int      // 1st, 2nd, 3rd winner, etc.
+  giveawayId Int
+  giveaway   giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId     Int
+  user       user     @relation(fields: [userId], references: [id])
+  selectedAt DateTime @default(now())
+  rank       Int // 1st, 2nd, 3rd winner, etc.
 
   @@unique([giveawayId, userId], map: "GiveawayWinner_user_giveaway_unique")
   @@index([giveawayId])

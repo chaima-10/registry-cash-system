@@ -5,12 +5,12 @@ export const getAllCategories = async () => {
     return response.data;
 };
 
-export const createCategory = async (data) => {
-    const response = await api.post('/categories', data);
+export const createCategory = async (categoryData) => {
+    const response = await api.post('/categories', categoryData);
     return response.data;
 };
 
-export const createSubcategory = async (data) => {
-    const response = await api.post('/categories/sub', data);
+export const createSubcategory = async (categoryId, subcategoryData) => {
+    const response = await api.post(`/categories/${categoryId}/subcategories`, subcategoryData);
     return response.data;
 };

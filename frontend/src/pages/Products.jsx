@@ -273,12 +273,21 @@ const Products = () => {
                                 filteredProducts.map(product => (
                                     <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
                                         <td className="p-4">
-                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shadow-sm">
                                                 {product.imageUrl ? (
-                                                    <img src={`${API_URL}${product.imageUrl}`} alt={product.name} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-[10px] font-bold text-gray-400">{product.name.substring(0, 2).toUpperCase()}</span>
-                                                )}
+                                                    <img
+                                                        src={`${API_URL}${product.imageUrl}`}
+                                                        alt={product.name}
+                                                        className="w-full h-full object-contain"
+                                                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                                                    />
+                                                ) : null}
+                                                <span
+                                                    className="text-[10px] font-bold text-gray-400 items-center justify-center"
+                                                    style={{ display: product.imageUrl ? 'none' : 'flex' }}
+                                                >
+                                                    {product.name.substring(0, 2).toUpperCase()}
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="p-4">
@@ -363,7 +372,7 @@ const Products = () => {
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('barcode')}</label>
                                         <div className="flex gap-2">
                                             <input required type="text" pattern="\d{12,13}" title="Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)"
-                                                className="flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all font-mono"
+                                                className={`flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none transition-all font-mono ${isEditing ? 'opacity-60 cursor-not-allowed' : 'focus:border-blue-500 dark:focus:border-blue-400'}`}
                                                 value={formData.barcode}
                                                 onChange={e => setFormData({ ...formData, barcode: e.target.value.replace(/\D/g, '').slice(0, 13) })}
                                                 disabled={isEditing}
@@ -450,10 +459,17 @@ const Products = () => {
                                     <div className="flex items-center gap-4">
                                         <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-800">
                                             {imagePreview ? (
-                                                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <FiCamera size={24} className="text-gray-400" />
-                                            )}
+                                                <img
+                                                    src={imagePreview}
+                                                    alt="Preview"
+                                                    className="w-full h-full object-contain"
+                                                    onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.querySelector('.img-fallback').style.display = 'flex'; }}
+                                                />
+                                            ) : null}
+                                            <FiCamera
+                                                size={24}
+                                                className={`text-gray-400 img-fallback ${imagePreview ? 'hidden' : 'block'}`}
+                                            />
                                         </div>
                                         <div className="flex-1">
                                             <input 

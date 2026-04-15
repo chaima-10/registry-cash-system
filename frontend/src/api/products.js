@@ -6,7 +6,7 @@ export const getAllProducts = async () => {
 };
 
 export const getProductByBarcode = async (barcode) => {
-    const response = await api.get(`/products/barcode/${barcode}`);
+    const response = await api.get(`/products?barcode=${barcode}`);
     return response.data;
 };
 

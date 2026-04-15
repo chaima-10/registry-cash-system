@@ -1,5 +1,5 @@
 import { createContext, useState, useContext, useEffect } from 'react';
-import { loginUser, logoutUser, getProfile } from '../api/auth';
+import { login as loginApi, logoutUser, getProfile } from '../api/auth';
 
 const AuthContext = createContext();
 
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
             ? { email: identifier, password } 
             : { username: identifier, password };
             
-        const data = await loginUser(credentials);
+        const data = await loginApi(credentials);
         if (data.token) {
             const userData = await getProfile();
             setUser(userData);

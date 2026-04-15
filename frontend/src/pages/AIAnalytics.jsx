@@ -104,7 +104,18 @@ const AIAnalytics = () => {
         sales.forEach(sale => {
             if (sale.items) {
                 sale.items.forEach(item => {
-                    if (!map[item.productId]) map[item.productId] = { id: item.productId, name: item.product?.name || `Produit ${item.productId}`, imageUrl: item.product?.imageUrl || null, revenue: 0, qty: 0 };
+                    // Strictly match the getAllProducts filter: must be Active and not deleted
+                    if (!item.product || item.product.isDeleted || item.product.status !== 'Active') return;
+
+                    if (!map[item.productId]) {
+                        map[item.productId] = { 
+                            id: item.productId, 
+                            name: item.product.name, 
+                            imageUrl: item.product.imageUrl || null, 
+                            revenue: 0, 
+                            qty: 0 
+                        };
+                    }
                     map[item.productId].revenue += parseFloat(item.subtotal || 0);
                     map[item.productId].qty += item.quantity;
                 });
@@ -136,6 +147,7 @@ const AIAnalytics = () => {
         const slow = products
             .filter(p => !salesMap[p.id] || salesMap[p.id] < 5) // Very low sales
             .filter(p => p.stockQuantity > 20) // High stock
+            .filter(p => !p.remise || parseFloat(p.remise) === 0) // No active discount yet
             .sort((a, b) => b.stockQuantity - a.stockQuantity)
             .slice(0, 5);
 
@@ -243,6 +255,11 @@ const AIAnalytics = () => {
             formData.append('name', product.name);
             formData.append('price', product.price);
             formData.append('stockQuantity', product.stockQuantity);
+            // Preserve category & subcategory so they are NOT wiped by the update
+            if (product.categoryId) formData.append('categoryId', product.categoryId);
+            if (product.subcategoryId) formData.append('subcategoryId', product.subcategoryId);
+            if (product.tva !== undefined && product.tva !== null) formData.append('tva', product.tva);
+            if (product.purchasePrice !== undefined && product.purchasePrice !== null) formData.append('purchasePrice', product.purchasePrice);
             
             // Ne pas envoyer le barcode pour éviter les conflits de validation (déjà existant ou format invalide)
             await api.put(`/products/${product.id}`, formData, {
@@ -250,11 +267,10 @@ const AIAnalytics = () => {
             });
             
             setPromoSuccess(prev => ({ ...prev, [product.id]: true }));
-            setTimeout(() => setPromoSuccess(prev => ({ ...prev, [product.id]: false })), 3000);
-            
-            // Re-fetch products to update the local state with new discount
+            // Re-fetch products immediately so the suggestion list updates and hides this product
             const res = await api.get('/products');
             setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
+            setTimeout(() => setPromoSuccess(prev => ({ ...prev, [product.id]: false })), 3000);
         } catch (err) {
             console.error('Failed to apply promo', err);
             alert("Erreur lors de l'application de la promotion.");
