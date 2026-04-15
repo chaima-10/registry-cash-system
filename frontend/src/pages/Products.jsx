@@ -270,7 +270,9 @@ const Products = () => {
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('sellingPriceHT', "Prix Vente (HT)")}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('remise', 'Remise')} %</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('tvaPercent', "TVA %")}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('price')} (TTC)</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('unitPrice', 'Unit Price')} (TTC)</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('totalPrice', 'Total Price')}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-center">{t('currency', 'Currency')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-center">{t('actions')}</th>
                             </tr>
                         </thead>
@@ -333,6 +335,12 @@ const Products = () => {
                                         </td>
                                         <td className="p-4 text-right text-blue-600 dark:text-blue-400 font-bold">
                                             {formatCurrency(((Number(product.price) * (1 - (product.remise || 0) / 100)) * (1 + (product.tva || 0) / 100)))}
+                                        </td>
+                                        <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-black">
+                                            {formatCurrency(((Number(product.price) * (1 - (product.remise || 0) / 100)) * (1 + (product.tva || 0) / 100)) * product.stockQuantity)}
+                                        </td>
+                                        <td className="p-4 text-center">
+                                            <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-lg text-[10px] font-black">{currency}</span>
                                         </td>
                                         <td className="p-4">
                                             <div className="flex justify-center gap-1">
