@@ -107,14 +107,16 @@ const Products = () => {
     };
 
     const handleOpenModal = (product = null) => {
+        const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
+        
         if (product) {
             setIsEditing(true);
             setCurrentProductId(product.id);
             setFormData({
                 barcode: product.barcode,
                 name: product.name,
-                price: product.price,
-                purchasePrice: product.purchasePrice || '',
+                price: (Number(product.price) * rate).toFixed(3),
+                purchasePrice: product.purchasePrice ? (Number(product.purchasePrice) * rate).toFixed(3) : '',
                 stockQuantity: product.stockQuantity,
                 categoryId: product.categoryId || '',
                 subcategoryId: product.subcategoryId || '',
@@ -134,10 +136,18 @@ const Products = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
             const data = new FormData();
-            Object.keys(formData).forEach(key => {
-                data.append(key, formData[key]);
+            
+            // Adjust prices back to base currency (USD) before saving
+            const submissionData = { ...formData };
+            if (submissionData.price) submissionData.price = (parseFloat(submissionData.price) / rate).toFixed(6);
+            if (submissionData.purchasePrice) submissionData.purchasePrice = (parseFloat(submissionData.purchasePrice) / rate).toFixed(6);
+
+            Object.keys(submissionData).forEach(key => {
+                data.append(key, submissionData[key]);
             });
+            
             if (imageFile) {
                 data.append('image', imageFile);
             }
@@ -402,13 +412,17 @@ const Products = () => {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('purchasePrice')}</label>
-                                        <input type="number" step="0.01" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">
+                                            {t('purchasePrice')} ({currency})
+                                        </label>
+                                        <input type="number" step="0.001" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.purchasePrice} onChange={e => setFormData({ ...formData, purchasePrice: e.target.value })} />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('sellingPriceHT')}</label>
-                                        <input required type="number" step="0.01" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">
+                                            {t('sellingPriceHT')} ({currency})
+                                        </label>
+                                        <input required type="number" step="0.001" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                                     </div>
                                 </div>

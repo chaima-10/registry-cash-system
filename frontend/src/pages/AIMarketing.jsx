@@ -74,7 +74,7 @@ const AIMarketing = () => {
         const eventLabel = eventName || 'Général';
         
         const prompt = `Génère 6 idées de campagnes marketing pour "${eventLabel}". 
-        Utilise : ${JSON.stringify(prods.slice(0,15).map(p => ({name:p.name, price:p.price})))มาร}.
+        Utilise : ${JSON.stringify(prods.slice(0,15).map(p => ({name:p.name, price:p.price})))}.
         Réponds UNIQUEMENT en JSON: 
         [{"title": "...", "description": "...", "products": ["Nom Produit"], "discountPercent": 20, "timing": "...", "emoji": "...", "theme": "#hex"}]`;
 
