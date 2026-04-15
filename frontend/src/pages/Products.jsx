@@ -19,7 +19,7 @@ const generateEAN13 = () => {
 
 const Products = () => {
     const { t } = useTranslation();
-    const { formatCurrency } = useAuth();
+    const { formatCurrency, currency, exchangeRates } = useAuth();
 
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
