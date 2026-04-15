@@ -326,7 +326,7 @@ const AIMarketing = () => {
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             placeholder={t('chatPlaceholder', 'Tapez votre demande ici...')}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-[2rem] pl-7 pr-16 py-5 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner text-sm font-semibold"
+                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-[2rem] pl-7 pr-16 py-5 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner text-sm font-semibold text-slate-800 dark:text-white"
                         />
                         <button 
                             type="submit" 
