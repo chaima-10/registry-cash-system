@@ -217,8 +217,8 @@ const AIMarketing = () => {
                                         
                                         <p className="text-base text-slate-500 dark:text-slate-400 font-medium mb-10 leading-relaxed">
                                             {promo.description}
-                                        </h4>
-                                        
+                                        </p>
+
                                         <div className="mt-auto space-y-6">
                                             <div className="flex -space-x-4 overflow-hidden mb-2">
                                                 {promo.products.slice(0,6).map((pName, i) => {
