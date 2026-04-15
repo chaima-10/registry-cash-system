@@ -217,8 +217,8 @@ const AIMarketing = () => {
                                         
                                         <p className="text-base text-slate-500 dark:text-slate-400 font-medium mb-10 leading-relaxed">
                                             {promo.description}
-                                        </p>
-
+                                        </h4>
+                                        
                                         <div className="mt-auto space-y-6">
                                             <div className="flex -space-x-4 overflow-hidden mb-2">
                                                 {promo.products.slice(0,6).map((pName, i) => {
@@ -326,7 +326,7 @@ const AIMarketing = () => {
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             placeholder={t('chatPlaceholder', 'Tapez votre demande ici...')}
-                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-[2rem] pl-7 pr-16 py-5 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-inner text-sm font-semibold text-slate-800 dark:text-white"
+                            className="w-full bg-slate-900 border border-slate-700 rounded-[2rem] pl-7 pr-16 py-5 focus:outline-none focus:border-blue-500 focus:bg-slate-800 transition-all shadow-inner text-sm font-semibold text-white placeholder:text-slate-500"
                         />
                         <button 
                             type="submit" 
