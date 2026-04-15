@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
+import html2canvas from 'html2canvas';
 import api from '../api/axios';
 import { 
     FiShoppingBag, FiMessageCircle, FiSend, FiTrash2, 
-    FiArrowUpRight, FiArrowRight, FiCalendar, FiBookOpen, FiImage, FiZap, FiCheckCircle
+    FiArrowUpRight, FiArrowRight, FiCalendar, FiBookOpen, FiImage, FiZap, FiCheckCircle, FiDownload
 } from 'react-icons/fi';
 
 const AIMarketing = () => {
@@ -31,12 +32,14 @@ const AIMarketing = () => {
     const [chatInput, setChatInput] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
     const messagesEndRef = useRef(null);
+    const posterRef = useRef(null);
 
     // AI Generated Promotions State
     const [promotions, setPromotions] = useState([]);
     const [isGeneratingPromos, setIsGeneratingPromos] = useState(false);
     const [selectedPoster, setSelectedPoster] = useState(null);
     const [viewMode, setViewMode] = useState('poster'); // 'poster' or 'catalog'
+    const [isDownloading, setIsDownloading] = useState(false);
     
     // Selected Custom Event
     const [customEvent, setCustomEvent] = useState('');
@@ -155,6 +158,35 @@ const AIMarketing = () => {
             setChatMessages(initialMsg);
             localStorage.setItem('marketing_chat_history', JSON.stringify(initialMsg));
         }
+    };
+
+    const handleDownloadPoster = async () => {
+        if (!posterRef.current) return;
+        setIsDownloading(true);
+        try {
+            const canvas = await html2canvas(posterRef.current, {
+                useCORS: true,
+                scale: 2,
+                backgroundColor: null,
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = imgData;
+            link.download = `marketing-poster-${selectedPoster.title.replace(/\s+/g, '-').toLowerCase()}.png`;
+            link.click();
+        } catch (error) {
+            console.error("Download failed:", error);
+            alert("Erreur lors du téléchargement de l'image.");
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+    const handlePublishNow = () => {
+        if (!selectedPoster) return;
+        const publishMessage = `Génère un texte publicitaire captivant pour ma campagne "${selectedPoster.title}". Elle s'adresse aux clients pour ${selectedPoster.timing} avec une remise de ${selectedPoster.discountPercent}%.`;
+        handleSendMessage(null, publishMessage);
+        setSelectedPoster(null); // Close modal to focus on chat
     };
 
     const formatCurrency = (val) => new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND' }).format(val);
@@ -410,7 +442,7 @@ const AIMarketing = () => {
                             </button>
 
                             {/* DESIGN AREA - The Flyer/Poster Card */}
-                            <div className="w-full md:w-[55%] relative p-20 flex flex-col justify-between overflow-hidden text-white group"
+                            <div ref={posterRef} className="w-full md:w-[55%] relative p-20 flex flex-col justify-between overflow-hidden text-white group"
                                  style={{ backgroundColor: selectedPoster.theme || '#2563eb' }}>
                                 
                                 {/* Background textures */}
@@ -537,11 +569,18 @@ const AIMarketing = () => {
                                     </div>
                                     
                                     <div className="flex gap-6">
-                                        <button className="flex-1 py-7 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-[2rem] font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all active:scale-95 border-2 border-transparent hover:border-slate-300">
-                                            {t('downloadKit', 'Télécharger Kit IA')}
+                                        <button 
+                                            onClick={handleDownloadPoster}
+                                            disabled={isDownloading}
+                                            className="flex-1 py-7 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white rounded-[2rem] font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all active:scale-95 border-2 border-transparent hover:border-slate-300 flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            {isDownloading ? '...' : <><FiDownload size={18} /> {t('downloadKit', 'Download')}</>}
                                         </button>
-                                        <button className="flex-2 px-12 py-7 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-2xl shadow-blue-500/30">
-                                            {t('publishNow', 'Négoce et Publication')}
+                                        <button 
+                                            onClick={handlePublishNow}
+                                            className="flex-2 px-12 py-7 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest hover:bg-blue-700 transition-all active:scale-95 shadow-2xl shadow-blue-500/30"
+                                        >
+                                            {t('publishNow', 'Publish Now')}
                                         </button>
                                     </div>
                                 </div>
