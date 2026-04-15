@@ -26,7 +26,7 @@ const AIMarketing = () => {
             }
         }
         return [
-            { role: 'ai', content: t('marketingWelcomeAi', "Bonjour ! Je suis votre assistant expert en Marketing. Je suis là pour vous aider à créer des slogans percutants et des visuels attrayants.") }
+            { role: 'ai', content: t('marketingWelcomeAi') }
         ];
     });
     const [chatInput, setChatInput] = useState('');
@@ -176,7 +176,7 @@ const AIMarketing = () => {
                 <div className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center gap-6">
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-blue-600 rounded-[1.25rem] flex items-center justify-center text-white"><FiZap size={28} /></div>
-                        <h2 className="font-black text-2xl uppercase tracking-tighter">AI SUGGESTIONS</h2>
+                        <h2 className="font-black text-2xl uppercase tracking-tighter">{t('aiSuggestions')}</h2>
                     </div>
                     <div className="flex bg-slate-50 dark:bg-slate-950 p-2 rounded-[2rem] border border-slate-200 dark:border-slate-700 w-96">
                         <input
@@ -184,10 +184,10 @@ const AIMarketing = () => {
                             value={customEvent}
                             onChange={(e) => setCustomEvent(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && generateAiPromotions(products, customEvent)}
-                            placeholder="Événement spécial..."
+                            placeholder={t('specialEvent')}
                             className="bg-transparent border-none outline-none pl-4 flex-1 text-sm font-semibold"
                         />
-                        <button onClick={() => generateAiPromotions(products, customEvent)} className="px-6 py-3 bg-blue-600 text-white font-black text-[10px] rounded-3xl">GÉNÉRER</button>
+                        <button onClick={() => generateAiPromotions(products, customEvent)} className="px-6 py-3 bg-blue-600 text-white font-black text-[10px] rounded-3xl">{t('generate')}</button>
                     </div>
                 </div>
 
@@ -238,7 +238,7 @@ const AIMarketing = () => {
                     <div className="relative">
                         <input
                             type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                            placeholder="Une stratégie ?" className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-[2rem] pl-7 pr-16 py-5 text-sm font-semibold"
+                            placeholder={t('marketingWelcomeChat')} className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-[2rem] pl-7 pr-16 py-5 text-sm font-semibold"
                         />
                         <button type="submit" className="absolute right-3 top-3 w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center"><FiSend size={20} /></button>
                     </div>

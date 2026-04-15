@@ -19,7 +19,7 @@ const generateEAN13 = () => {
 
 const Products = () => {
     const { t } = useTranslation();
-    const { formatCurrency, currency, exchangeRates } = useAuth();
+    const { formatCurrency, currency, exchangeRates, changeCurrency } = useAuth();
 
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -266,12 +266,12 @@ const Products = () => {
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('category')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('subcategory')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('stock')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('purchasePrice', "Prix d'Achat")}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('sellingPriceHT', "Prix Vente (HT)")}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('remise', 'Remise')} %</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('tvaPercent', "TVA %")}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('unitPrice', 'Unit Price')} (TTC)</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('totalPrice', 'Total Price')}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('unitSellingPrice', 'Selling Unit (TTC)')}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('totalSellingPrice', 'Potential Total')}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('unitPurchasePrice', 'Purchase Unit')}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('totalPrice', 'Total Purchase')}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('tvaPercent', "Tax %")}</th>
+                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('remise', 'Discount')} %</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-center">{t('currency', 'Currency')}</th>
                                 <th className="p-4 font-bold uppercase text-xs tracking-wider text-center">{t('actions')}</th>
                             </tr>
@@ -325,19 +325,21 @@ const Products = () => {
                                                 {product.stockQuantity}
                                             </span>
                                         </td>
-                                        <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">{formatCurrency(Number(product.purchasePrice || 0))}</td>
-                                        <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">{formatCurrency(Number(product.price))}</td>
-                                        <td className="p-4 text-right text-green-600 dark:text-green-400 font-bold">
-                                            {product.remise ? `${product.remise}%` : '-'}
-                                        </td>
-                                        <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-bold">
-                                            {product.tva ? `${product.tva}%` : '-'}
-                                        </td>
                                         <td className="p-4 text-right text-blue-600 dark:text-blue-400 font-bold">
                                             {formatCurrency(((Number(product.price) * (1 - (product.remise || 0) / 100)) * (1 + (product.tva || 0) / 100)))}
                                         </td>
-                                        <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-black">
+                                        <td className="p-4 text-right text-blue-800 dark:text-blue-300 font-black">
                                             {formatCurrency(((Number(product.price) * (1 - (product.remise || 0) / 100)) * (1 + (product.tva || 0) / 100)) * product.stockQuantity)}
+                                        </td>
+                                        <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">{formatCurrency(Number(product.purchasePrice || 0))}</td>
+                                        <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-black">
+                                            {formatCurrency(Number(product.purchasePrice || 0) * product.stockQuantity)}
+                                        </td>
+                                        <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-bold">
+                                            {product.tva ? `${product.tva}%` : '0%'}
+                                        </td>
+                                        <td className="p-4 text-right text-green-600 dark:text-green-400 font-bold">
+                                            {product.remise ? `${product.remise}%` : '0%'}
                                         </td>
                                         <td className="p-4 text-center">
                                             <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-lg text-[10px] font-black">{currency}</span>
@@ -433,6 +435,32 @@ const Products = () => {
                                         <input required type="number" step="0.001" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
                                     </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('currency', 'Currency')}</label>
+                                    <select 
+                                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all appearance-none"
+                                        value={currency} 
+                                        onChange={e => {
+                                            const newCur = e.target.value;
+                                            const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
+                                            const newRate = (exchangeRates && exchangeRates[newCur]) ? exchangeRates[newCur] : 1;
+                                            
+                                            // Conversion to keep input consistent
+                                            setFormData(prev => ({
+                                                ...prev,
+                                                price: (parseFloat(prev.price || 0) / rate * newRate).toFixed(3),
+                                                purchasePrice: prev.purchasePrice ? (parseFloat(prev.purchasePrice) / rate * newRate).toFixed(3) : ''
+                                            }));
+                                            
+                                            changeCurrency(newCur);
+                                        }}
+                                    >
+                                        {Object.keys(exchangeRates || { USD: 1 }).map(cur => (
+                                            <option key={cur} value={cur}>{cur}</option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

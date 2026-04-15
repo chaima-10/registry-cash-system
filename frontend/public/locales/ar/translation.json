@@ -333,5 +333,16 @@
   "marketingCopilot": "مساعد التسويق",
   "chatPlaceholder": "اكتب هنا...",
   "featuredProducts": "المنتجات المشمولة",
-  "publishNow": "نشر الآن"
+  "publishNow": "نشر الآن",
+  "unitPurchasePrice": "سعر الوحدة (شراء)",
+  "unitSellingPrice": "سعر الوحدة (بيع TTC)",
+  "totalPrice": "إجمالي الشراء",
+  "currency": "العملة",
+  "aiSuggestions": "اقتراحات الذكاء الاصطناعي",
+  "generate": "توليد",
+  "specialEvent": "مناسبة خاصة",
+  "marketingWelcomeAi": "مرحباً! أنا مساعد التسويق الخبير الخاص بك. أنا هنا لمساعدتك في إنشاء شعارات قوية ومرئيات جذابة.",
+  "marketingWelcomeChat": "اكتب هنا للحصول على شعارات وأفكار للمنشورات...",
+  "endDate": "تاريخ الانتهاء",
+  "startDate": "تاريخ البدء"
 }
