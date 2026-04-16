@@ -1,32 +1,8 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
-// Check if we are in an environment that likely has a read-only filesystem (Vercel)
-const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
-
-// Ensure uploads directory exists (only on local/persistent servers)
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!isVercel) {
-    try {
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-    } catch (err) {
-        console.warn('Could not create uploads directory, switching to memory storage if needed:', err.message);
-    }
-}
-
-// Storage strategy: disk for local, memory for Vercel/Production
-const storage = isVercel ? multer.memoryStorage() : multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'product-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
+// Use memory storage (not disk) — this allows us to ship the buffer directly to Cloudinary
+// and works perfectly on serverless environments like Vercel/Render
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
