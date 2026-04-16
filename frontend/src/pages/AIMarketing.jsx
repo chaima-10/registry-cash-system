@@ -20,7 +20,9 @@ const AIMarketing = () => {
         const saved = localStorage.getItem('marketing_chat_history');
         if (saved) {
             try {
-                return JSON.parse(saved);
+                const history = JSON.parse(saved);
+                // Filter out any unwanted system messages like "Discussion effacée."
+                return history.filter(m => m.content !== "Discussion effacée." && m.content !== t('historyCleared'));
             } catch (e) {
                 console.error("Failed to parse chat history", e);
             }
@@ -233,8 +235,11 @@ const AIMarketing = () => {
                     ))}
                     {isAiTyping && <div className="p-4 animate-pulse text-xs text-blue-600">{t('aiWriting')}</div>}
                     
+                    <div ref={messagesEndRef} />
+                </div>
+                <div className="px-8 flex flex-col gap-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 pb-8">
                     {!isAiTyping && chatMessages.length === 1 && (
-                        <div className="grid grid-cols-1 gap-2 pt-4">
+                        <div className="grid grid-cols-2 gap-2 pt-6">
                             {[
                                 { key: 'suggestionSlogan', icon: <FiZap /> },
                                 { key: 'suggestionSocial', icon: <FiMessageCircle /> },
@@ -244,7 +249,7 @@ const AIMarketing = () => {
                                 <button 
                                     key={i} 
                                     onClick={() => handleSendMessage(null, t(suggest.key))}
-                                    className="flex items-center gap-3 px-5 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all text-left"
+                                    className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all text-left"
                                 >
                                     <span className="text-blue-500">{suggest.icon}</span>
                                     {t(suggest.key)}
@@ -252,18 +257,17 @@ const AIMarketing = () => {
                             ))}
                         </div>
                     )}
-                    
-                    <div ref={messagesEndRef} />
+
+                    <form onSubmit={handleSendMessage} className="pt-4">
+                        <div className="relative">
+                            <input
+                                type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
+                                placeholder={t('marketingWelcomeChat')} className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-[1.5rem] pl-6 pr-14 py-4 text-sm font-semibold"
+                            />
+                            <button type="submit" className="absolute right-2 top-2 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"><FiSend size={18} /></button>
+                        </div>
+                    </form>
                 </div>
-                <form onSubmit={handleSendMessage} className="p-8 border-t border-slate-100 dark:border-slate-800">
-                    <div className="relative">
-                        <input
-                            type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
-                            placeholder={t('marketingWelcomeChat')} className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-[2rem] pl-7 pr-16 py-5 text-sm font-semibold"
-                        />
-                        <button type="submit" className="absolute right-3 top-3 w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center"><FiSend size={20} /></button>
-                    </div>
-                </form>
             </div>
 
             <AnimatePresence>

@@ -4,7 +4,7 @@
  */
 class AIService {
     async generateResponse(messages, systemContext) {
-        const models = ['gemini-2.5-flash', 'gemini-2.5-pro'];
+        const models = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'gemini-2.0-pro-exp'];
         
         const callGemini = async (model, retryCount = 0) => {
             try {
@@ -87,9 +87,10 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                 throw new Error("Format de réponse inattendu de l'API Gemini.");
 
             } catch (err) {
-                if (model === models[0] && retryCount >= 2) {
-                    console.warn(`Falling back to ${models[1]} due to failure in ${models[0]}`);
-                    return callGemini(models[1], 0);
+                const currentIndex = models.indexOf(model);
+                if (currentIndex !== -1 && currentIndex < models.length - 1 && retryCount >= 1) {
+                    console.warn(`Falling back to ${models[currentIndex + 1]} due to exhaustion of ${model}`);
+                    return callGemini(models[currentIndex + 1], 0);
                 }
                 throw err;
             }
