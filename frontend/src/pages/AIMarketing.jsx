@@ -42,7 +42,7 @@ const AIMarketing = () => {
     
     // Selected Custom Event
     const [customEvent, setCustomEvent] = useState('');
-    const [activeEventName, setActiveEventName] = useState('Général');
+    const [activeEventName, setActiveEventName] = useState(t('general'));
 
     useEffect(() => {
         fetchData();
@@ -60,7 +60,7 @@ const AIMarketing = () => {
             const prodRes = await api.get('/products');
             const data = prodRes.data || [];
             setProducts(data);
-            generateAiPromotions(data, 'Général');
+            generateAiPromotions(data, t('general'));
         } catch (error) {
             console.error("Error fetching data:", error);
         } finally {
@@ -70,8 +70,8 @@ const AIMarketing = () => {
 
     const generateAiPromotions = async (prods, eventName) => {
         setIsGeneratingPromos(true);
-        setActiveEventName(eventName || 'Général');
-        const eventLabel = eventName || 'Général';
+        const eventLabel = eventName || t('general');
+        setActiveEventName(eventLabel);
         
         const prompt = `Génère 6 idées de campagnes marketing pour "${eventLabel}". 
         Utilise : ${JSON.stringify(prods.slice(0,15).map(p => ({name:p.name, price:p.price})))}.
@@ -96,7 +96,7 @@ const AIMarketing = () => {
             throw new Error("Invalid AI data");
         } catch (error) {
             setPromotions([
-                { title: `${eventLabel} Premium`, description: `Offre exclusive ${eventLabel}.`, products: prods.slice(0,2).map(p => p.name), discountPercent: 20, timing: 'Limité', emoji: '⭐', theme: '#2563eb' }
+                { title: `${eventLabel} Premium`, description: t('exclusiveOffer', { event: eventLabel }), products: prods.slice(0,2).map(p => p.name), discountPercent: 20, timing: t('limited'), emoji: '⭐', theme: '#2563eb' }
             ]);
         } finally {
             setIsGeneratingPromos(false);
@@ -120,7 +120,7 @@ const AIMarketing = () => {
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
             setChatMessages(prev => [...prev, { role: 'ai', content: response.data.reply }]);
         } catch (error) {
-            setChatMessages(prev => [...prev, { role: 'ai', content: "Quota dépassé ou erreur. Réessayez dans quelques minutes." }]);
+            setChatMessages(prev => [...prev, { role: 'ai', content: t('aiErrorQuota') }]);
         } finally {
             setIsAiTyping(false);
         }
@@ -145,7 +145,7 @@ const AIMarketing = () => {
             link.click();
         } catch (error) {
             console.error("Download failed:", error);
-            alert("Erreur: Le serveur d'images bloque le téléchargement.");
+            alert(t('downloadError'));
         } finally {
             setIsDownloading(false);
         }
@@ -158,8 +158,8 @@ const AIMarketing = () => {
     };
 
     const clearChatHistory = () => {
-        if (window.confirm("Effacer ?")) {
-            setChatMessages([{ role: 'ai', content: "Discussion effacée." }]);
+        if (window.confirm(t('clearChatConfirm'))) {
+            setChatMessages([{ role: 'ai', content: t('marketingWelcomeAi') }]);
             localStorage.removeItem('marketing_chat_history');
         }
     };
@@ -167,7 +167,7 @@ const AIMarketing = () => {
     const getProductByName = (name) => products.find(p => p.name === name);
     const formatCurrency = (val) => new Intl.NumberFormat('fr-TN', { style: 'currency', currency: 'TND' }).format(val || 0);
 
-    if (isLoading) return <div className="p-20 text-center">Loading...</div>;
+    if (isLoading) return <div className="p-20 text-center font-black animate-pulse text-blue-600">{t('loading')}</div>;
 
     return (
         <div className={`flex h-full gap-6 ${isRtl ? 'flex-row-reverse text-right' : ''}`}>
@@ -218,10 +218,10 @@ const AIMarketing = () => {
             <div className="w-[450px] flex flex-col bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl overflow-hidden">
                 <div className="bg-blue-800 p-10 text-white flex justify-between items-start">
                     <div>
-                        <h2 className="font-black text-xl uppercase tracking-tighter">Marketing Copilot</h2>
-                        <span className="text-[10px] uppercase opacity-70">AI Strategy Mode</span>
+                        <h2 className="font-black text-xl uppercase tracking-tighter">{t('marketingCopilot')}</h2>
+                        <span className="text-[10px] uppercase opacity-70">{t('aiStrategyMode')}</span>
                     </div>
-                    <button onClick={clearChatHistory} className="p-3 bg-white/10 rounded-xl"><FiTrash2 size={18} /></button>
+                    <button onClick={clearChatHistory} className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"><FiTrash2 size={18} /></button>
                 </div>
                 <div className="flex-1 p-8 overflow-y-auto space-y-6 bg-slate-50 dark:bg-slate-900/50">
                     {chatMessages.map((msg, i) => (
@@ -231,7 +231,28 @@ const AIMarketing = () => {
                             </div>
                         </div>
                     ))}
-                    {isAiTyping && <div className="p-4 animate-pulse text-xs text-blue-600">L'IA rédige votre texte...</div>}
+                    {isAiTyping && <div className="p-4 animate-pulse text-xs text-blue-600">{t('aiWriting')}</div>}
+                    
+                    {!isAiTyping && chatMessages.length === 1 && (
+                        <div className="grid grid-cols-1 gap-2 pt-4">
+                            {[
+                                { key: 'suggestionSlogan', icon: <FiZap /> },
+                                { key: 'suggestionSocial', icon: <FiMessageCircle /> },
+                                { key: 'suggestionStory', icon: <FiImage /> },
+                                { key: 'suggestionEmail', icon: <FiBookOpen /> }
+                            ].map((suggest, i) => (
+                                <button 
+                                    key={i} 
+                                    onClick={() => handleSendMessage(null, t(suggest.key))}
+                                    className="flex items-center gap-3 px-5 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:border-blue-500 hover:text-blue-600 transition-all text-left"
+                                >
+                                    <span className="text-blue-500">{suggest.icon}</span>
+                                    {t(suggest.key)}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    
                     <div ref={messagesEndRef} />
                 </div>
                 <form onSubmit={handleSendMessage} className="p-8 border-t border-slate-100 dark:border-slate-800">
@@ -271,10 +292,10 @@ const AIMarketing = () => {
                                 </div>
                             </div>
 
-                            <div className="w-[45%] p-16 flex flex-col justify-between bg-white dark:bg-slate-900">
+                                <div className="w-[45%] p-16 flex flex-col justify-between bg-white dark:bg-slate-900">
                                 <div>
                                     <div className="flex justify-between items-end mb-10 text-slate-800 dark:text-white">
-                                        <div><h3 className="text-[10px] font-black uppercase opacity-40 mb-2">Produits Inclus</h3><span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-black">{selectedPoster.products?.length || 0} Itms</span></div>
+                                        <div><h3 className="text-[10px] font-black uppercase opacity-40 mb-2">{t('featuredProducts')}</h3><span className="px-4 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-black">{selectedPoster.products?.length || 0} {t('items')}</span></div>
                                         <div className="px-8 py-3 bg-blue-600 text-white font-black text-4xl rounded-3xl">-{selectedPoster.discountPercent}%</div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
@@ -301,10 +322,10 @@ const AIMarketing = () => {
                                 </div>
                                 <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 flex gap-4">
                                     <button onClick={handleDownloadPoster} disabled={isDownloading} className="flex-1 py-7 bg-slate-100 dark:bg-slate-800 rounded-[2rem] font-black uppercase text-xs">
-                                        {isDownloading ? '...' : 'Download'}
+                                        {isDownloading ? '...' : t('download')}
                                     </button>
                                     <button onClick={handlePublishNow} className="flex-2 py-7 bg-blue-600 text-white rounded-[2rem] font-black uppercase text-xs">
-                                        Publish Now
+                                        {t('publishNow')}
                                     </button>
                                 </div>
                             </div>
