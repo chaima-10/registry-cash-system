@@ -4,7 +4,7 @@
  */
 class AIService {
     async generateResponse(messages, systemContext) {
-        const models = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-2.5-pro', 'gemini-3-pro'];
+        const models = ['gemini-flash-latest', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-pro-latest'];
         
         const callGemini = async (model, retryCount = 0) => {
             try {
