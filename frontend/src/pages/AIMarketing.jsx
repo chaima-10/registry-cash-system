@@ -283,7 +283,14 @@ const AIMarketing = () => {
                                             return (
                                                 <div key={i} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-[2.5rem]">
                                                     <div className="aspect-square bg-white rounded-2xl overflow-hidden mb-3">
-                                                       {prod?.imageUrl && <img crossOrigin="anonymous" src={`${API_URL}${prod.imageUrl}`} className="w-full h-full object-cover" />}
+                                                       {prod?.imageUrl && (
+                                                           <img 
+                                                                crossOrigin="anonymous" 
+                                                                src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `${API_URL}${prod.imageUrl}`} 
+                                                                className="w-full h-full object-cover" 
+                                                                alt={pName}
+                                                            />
+                                                        )}
                                                     </div>
                                                     <h4 className="font-black text-[10px] uppercase truncate">{pName}</h4>
                                                     <span className="text-blue-600 font-black text-sm">{formatCurrency(prod?.price * (1 - selectedPoster.discountPercent/100))}</span>
