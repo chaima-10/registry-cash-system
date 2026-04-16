@@ -385,5 +385,14 @@
   "shareGiveaway": "Partager",
   "viewParticipants": "Voir les participants",
   "endDate": "Date de fin",
-  "startDate": "Date de début"
+  "startDate": "Date de début",
+  "unitPurchasePrice": "Prix Unit. (Achat)",
+  "unitSellingPrice": "Prix Unit. (Vente TTC)",
+  "totalPrice": "Total Achat (Stock)",
+  "currency": "Devise",
+  "aiSuggestions": "SUGGESTIONS IA",
+  "generate": "GÉNÉRER",
+  "specialEvent": "Événement Spécial",
+  "marketingWelcomeAi": "Bonjour ! Je suis votre assistant expert en Marketing. Je suis là pour vous aider à créer des slogans percutants et des visuels attrayants.",
+  "marketingWelcomeChat": "Tapez ici pour obtenir des slogans et idées de posts..."
 }

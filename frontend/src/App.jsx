@@ -34,7 +34,6 @@ function AppRoutes() {
             {/* Admin Only Routes */}
             <Route element={<ProtectedRoute allowedRoles={['admin']}><Layout /></ProtectedRoute>}>
                 <Route path="/" element={<Dashboard />} />
-                <Route path="/products" element={<Products />} />
                 <Route path="/users" element={<Users />} />
                 <Route path="/analytics" element={<AIAnalytics />} />
                 <Route path="/marketing" element={<AIMarketing />} />
@@ -43,6 +42,7 @@ function AppRoutes() {
             {/* Shared Routes (Admin + Cashier) */}
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="/pos" element={<POS />} />
+                <Route path="/products" element={<Products />} />
                 <Route path="/giveaways" element={<Giveaways />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
