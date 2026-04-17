@@ -129,7 +129,7 @@ const Products = () => {
             setFormData({ barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '' });
         }
         setImageFile(null);
-        setImagePreview(product?.imageUrl ? `${API_URL}${product.imageUrl}` : null);
+        setImagePreview(product?.imageUrl ? (product.imageUrl.startsWith('http') ? product.imageUrl : `${API_URL}${product.imageUrl}`) : null);
         setIsModalOpen(true);
     };
 

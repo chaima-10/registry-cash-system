@@ -1,7 +1,6 @@
 const multer = require('multer');
 
-// Use memory storage (not disk) — this allows us to ship the buffer directly to Cloudinary
-// and works perfectly on serverless environments like Vercel/Render
+// Use memory storage to handle the file in buffer before uploading to Cloudinary
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
@@ -12,10 +11,12 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({
+const upload = multer({ 
     storage: storage,
     fileFilter: fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
 });
 
 module.exports = upload;
