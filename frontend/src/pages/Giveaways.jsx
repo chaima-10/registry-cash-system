@@ -423,7 +423,7 @@ const Giveaways = () => {
                                             </div>
                                         )}
 
-                                        {user?.role === 'admin' && giveaway.status === 'ACTIVE' && (
+                                        {user?.role === 'admin' && (!giveaway.winners || giveaway.winners.length === 0) && (
                                             <button
                                                 onClick={() => handleSelectWinners(giveaway.id)}
                                                 disabled={processing || !giveaway.participantCount || active}
