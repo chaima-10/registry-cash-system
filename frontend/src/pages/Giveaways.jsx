@@ -75,6 +75,36 @@ const Giveaways = () => {
     };
 
     const submitParticipation = async (giveawayId, clientData = {}) => {
+        // Validation for cashier registration
+        if (user?.role === 'cashier') {
+            const nameRegex = /^[a-zA-Z\sÀ-ÿ]+$/;
+            const phoneRegex = /^\+?[0-9]+$/;
+
+            if (!nameRegex.test(clientData.clientName)) {
+                alert(t('nameLetterOnly', 'First Name must contain only letters.'));
+                return;
+            }
+            if (!nameRegex.test(clientData.clientSurname)) {
+                alert(t('surnameLetterOnly', 'Surname must contain only letters.'));
+                return;
+            }
+
+            // Country-specific phone validation (Example for Algeria +213)
+            const phone = clientData.clientPhone.replace(/\s/g, '');
+            if (phone.startsWith('+213') && phone.length !== 13) {
+                alert(t('invalidAlgerianPhone', 'Algerian phone numbers with +213 must be 13 characters long.'));
+                return;
+            } else if (phone.startsWith('0') && phone.length !== 10) {
+                alert(t('invalidLocalPhone', 'Local phone numbers starting with 0 must be 10 digits long.'));
+                return;
+            }
+
+            if (!phoneRegex.test(phone)) {
+                alert(t('phoneDigitsOnly', 'Phone number must contain only digits and optional +.'));
+                return;
+            }
+        }
+
         setParticipating({ ...participating, [giveawayId]: true });
         try {
             await api.post(`/giveaways/${giveawayId}/participate`, clientData);

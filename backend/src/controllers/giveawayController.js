@@ -126,6 +126,31 @@ exports.participateInGiveaway = async (req, res) => {
             return res.status(403).json({ message: 'Admins are not allowed to participate in giveaways' });
         }
 
+        // 2. Client-side info validation (if cashier registering)
+        if (req.user.role === 'cashier') {
+            if (!clientName || !clientSurname || !clientPhone) {
+                return res.status(400).json({ message: 'Client name, surname and phone are required' });
+            }
+
+            const nameRegex = /^[a-zA-Z\sÀ-ÿ]+$/;
+            if (!nameRegex.test(clientName) || !nameRegex.test(clientSurname)) {
+                return res.status(400).json({ message: 'Name and Surname must contain only letters' });
+            }
+
+            const cleanPhone = clientPhone.replace(/\s/g, '');
+            if (!/^\+?[0-9]+$/.test(cleanPhone)) {
+                return res.status(400).json({ message: 'Phone must contain only digits and optional +' });
+            }
+
+            // Country-specific length (Algeria example)
+            if (cleanPhone.startsWith('+213') && cleanPhone.length !== 13) {
+                return res.status(400).json({ message: 'Algerian phone with +213 must be 13 digits long' });
+            }
+            if (cleanPhone.startsWith('0') && cleanPhone.length !== 10) {
+                return res.status(400).json({ message: 'Local phone starting with 0 must be 10 digits long' });
+            }
+        }
+
         // Check if giveaway exists and is active
         const giveaway = await prisma.giveaway.findUnique({
             where: { id: giveawayId }
