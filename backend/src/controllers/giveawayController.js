@@ -232,10 +232,6 @@ exports.selectWinners = async (req, res) => {
             return res.status(404).json({ message: 'Giveaway not found' });
         }
 
-        if (giveaway.status !== 'ACTIVE') {
-            return res.status(400).json({ message: 'Giveaway is not active' });
-        }
-
         if (new Date(giveaway.endDate) > new Date()) {
             return res.status(400).json({ message: 'Giveaway has not ended yet' });
         }
