@@ -31,7 +31,7 @@ const ProfilePage = () => {
             const res = await updateProfile(editFormData);
             updateUser(res.user);
             setIsEditModalOpen(false);
-            alert(t('profileUpdatedSuccess'));
+            alert(res.message || t('profileUpdatedSuccess'));
         } catch (error) {
             alert(error.response?.data?.message || t('failedToUpdateProfile'));
         }
@@ -118,11 +118,23 @@ const ProfilePage = () => {
                             </div>
                             <div>
                                 <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('emailAddress')}</label>
-                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
-                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
-                                        <FiMail />
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                        <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                            <FiMail />
+                                        </div>
+                                        <span>{user?.email || 'N/A'}</span>
+                                        {user?.email && (
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${user?.isEmailVerified ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400'}`}>
+                                                {user?.isEmailVerified ? 'Vérifié' : 'Non vérifié'}
+                                            </span>
+                                        )}
                                     </div>
-                                    {user?.email || 'N/A'}
+                                    {user?.pendingEmail && (
+                                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium pl-11">
+                                            Changement en attente : {user.pendingEmail} (vérifiez votre boîte mail)
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div>

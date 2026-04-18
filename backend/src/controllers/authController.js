@@ -59,6 +59,11 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Identifiants invalides' });
         }
 
+        // Check for Email Verification
+        if (user.email && !user.isEmailVerified) {
+            return res.status(403).json({ message: 'Veuillez vérifier votre adresse e-mail avant de vous connecter.' });
+        }
+
         // Validate password
         const isMatch = await bcrypt.compare(password.trim(), user.password);
         if (!isMatch) {
@@ -76,6 +81,39 @@ exports.login = async (req, res) => {
         const token = jwt.sign(payload, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });
 
         res.json({ token, role: user.role });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Verify Email
+exports.verifyEmail = async (req, res) => {
+    try {
+        const { token } = req.query;
+
+        if (!token) {
+            return res.status(400).json({ message: 'Token manquant' });
+        }
+
+        const user = await prisma.user.findFirst({
+            where: { emailVerificationToken: token }
+        });
+
+        if (!user) {
+            return res.status(400).json({ message: 'Lien de vérification invalide ou expiré' });
+        }
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                email: user.pendingEmail,
+                pendingEmail: null,
+                emailVerificationToken: null,
+                isEmailVerified: true
+            }
+        });
+
+        res.json({ message: 'E-mail vérifié avec succès ! Vous pouvez maintenant utiliser cette adresse pour vous connecter.' });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -109,19 +147,59 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { fullName, email, phone } = req.body;
+        const userId = req.user.id;
 
-        // Basic update - can be expanded later to allow password changes
-        const updatedUser = await prisma.user.update({
-            where: { id: req.user.id },
-            data: {
-                fullName,
-                email,
-                phone
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        let emailUpdateMsg = "";
+        let pendingEmail = undefined;
+        let verificationToken = undefined;
+
+        // Handle Email Update with Verification
+        if (email && email !== user.email) {
+            // Check if email already taken
+            const existingEmailUser = await prisma.user.findFirst({
+                where: {
+                    email,
+                    isEmailVerified: true,
+                    NOT: { id: userId }
+                }
+            });
+            if (existingEmailUser) {
+                return res.status(400).json({ message: 'Email already in use' });
             }
+
+            const crypto = require('crypto');
+            const emailService = require('../services/emailService');
+            
+            verificationToken = crypto.randomBytes(32).toString('hex');
+            pendingEmail = email;
+            
+            await emailService.sendVerificationEmail(email, verificationToken);
+            emailUpdateMsg = " Un e-mail de confirmation a été envoyé à votre nouvelle adresse.";
+        }
+
+        const updateData = {
+            fullName,
+            phone
+        };
+
+        if (pendingEmail) {
+            updateData.pendingEmail = pendingEmail;
+            updateData.emailVerificationToken = verificationToken;
+        }
+
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: updateData,
         });
 
         const { password, ...userWithoutPassword } = updatedUser;
-        res.json(userWithoutPassword);
+        res.json({ 
+            message: 'Profil mis à jour avec succès.' + emailUpdateMsg, 
+            user: userWithoutPassword 
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
