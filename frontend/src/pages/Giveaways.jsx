@@ -142,14 +142,15 @@ const Giveaways = () => {
     };
 
     const handlePhoneInput = (value) => {
-        let sanitized = value.replace(/[^\d+]/g, '');
-        if (sanitized.includes('+')) {
-            const firstPlus = sanitized.indexOf('+');
-            sanitized = sanitized.split('').filter((char, index) => 
-                (char === '+' && index === 0) || char !== '+'
-            ).join('');
+        // Only allow digits for local 8-digit format
+        let digits = value.replace(/\D/g, '');
+        
+        // Enforce maximum length of 8
+        if (digits.length > 8) {
+            digits = digits.slice(0, 8);
         }
-        setRegistrationData(prev => ({ ...prev, clientPhone: sanitized }));
+        
+        setRegistrationData(prev => ({ ...prev, clientPhone: digits }));
     };
 
     const handleSelectWinners = async (giveawayId) => {
@@ -599,8 +600,9 @@ const Giveaways = () => {
                                 <div>
                                     <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Phone Number</label>
                                     <input type="tel" required value={registrationData.clientPhone} onChange={(e) => handlePhoneInput(e.target.value)}
+                                        maxLength={8}
                                         className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
-                                        placeholder="+216..." />
+                                        placeholder="8-digit number (Ex: 21654321)" />
                                 </div>
                                 <div className="flex gap-4 pt-6">
                                     <button type="button" onClick={() => setShowRegistrationForm(false)}
