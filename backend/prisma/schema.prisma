@@ -189,6 +189,7 @@ model giveawayparticipation {
   @@index([giveawayId])
   @@index([userId])
   @@index([clientPhone])
+  winners       giveawaywinner[]
 }
 
 model giveawaywinner {
