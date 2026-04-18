@@ -91,8 +91,9 @@ exports.getGiveawayById = async (req, res) => {
                 winners: {
                     include: {
                         user: {
-                            select: { id: true, username: true }
-                        }
+                            select: { id: true, username: true, fullName: true }
+                        },
+                        participation: true
                     },
                     orderBy: {
                         rank: 'asc'
@@ -116,8 +117,14 @@ exports.getGiveawayById = async (req, res) => {
 exports.participateInGiveaway = async (req, res) => {
     try {
         const { id } = req.params;
+        const { clientName, clientSurname, clientPhone } = req.body;
         const userId = req.user.id;
         const giveawayId = parseInt(id);
+
+        // 1. Admin restricted from participation
+        if (req.user.role === 'admin') {
+            return res.status(403).json({ message: 'Admins are not allowed to participate in giveaways' });
+        }
 
         // Check if giveaway exists and is active
         const giveaway = await prisma.giveaway.findUnique({
@@ -136,17 +143,21 @@ exports.participateInGiveaway = async (req, res) => {
             return res.status(400).json({ message: 'Giveaway has ended' });
         }
 
-        // Check if user already participated
-        const existingParticipation = await prisma.giveawayparticipation.findUnique({
+        // Check if user already participated (by userId)
+        // If it's a cashier registering a client, we might need a different check
+        const existingParticipation = await prisma.giveawayparticipation.findFirst({
             where: {
-                giveawayId_userId: {
-                    giveawayId,
-                    userId
-                }
+                giveawayId,
+                userId: req.user.role === 'cashier' ? undefined : userId, // Skip userId check for cashiers if they are registering others
+                clientPhone: clientPhone || undefined
             }
         });
 
-        if (existingParticipation) {
+        if (existingParticipation && (clientPhone && existingParticipation.clientPhone === clientPhone)) {
+            return res.status(400).json({ message: 'This client has already participated in this giveaway' });
+        }
+
+        if (existingParticipation && !clientPhone && existingParticipation.userId === userId) {
             return res.status(400).json({ message: 'You have already participated in this giveaway' });
         }
 
@@ -154,7 +165,10 @@ exports.participateInGiveaway = async (req, res) => {
         const participation = await prisma.giveawayparticipation.create({
             data: {
                 giveawayId,
-                userId
+                userId: req.user.role === 'cashier' ? null : userId, // Don't associate cashier ID as participant
+                clientName: clientName || null,
+                clientSurname: clientSurname || null,
+                clientPhone: clientPhone || null
             }
         });
 
@@ -212,11 +226,12 @@ exports.selectWinners = async (req, res) => {
         // Create winner records
         const winnerData = selectedWinners.map((participant, index) => ({
             giveawayId,
-            userId: participant.userId,
+            participationId: participant.id,
+            userId: participant.userId || null,
             rank: index + 1
         }));
 
-        const winners = await prisma.giveawaywinner.createMany({
+        await prisma.giveawaywinner.createMany({
             data: winnerData
         });
 
@@ -228,7 +243,7 @@ exports.selectWinners = async (req, res) => {
 
         res.json({ 
             message: 'Winners selected successfully', 
-            winners: winners,
+            winnersCount: winnerData.length,
             totalParticipants: giveaway.participants.length 
         });
     } catch (error) {

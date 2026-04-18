@@ -176,30 +176,36 @@ model giveaway {
 }
 
 model giveawayparticipation {
-  id         Int      @id @default(autoincrement())
-  giveawayId Int
-  giveaway   giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  userId     Int
-  user       user     @relation(fields: [userId], references: [id])
-  joinedAt   DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  giveawayId    Int
+  giveaway      giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId        Int?     // Made optional for guest participants
+  user          user?    @relation(fields: [userId], references: [id])
+  clientName    String?
+  clientSurname String?
+  clientPhone   String?
+  joinedAt      DateTime @default(now())
 
-  @@unique([giveawayId, userId], map: "GiveawayParticipation_user_giveaway_unique")
   @@index([giveawayId])
   @@index([userId])
+  @@index([clientPhone])
 }
 
 model giveawaywinner {
-  id         Int      @id @default(autoincrement())
-  giveawayId Int
-  giveaway   giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  userId     Int
-  user       user     @relation(fields: [userId], references: [id])
-  selectedAt DateTime @default(now())
-  rank       Int // 1st, 2nd, 3rd winner, etc.
+  id              Int                   @id @default(autoincrement())
+  giveawayId      Int
+  giveaway        giveaway              @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  participationId Int?                  // Link to participation record
+  participation   giveawayparticipation? @relation(fields: [participationId], references: [id])
+  userId          Int?                  // Made optional
+  user            user?                 @relation(fields: [userId], references: [id])
+  selectedAt      DateTime              @default(now())
+  rank            Int                   // 1st, 2nd, 3rd winner, etc.
 
   @@unique([giveawayId, userId], map: "GiveawayWinner_user_giveaway_unique")
   @@index([giveawayId])
   @@index([userId])
+  @@index([participationId])
 }
 
 enum giveaway_status {

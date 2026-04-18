@@ -23,6 +23,15 @@ const Giveaways = () => {
     });
     const [participating, setParticipating] = useState({});
     const [processing, setProcessing] = useState(false);
+    
+    // New states for client registration (cashier only)
+    const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+    const [selectedGiveawayId, setSelectedGiveawayId] = useState(null);
+    const [registrationData, setRegistrationData] = useState({
+        clientName: '',
+        clientSurname: '',
+        clientPhone: ''
+    });
 
     useEffect(() => {
         const fetchGiveaways = async () => {
@@ -56,15 +65,28 @@ const Giveaways = () => {
         }
     };
 
-    const handleParticipate = async (giveawayId) => {
+    const handleParticipate = (giveawayId) => {
+        if (user?.role === 'cashier') {
+            setSelectedGiveawayId(giveawayId);
+            setShowRegistrationForm(true);
+        } else {
+            submitParticipation(giveawayId);
+        }
+    };
+
+    const submitParticipation = async (giveawayId, clientData = {}) => {
         setParticipating({ ...participating, [giveawayId]: true });
         try {
-            await api.post(`/giveaways/${giveawayId}/participate`);
+            await api.post(`/giveaways/${giveawayId}/participate`, clientData);
             const response = await api.get('/giveaways');
             setGiveaways(response.data || []);
+            setShowRegistrationForm(false);
+            setRegistrationData({ clientName: '', clientSurname: '', clientPhone: '' });
         } catch (error) {
             alert(error.response?.data?.message || 'Error participating in giveaway');
             setParticipating({ ...participating, [giveawayId]: false });
+        } finally {
+            setParticipating(prev => ({ ...prev, [giveawayId]: false }));
         }
     };
 
@@ -97,13 +119,20 @@ const Giveaways = () => {
     };
 
     const canParticipate = (giveaway) => {
-        return isGiveawayActive(giveaway) && !participating[giveaway.id];
+        return isGiveawayActive(giveaway) && !participating[giveaway.id] && user?.role !== 'admin';
     };
 
-    const getDaysRemaining = (endDate) => {
+    const getTimeLeft = (endDate) => {
         const diff = new Date(endDate).getTime() - Date.now();
-        if (diff <= 0) return 0;
-        return Math.ceil(diff / (1000 * 60 * 60 * 24));
+        if (diff <= 0) return 'Ended';
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (days > 0) return `${days}d ${hours}h`;
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
     };
 
     const calculateProgress = (start, end) => {
@@ -201,9 +230,9 @@ const Giveaways = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-8">
                     {giveaways.map((giveaway, idx) => {
                         const active = isGiveawayActive(giveaway);
-                        const daysLeft = getDaysRemaining(giveaway.endDate);
+                        const timeLeft = getTimeLeft(giveaway.endDate);
                         const ended = giveaway.status === 'ENDED' || new Date(giveaway.endDate) <= new Date();
-                        const isEndingSoon = active && daysLeft <= 2;
+                        const isEndingSoon = active && (new Date(giveaway.endDate).getTime() - Date.now() < 86400000 * 2);
                         const progress = calculateProgress(giveaway.startDate, giveaway.endDate);
 
                         return (
@@ -261,7 +290,7 @@ const Giveaways = () => {
                                                 <span className="text-[10px] font-black uppercase tracking-wider">{t('timeLeft', 'Time Left')}</span>
                                             </div>
                                             <span className={`text-xl font-black ${isEndingSoon ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
-                                                {active ? `${daysLeft}d` : 'Ended'}
+                                                {active ? timeLeft : 'Ended'}
                                             </span>
                                         </div>
                                     </div>
@@ -316,14 +345,18 @@ const Giveaways = () => {
                                     {ended && giveaway.winners && giveaway.winners.length > 0 && (
                                         <div className="mt-6 pt-5 flex flex-col gap-2">
                                             <div className="text-[10px] font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-500 mb-1 flex items-center gap-1.5"><FiAward size={14}/> Official Winners</div>
-                                            {giveaway.winners.map(w => (
-                                                <div key={w.id} className="flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 rounded-2xl border border-yellow-200/60 dark:border-yellow-900/50 shadow-sm">
-                                                    <span className="font-bold text-sm text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
-                                                        <span className="w-6 h-6 rounded-full bg-yellow-200 dark:bg-yellow-700 flex items-center justify-center text-xs text-yellow-800 dark:text-yellow-50">#{w.rank}</span>
-                                                        {w.user?.username || `User ${w.userId}`}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                            {giveaway.winners.map(w => {
+                                                const winnerName = w.participation?.clientName ? `${w.participation.clientName} ${w.participation.clientSurname}` : (w.user?.fullName || w.user?.username || `User ${w.userId}`);
+                                                return (
+                                                    <div key={w.id} className="flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 rounded-2xl border border-yellow-200/60 dark:border-yellow-900/50 shadow-sm">
+                                                        <span className="font-bold text-sm text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
+                                                            <span className="w-6 h-6 rounded-full bg-yellow-200 dark:bg-yellow-700 flex items-center justify-center text-xs text-yellow-800 dark:text-yellow-50">#{w.rank}</span>
+                                                            {winnerName}
+                                                        </span>
+                                                        {w.participation?.clientPhone && <span className="text-[10px] text-yellow-700 dark:text-yellow-400 opacity-60 font-bold">{w.participation.clientPhone}</span>}
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     )}
                                 </div>
@@ -397,6 +430,72 @@ const Giveaways = () => {
                                     <button type="submit" disabled={processing}
                                         className="flex-[2] py-4 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-[1.5rem] font-bold shadow-xl shadow-purple-500/20 transition-all flex justify-center items-center">
                                         {processing ? 'Creating...' : 'Launch Giveaway'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Client Registration Modal (Cashier only) */}
+            <AnimatePresence>
+                {showRegistrationForm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+                        onClick={() => setShowRegistrationForm(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 md:p-10"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600">
+                                    <FiUsers size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+                                        Client Registration
+                                    </h2>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Fill in participant details</p>
+                                </div>
+                            </div>
+                            
+                            <form onSubmit={(e) => { e.preventDefault(); submitParticipation(selectedGiveawayId, registrationData); }} className="space-y-5">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">First Name</label>
+                                        <input type="text" required value={registrationData.clientName} onChange={(e) => setRegistrationData({ ...registrationData, clientName: e.target.value })}
+                                            className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
+                                            placeholder="Name" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Surname</label>
+                                        <input type="text" required value={registrationData.clientSurname} onChange={(e) => setRegistrationData({ ...registrationData, clientSurname: e.target.value })}
+                                            className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
+                                            placeholder="Surname" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Phone Number</label>
+                                    <input type="tel" required value={registrationData.clientPhone} onChange={(e) => setRegistrationData({ ...registrationData, clientPhone: e.target.value })}
+                                        className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
+                                        placeholder="+213..." />
+                                </div>
+                                <div className="flex gap-4 pt-6">
+                                    <button type="button" onClick={() => setShowRegistrationForm(false)}
+                                        className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-[1.5rem] font-bold transition-all">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" disabled={participating[selectedGiveawayId]}
+                                        className="flex-[2] py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-[1.5rem] font-bold shadow-xl shadow-blue-500/20 transition-all flex justify-center items-center">
+                                        {participating[selectedGiveawayId] ? 'Registering...' : 'Register Participant'}
                                     </button>
                                 </div>
                             </form>
