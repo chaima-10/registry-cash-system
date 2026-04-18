@@ -153,7 +153,6 @@ exports.participateInGiveaway = async (req, res) => {
                     return res.status(400).json({ message: 'Local Tunisian phone must be exactly 8 digits' });
                 }
             }
-        }
 
         // Check if giveaway exists and is active
         const giveaway = await prisma.giveaway.findUnique({
