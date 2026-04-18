@@ -142,12 +142,16 @@ exports.participateInGiveaway = async (req, res) => {
                 return res.status(400).json({ message: 'Phone must contain only digits and optional +' });
             }
 
-            // Country-specific length (Algeria example)
-            if (cleanPhone.startsWith('+213') && cleanPhone.length !== 13) {
-                return res.status(400).json({ message: 'Algerian phone with +213 must be 13 digits long' });
-            }
-            if (cleanPhone.startsWith('0') && cleanPhone.length !== 10) {
-                return res.status(400).json({ message: 'Local phone starting with 0 must be 10 digits long' });
+            // Country-specific length (Tunisia example)
+            if (cleanPhone.startsWith('+216')) {
+                if (cleanPhone.length !== 12) {
+                    return res.status(400).json({ message: 'Tunisian phone with +216 must be 12 digits long' });
+                }
+            } else {
+                const localPhone = cleanPhone.startsWith('0') ? cleanPhone.substring(1) : cleanPhone;
+                if (localPhone.length !== 8) {
+                    return res.status(400).json({ message: 'Local Tunisian phone must be 8 digits long' });
+                }
             }
         }
 

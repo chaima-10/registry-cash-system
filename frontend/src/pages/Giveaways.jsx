@@ -89,14 +89,20 @@ const Giveaways = () => {
                 return;
             }
 
-            // Country-specific phone validation (Example for Algeria +213)
+            // Country-specific phone validation (Tunisia +216)
             const phone = clientData.clientPhone.replace(/\s/g, '');
-            if (phone.startsWith('+213') && phone.length !== 13) {
-                alert(t('invalidAlgerianPhone', 'Algerian phone numbers with +213 must be 13 characters long.'));
-                return;
-            } else if (phone.startsWith('0') && phone.length !== 10) {
-                alert(t('invalidLocalPhone', 'Local phone numbers starting with 0 must be 10 digits long.'));
-                return;
+            if (phone.startsWith('+216')) {
+                if (phone.length !== 12) {
+                    alert(t('invalidTunisianPhone', 'Tunisian phone numbers with +216 must be 12 characters long.'));
+                    return;
+                }
+            } else {
+                // Remove local prefix if any (Tunisia doesn't really use a '0' prefix for 8-digit numbers, but some might)
+                const localPhone = phone.startsWith('0') ? phone.substring(1) : phone;
+                if (localPhone.length !== 8) {
+                    alert(t('invalidLocalPhone', 'Local Tunisian phone numbers must be 8 digits long.'));
+                    return;
+                }
             }
 
             if (!phoneRegex.test(phone)) {
@@ -516,7 +522,7 @@ const Giveaways = () => {
                                     <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Phone Number</label>
                                     <input type="tel" required value={registrationData.clientPhone} onChange={(e) => setRegistrationData({ ...registrationData, clientPhone: e.target.value })}
                                         className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
-                                        placeholder="+213..." />
+                                        placeholder="+216..." />
                                 </div>
                                 <div className="flex gap-4 pt-6">
                                     <button type="button" onClick={() => setShowRegistrationForm(false)}
