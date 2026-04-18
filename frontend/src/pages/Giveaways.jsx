@@ -119,11 +119,29 @@ const Giveaways = () => {
             setShowRegistrationForm(false);
             setRegistrationData({ clientName: '', clientSurname: '', clientPhone: '' });
         } catch (error) {
+            console.error('Error participating in giveaway:', error);
             alert(error.response?.data?.message || 'Error participating in giveaway');
             setParticipating({ ...participating, [giveawayId]: false });
         } finally {
             setParticipating(prev => ({ ...prev, [giveawayId]: false }));
         }
+    };
+
+    // Real-time Input Sanitization
+    const handleNameInput = (field, value) => {
+        const lettersOnly = value.replace(/[^a-zA-Z\sÀ-ÿ]/g, '');
+        setRegistrationData(prev => ({ ...prev, [field]: lettersOnly }));
+    };
+
+    const handlePhoneInput = (value) => {
+        let sanitized = value.replace(/[^\d+]/g, '');
+        if (sanitized.includes('+')) {
+            const firstPlus = sanitized.indexOf('+');
+            sanitized = sanitized.split('').filter((char, index) => 
+                (char === '+' && index === 0) || char !== '+'
+            ).join('');
+        }
+        setRegistrationData(prev => ({ ...prev, clientPhone: sanitized }));
     };
 
     const handleSelectWinners = async (giveawayId) => {
@@ -507,20 +525,20 @@ const Giveaways = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">First Name</label>
-                                        <input type="text" required value={registrationData.clientName} onChange={(e) => setRegistrationData({ ...registrationData, clientName: e.target.value })}
+                                        <input type="text" required value={registrationData.clientName} onChange={(e) => handleNameInput('clientName', e.target.value)}
                                             className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
                                             placeholder="Name" />
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Surname</label>
-                                        <input type="text" required value={registrationData.clientSurname} onChange={(e) => setRegistrationData({ ...registrationData, clientSurname: e.target.value })}
+                                        <input type="text" required value={registrationData.clientSurname} onChange={(e) => handleNameInput('clientSurname', e.target.value)}
                                             className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
                                             placeholder="Surname" />
                                     </div>
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Phone Number</label>
-                                    <input type="tel" required value={registrationData.clientPhone} onChange={(e) => setRegistrationData({ ...registrationData, clientPhone: e.target.value })}
+                                    <input type="tel" required value={registrationData.clientPhone} onChange={(e) => handlePhoneInput(e.target.value)}
                                         className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
                                         placeholder="+216..." />
                                 </div>
