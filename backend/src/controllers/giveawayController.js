@@ -223,7 +223,12 @@ exports.selectWinners = async (req, res) => {
                         user: true
                     }
                 },
-                winners: true
+                winners: {
+                    include: {
+                        user: { select: { id: true, username: true, fullName: true } },
+                        participation: true
+                    }
+                }
             }
         });
 
@@ -241,7 +246,12 @@ exports.selectWinners = async (req, res) => {
 
         // Check if winners already selected
         if (giveaway.winners.length > 0) {
-            return res.status(400).json({ message: 'Winners have already been selected' });
+            return res.json({ 
+                message: 'Winners already selected', 
+                winnersCount: giveaway.winners.length,
+                winners: giveaway.winners,
+                totalParticipants: giveaway.participants.length 
+            });
         }
 
         // Random winner selection
