@@ -121,23 +121,22 @@ exports.participateInGiveaway = async (req, res) => {
         const userId = req.user.id;
         const giveawayId = parseInt(id);
 
-        // 1. Admin restricted from participation
-        if (req.user.role === 'admin') {
-            return res.status(403).json({ message: 'Admins are not allowed to participate in giveaways' });
+        // 1. Only cashiers can register participants
+        if (req.user.role !== 'cashier') {
+            return res.status(403).json({ message: 'Only cashiers can register participants for giveaways' });
         }
 
-        // 2. Client-side info validation (if cashier registering)
-        if (req.user.role === 'cashier') {
-            if (!clientName || !clientSurname || !clientPhone) {
-                return res.status(400).json({ message: 'Client name, surname and phone are required' });
-            }
+        // 2. Client info validation
+        if (!clientName || !clientSurname || !clientPhone) {
+            return res.status(400).json({ message: 'Client name, surname and phone are required' });
+        }
 
-            const nameRegex = /^[a-zA-Z\sÀ-ÿ]+$/;
-            if (!nameRegex.test(clientName) || !nameRegex.test(clientSurname)) {
-                return res.status(400).json({ message: 'Name and Surname must contain only letters' });
-            }
+        const nameRegex = /^[a-zA-Z\sÀ-ÿ]+$/;
+        if (!nameRegex.test(clientName) || !nameRegex.test(clientSurname)) {
+            return res.status(400).json({ message: 'Name and Surname must contain only letters' });
+        }
 
-            const cleanPhone = clientPhone.replace(/\s/g, '');
+        const cleanPhone = clientPhone.replace(/\s/g, '');
             if (!/^\+?[0-9]+$/.test(cleanPhone)) {
                 return res.status(400).json({ message: 'Phone must contain only digits and optional +' });
             }

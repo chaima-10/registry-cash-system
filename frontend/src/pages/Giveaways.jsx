@@ -213,7 +213,7 @@ const Giveaways = () => {
     };
 
     const canParticipate = (giveaway) => {
-        return isGiveawayActive(giveaway) && !participating[giveaway.id] && user?.role !== 'admin';
+        return isGiveawayActive(giveaway) && !participating[giveaway.id] && user?.role === 'cashier';
     };
 
     const getTimeLeft = (endDate) => {
