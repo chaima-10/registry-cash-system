@@ -156,9 +156,16 @@ const Giveaways = () => {
         setProcessing(true);
         try {
             const response = await api.get(`/giveaways/${giveawayId}`);
-            setDrawingGiveaway(response.data);
-            setDrawStatus('idle');
-            setDrawWinners([]);
+            const giveaway = response.data;
+            setDrawingGiveaway(giveaway);
+            
+            if (giveaway.winners && giveaway.winners.length > 0) {
+                setDrawWinners(giveaway.winners);
+                setDrawStatus('revealed');
+            } else {
+                setDrawStatus('idle');
+                setDrawWinners([]);
+            }
             setShowDrawModal(true);
         } catch (error) {
             console.error('Error opening draw modal:', error);
@@ -166,6 +173,13 @@ const Giveaways = () => {
         } finally {
             setProcessing(false);
         }
+    };
+
+    const getParticipantDisplayName = (p) => {
+        if (!p) return 'Unknown';
+        if (p.clientName) return `${p.clientName} ${p.clientSurname}`;
+        if (p.user) return p.user.fullName || p.user.username;
+        return 'Guest Participant';
     };
 
     const startDrawingProcess = async () => {
@@ -181,7 +195,7 @@ const Giveaways = () => {
             const response = await api.post(`/giveaways/${drawingGiveaway.id}/select-winners`);
             const winners = response.data.winners;
             
-            // Min 3s animation
+            // Artificial delay for suspense
             await new Promise(r => setTimeout(r, 3000));
             
             clearInterval(shuffleInterval);
@@ -193,8 +207,14 @@ const Giveaways = () => {
             setGiveaways(mainResponse.data || []);
         } catch (error) {
             clearInterval(shuffleInterval);
-            setDrawStatus('idle');
-            alert(error.response?.data?.message || 'Error during draw');
+            // If already drawn, just refresh and show (safety)
+            if (error.response?.status === 400 && error.response?.data?.winners) {
+                setDrawWinners(error.response.data.winners);
+                setDrawStatus('revealed');
+            } else {
+                setDrawStatus('idle');
+                alert(error.response?.data?.message || 'Error during draw');
+            }
         }
     };
 
@@ -652,7 +672,7 @@ const Giveaways = () => {
                                                 transition={{ duration: 0.2, repeat: Infinity }}
                                                 className="text-5xl font-black text-yellow-500 tracking-tight italic"
                                             >
-                                                {drawingGiveaway.participants[currentIndex]?.clientName || drawingGiveaway.participants[currentIndex]?.user?.username}
+                                                {getParticipantDisplayName(drawingGiveaway.participants[currentIndex])}
                                             </motion.div>
                                             <div className="mt-8 flex justify-center gap-2">
                                                 <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
@@ -681,9 +701,9 @@ const Giveaways = () => {
                                                         <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center text-white font-black">#{idx + 1}</div>
                                                         <div className="text-left">
                                                             <div className="font-black text-lg text-gray-900 dark:text-white leading-none mb-1">
-                                                                {winner.clientName || winner.user?.fullName || winner.user?.username}
+                                                                {winner.clientName ? `${winner.clientName} ${winner.clientSurname}` : (winner.user?.fullName || winner.user?.username)}
                                                             </div>
-                                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{winner.clientPhone || 'System User'}</div>
+                                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{winner.clientPhone || winner.participation?.clientPhone || 'System User'}</div>
                                                         </div>
                                                     </motion.div>
                                                 ))}
