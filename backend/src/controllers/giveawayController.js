@@ -144,13 +144,14 @@ exports.participateInGiveaway = async (req, res) => {
 
             // Country-specific length (Tunisia example)
             if (cleanPhone.startsWith('+216')) {
-                if (cleanPhone.length !== 12) {
-                    return res.status(400).json({ message: 'Tunisian phone with +216 must be 12 digits long' });
+                const numberPart = cleanPhone.substring(4);
+                if (numberPart.length !== 8 || !/^\d+$/.test(numberPart)) {
+                    return res.status(400).json({ message: 'Tunisian phone with +216 must have exactly 8 digits after the prefix' });
                 }
             } else {
                 const localPhone = cleanPhone.startsWith('0') ? cleanPhone.substring(1) : cleanPhone;
-                if (localPhone.length !== 8) {
-                    return res.status(400).json({ message: 'Local Tunisian phone must be 8 digits long' });
+                if (localPhone.length !== 8 || !/^\d+$/.test(localPhone)) {
+                    return res.status(400).json({ message: 'Local Tunisian phone must be exactly 8 digits' });
                 }
             }
         }

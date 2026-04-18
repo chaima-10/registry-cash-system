@@ -92,15 +92,16 @@ const Giveaways = () => {
             // Country-specific phone validation (Tunisia +216)
             const phone = clientData.clientPhone.replace(/\s/g, '');
             if (phone.startsWith('+216')) {
-                if (phone.length !== 12) {
-                    alert(t('invalidTunisianPhone', 'Tunisian phone numbers with +216 must be 12 characters long.'));
+                const numberPart = phone.substring(4);
+                if (numberPart.length !== 8 || !/^\d+$/.test(numberPart)) {
+                    alert(t('invalidTunisianPhone', 'Tunisian phone numbers must contain exactly 8 digits after +216.'));
                     return;
                 }
             } else {
-                // Remove local prefix if any (Tunisia doesn't really use a '0' prefix for 8-digit numbers, but some might)
+                // Local Tunisian number must be exactly 8 digits
                 const localPhone = phone.startsWith('0') ? phone.substring(1) : phone;
-                if (localPhone.length !== 8) {
-                    alert(t('invalidLocalPhone', 'Local Tunisian phone numbers must be 8 digits long.'));
+                if (localPhone.length !== 8 || !/^\d+$/.test(localPhone)) {
+                    alert(t('invalidLocalPhone', 'Local Tunisian phone numbers must contain exactly 8 digits.'));
                     return;
                 }
             }
@@ -383,14 +384,14 @@ const Giveaways = () => {
                                             </div>
                                         )}
 
-                                        {user?.role === 'admin' && active && (
+                                        {user?.role === 'admin' && giveaway.status === 'ACTIVE' && (
                                             <button
                                                 onClick={() => handleSelectWinners(giveaway.id)}
-                                                disabled={processing || !giveaway.participantCount}
-                                                className="flex-1 py-3.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-[1.25rem] text-sm font-bold shadow-lg shadow-yellow-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:-translate-y-1"
+                                                disabled={processing || !giveaway.participantCount || active}
+                                                className={`flex-1 py-3.5 rounded-[1.25rem] text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${active ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed shadow-none' : 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-yellow-500/20 hover:-translate-y-1'}`}
                                             >
                                                 <FiAward size={18} />
-                                                {t('draw', 'Draw Winners')}
+                                                {active ? t('waiting', 'Wait for End') : t('draw', 'Draw Winners')}
                                             </button>
                                         )}
                                     </div>
