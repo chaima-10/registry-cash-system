@@ -33,6 +33,13 @@ const Giveaways = () => {
         clientPhone: ''
     });
 
+    // States for Drawing Animation
+    const [showDrawModal, setShowDrawModal] = useState(false);
+    const [drawingGiveaway, setDrawingGiveaway] = useState(null);
+    const [drawStatus, setDrawStatus] = useState('idle'); // idle, drawing, revealed
+    const [drawWinners, setDrawWinners] = useState([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+
     useEffect(() => {
         const fetchGiveaways = async () => {
             try {
@@ -146,16 +153,48 @@ const Giveaways = () => {
     };
 
     const handleSelectWinners = async (giveawayId) => {
-        if (!window.confirm('Are you sure you want to select winners? This action cannot be undone.')) return;
         setProcessing(true);
         try {
-            await api.post(`/giveaways/${giveawayId}/select-winners`);
-            const response = await api.get('/giveaways');
-            setGiveaways(response.data || []);
+            const response = await api.get(`/giveaways/${giveawayId}`);
+            setDrawingGiveaway(response.data);
+            setDrawStatus('idle');
+            setDrawWinners([]);
+            setShowDrawModal(true);
         } catch (error) {
-            alert(error.response?.data?.message || 'Error selecting winners');
+            console.error('Error opening draw modal:', error);
+            alert('Error loading giveaway participants');
         } finally {
             setProcessing(false);
+        }
+    };
+
+    const startDrawingProcess = async () => {
+        if (!drawingGiveaway?.participants?.length) return;
+        setDrawStatus('drawing');
+        
+        // Start shuffling index
+        const shuffleInterval = setInterval(() => {
+            setCurrentIndex(prev => (prev + 1) % drawingGiveaway.participants.length);
+        }, 100);
+
+        try {
+            const response = await api.post(`/giveaways/${drawingGiveaway.id}/select-winners`);
+            const winners = response.data.winners;
+            
+            // Min 3s animation
+            await new Promise(r => setTimeout(r, 3000));
+            
+            clearInterval(shuffleInterval);
+            setDrawWinners(winners);
+            setDrawStatus('revealed');
+            
+            // Update main list
+            const mainResponse = await api.get('/giveaways');
+            setGiveaways(mainResponse.data || []);
+        } catch (error) {
+            clearInterval(shuffleInterval);
+            setDrawStatus('idle');
+            alert(error.response?.data?.message || 'Error during draw');
         }
     };
 
@@ -554,6 +593,122 @@ const Giveaways = () => {
                                     </button>
                                 </div>
                             </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Draw Winners Modal */}
+            <AnimatePresence>
+                {showDrawModal && drawingGiveaway && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 50 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 50 }}
+                            className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden"
+                        >
+                            {/* Modal Header */}
+                            <div className="p-8 pb-4 flex justify-between items-center">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-2xl flex items-center justify-center text-yellow-600">
+                                        <FiAward size={24} />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Draw Winners</h2>
+                                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{drawingGiveaway.title}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => !processing && setShowDrawModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors p-2">
+                                    <FiPlus className="rotate-45" size={24} />
+                                </button>
+                            </div>
+
+                            <div className="px-8 py-6">
+                                {/* Animation Area */}
+                                <div className="bg-gray-50 dark:bg-gray-950 rounded-[2.5rem] p-10 mb-8 border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center min-h-[300px] relative overflow-hidden">
+                                    
+                                    {drawStatus === 'idle' && (
+                                        <div className="text-center">
+                                            <div className="text-4xl font-black text-gray-300 dark:text-gray-700 mb-4 tracking-tighter uppercase italic">Ready to Draw?</div>
+                                            <button 
+                                                onClick={startDrawingProcess}
+                                                className="px-10 py-5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-2xl font-black shadow-xl shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-3 mx-auto"
+                                            >
+                                                <FiPlay size={20} /> START RANDOM SELECTION
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {drawStatus === 'drawing' && (
+                                        <div className="text-center">
+                                            <motion.div 
+                                                animate={{ scale: [1, 1.1, 1] }} 
+                                                transition={{ duration: 0.2, repeat: Infinity }}
+                                                className="text-5xl font-black text-yellow-500 tracking-tight italic"
+                                            >
+                                                {drawingGiveaway.participants[currentIndex]?.clientName || drawingGiveaway.participants[currentIndex]?.user?.username}
+                                            </motion.div>
+                                            <div className="mt-8 flex justify-center gap-2">
+                                                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+                                                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {drawStatus === 'revealed' && (
+                                        <div className="w-full text-center">
+                                            <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mb-6">
+                                                <div className="text-yellow-500 mb-2 font-black uppercase tracking-[0.3em] text-[10px]">TIRAGE TERMINÉ</div>
+                                                <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-8">Félicitations aux Gagnants!</h3>
+                                            </motion.div>
+                                            
+                                            <div className="grid gap-4 max-w-md mx-auto">
+                                                {drawWinners.map((winner, idx) => (
+                                                    <motion.div 
+                                                        key={idx}
+                                                        initial={{ x: -20, opacity: 0 }} 
+                                                        animate={{ x: 0, opacity: 1 }}
+                                                        transition={{ delay: idx * 0.2 }}
+                                                        className="flex items-center gap-4 bg-white dark:bg-gray-900 p-5 rounded-3xl border-2 border-yellow-400 shadow-xl shadow-yellow-500/10"
+                                                    >
+                                                        <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center text-white font-black">#{idx + 1}</div>
+                                                        <div className="text-left">
+                                                            <div className="font-black text-lg text-gray-900 dark:text-white leading-none mb-1">
+                                                                {winner.clientName || winner.user?.fullName || winner.user?.username}
+                                                            </div>
+                                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{winner.clientPhone || 'System User'}</div>
+                                                        </div>
+                                                    </motion.div>
+                                                ))}
+                                            </div>
+
+                                            <button 
+                                                onClick={() => setShowDrawModal(false)}
+                                                className="mt-10 px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black shadow-xl transition-all hover:opacity-90"
+                                            >
+                                                Close & View Results
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Participant Sidebar Info */}
+                                <div className="flex justify-between items-center px-4">
+                                    <div className="flex items-center gap-2 text-gray-400 font-bold text-[10px] uppercase tracking-widest">
+                                        <FiUsers size={14} /> {drawingGiveaway.participants.length} Participants au total
+                                    </div>
+                                    <div className="flex items-center gap-2 text-gray-400 font-bold text-[10px] uppercase tracking-widest">
+                                        <FiAward size={14} /> {drawingGiveaway.winnerCount} Gagnant(s) à tirer
+                                    </div>
+                                </div>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}

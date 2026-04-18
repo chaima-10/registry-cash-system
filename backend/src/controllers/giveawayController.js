@@ -274,6 +274,7 @@ exports.selectWinners = async (req, res) => {
         res.json({ 
             message: 'Winners selected successfully', 
             winnersCount: winnerData.length,
+            winners: selectedWinners, // Return the actual selected participants
             totalParticipants: giveaway.participants.length 
         });
     } catch (error) {
