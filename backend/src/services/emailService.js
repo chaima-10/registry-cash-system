@@ -1,10 +1,18 @@
 const { Resend } = require('resend');
 
+// Initialize Resend with the API Key
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+/**
+ * Sends a verification email using Resend
+ * @param {string} email - Recipient email address
+ * @param {string} token - Verification token
+ */
 exports.sendVerificationEmail = async (email, token) => {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
+
+    console.log(`Attempting to send verification email to ${email} via Resend...`);
 
     try {
         const { data, error } = await resend.emails.send({
@@ -12,41 +20,47 @@ exports.sendVerificationEmail = async (email, token) => {
             to: [email],
             subject: 'Vérifiez votre nouvelle adresse e-mail',
             html: `
-                <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; padding: 40px; border-radius: 20px; background-color: #ffffff; border: 1px solid #f0f0f0; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <h1 style="color: #1a1a1a; margin: 0; font-size: 24px;">Vérification de l'e-mail</h1>
+                <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: auto; padding: 40px; border-radius: 24px; background-color: #ffffff; border: 1px solid #e5e7eb; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+                    <div style="text-align: center; margin-bottom: 32px;">
+                        <div style="display: inline-block; padding: 12px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 16px; margin-bottom: 16px;">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        </div>
+                        <h1 style="color: #111827; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em;">Vérification de l'e-mail</h1>
                     </div>
                     
-                    <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">Bonjour,</p>
-                    <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">Vous avez demandé à mettre à jour votre adresse e-mail sur <strong>Registry Cash System</strong>. Pour valider ce changement, veuillez cliquer sur le bouton ci-dessous :</p>
+                    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">Bonjour,</p>
+                    <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">Vous avez demandé à mettre à jour votre adresse e-mail sur <strong>Registry Cash System</strong>. Pour valider ce changement et sécuriser votre compte, veuillez cliquer sur le bouton ci-dessous :</p>
                     
-                    <div style="text-align: center; margin: 40px 0;">
-                        <a href="${verificationUrl}" style="background-color: #3b82f6; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 16px; display: inline-block; transition: background-color 0.3s ease; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+                    <div style="text-align: center; margin: 32px 0;">
+                        <a href="${verificationUrl}" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; padding: 16px 40px; text-decoration: none; border-radius: 14px; font-weight: 700; font-size: 16px; display: inline-block; transition: all 0.2s ease; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);">
                             Confirmer mon adresse e-mail
                         </a>
                     </div>
                     
-                    <p style="color: #888; font-size: 14px; text-align: center;">Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :</p>
-                    <p style="color: #3b82f6; font-size: 13px; text-align: center; word-break: break-all;">
-                        <a href="${verificationUrl}" style="color: #3b82f6;">${verificationUrl}</a>
-                    </p>
+                    <div style="background-color: #f9fafb; border-radius: 16px; padding: 20px; margin-top: 32px;">
+                        <p style="color: #6b7280; font-size: 13px; text-align: center; margin-bottom: 8px;">Si le bouton ne fonctionne pas, copiez ce lien :</p>
+                        <p style="color: #3b82f6; font-size: 12px; text-align: center; word-break: break-all; margin: 0;">
+                            <a href="${verificationUrl}" style="color: #3b82f6; text-decoration: none;">${verificationUrl}</a>
+                        </p>
+                    </div>
                     
-                    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
-                        <p style="font-size: 12px; color: #aaa;">Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail en toute sécurité.</p>
-                        <p style="font-size: 12px; color: #aaa;">&copy; 2026 Registry Cash System</p>
+                    <div style="margin-top: 40px; padding-top: 24px; border-top: 1px solid #f3f4f6; text-align: center;">
+                        <p style="font-size: 12px; color: #9ca3af; margin-bottom: 4px;">Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</p>
+                        <p style="font-size: 12px; color: #9ca3af; margin: 0;">&copy; 2026 Registry Cash System &bull; <span style="color: #6b7280;">Produit par Antigravity</span></p>
                     </div>
                 </div>
             `,
         });
 
         if (error) {
-            console.error('Resend Error:', error);
-            throw new Error('Erreur lors de l\'envoi de l\'e-mail via Resend');
+            console.error('Resend SDK Error:', error);
+            throw error;
         }
 
-        console.log(`Verification email sent via Resend to ${email}. ID: ${data.id}`);
-    } catch (error) {
-        console.error('Error sending verification email with Resend:', error);
+        console.log(`✓ Verification email sent successfully to ${email}. ID: ${data?.id}`);
+        return data;
+    } catch (err) {
+        console.error('Failed to send email via Resend:', err.message);
         throw new Error('Erreur lors de l\'envoi de l\'e-mail de vérification');
     }
 };

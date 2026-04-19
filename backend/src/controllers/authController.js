@@ -1,6 +1,8 @@
 const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const emailService = require('../services/emailService');
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -170,9 +172,6 @@ exports.updateProfile = async (req, res) => {
                 return res.status(400).json({ message: 'Email already in use' });
             }
 
-            const crypto = require('crypto');
-            const emailService = require('../services/emailService');
-            
             verificationToken = crypto.randomBytes(32).toString('hex');
             pendingEmail = email;
             
