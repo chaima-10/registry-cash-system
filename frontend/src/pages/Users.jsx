@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 const Users = () => {
     const { t } = useTranslation();
-    const [formData, setFormData] = useState({ username: '', password: '', role: 'cashier', fullName: '' });
+    const [formData, setFormData] = useState({ username: '', password: '', role: 'cashier', fullName: '', salary: '' });
     const [message, setMessage] = useState(null);
     const [users, setUsers] = useState([]);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -38,7 +38,7 @@ const Users = () => {
         try {
             await register(formData);
             setMessage({ type: 'success', text: t('userRegisteredSuccess') });
-            setFormData({ username: '', password: '', role: 'cashier', fullName: '' });
+            setFormData({ username: '', password: '', role: 'cashier', fullName: '', salary: '' });
             fetchUsers(); // Refresh list
         } catch (error) {
             setMessage({ type: 'error', text: error.response?.data?.message || t('registrationFailed') });
@@ -102,6 +102,16 @@ const Users = () => {
                                 <FiUser className="absolute left-3 top-3 text-gray-400" />
                                 <input required type="text" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
                                     value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('dailyRate')}</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-blue-500 font-bold text-xs">TND</span>
+                                <input required type="number" step="0.001" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
+                                    placeholder="0,000"
+                                    value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} />
                             </div>
                         </div>
 

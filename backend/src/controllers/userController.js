@@ -45,8 +45,30 @@ exports.getAllUsers = async (req, res) => {
         });
 
         const usersWithStats = users.map(user => {
+            const isCreatedThisMonth = user.createdAt >= startOfMonth;
+            
+            // For admins, we exempt them from absences or auto-fill worked days
+            if (user.role === 'admin') {
+                const rate = Number(user.salary || 0);
+                return {
+                    ...user,
+                    workedDays: daysInMonthSoFar,
+                    absences: 0,
+                    monthlySalary: (daysInMonthSoFar * rate).toFixed(2)
+                };
+            }
+
             const workedDays = (activityMap[user.id] && activityMap[user.id].size) || 0;
-            const absences = Math.max(0, daysInMonthSoFar - workedDays);
+            
+            // Calculate potential working days since user was created (within this month)
+            let effectiveDaysToCount = daysInMonthSoFar;
+            if (isCreatedThisMonth) {
+                // Number of days from creation until today
+                const userCreationDay = user.createdAt.getDate();
+                effectiveDaysToCount = (daysInMonthSoFar - userCreationDay) + 1;
+            }
+
+            const absences = Math.max(0, effectiveDaysToCount - workedDays);
             const rate = Number(user.salary || 0);
             
             return {

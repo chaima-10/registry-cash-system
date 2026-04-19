@@ -7,7 +7,7 @@ const emailService = require('../services/emailService');
 // Register a new user
 exports.register = async (req, res) => {
     try {
-        const { username, password, role } = req.body;
+        const { username, password, role, fullName, salary } = req.body;
 
         // Check if user exists
         const existingUser = await prisma.user.findUnique({
@@ -35,6 +35,8 @@ exports.register = async (req, res) => {
                 username,
                 password: hashedPassword,
                 role: role || 'cashier',
+                fullName: fullName || '',
+                salary: salary ? parseFloat(salary) : 0.00
             },
         });
 
