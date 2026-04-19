@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const emailService = require('../services/emailService');
 
-// Get all users (with current month stats)
+// Get all users (with current month stats and today's revenue)
 exports.getAllUsers = async (req, res) => {
     try {
         const users = await prisma.user.findMany({
@@ -20,62 +20,75 @@ exports.getAllUsers = async (req, res) => {
             orderBy: { createdAt: 'desc' }
         });
 
-        // Current Month Statistics
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const daysInMonthSoFar = now.getDate();
 
-        // Fetch unique days with sales for each user this month
-        const sales = await prisma.sale.findMany({
-            where: {
-                createdAt: { gte: startOfMonth }
-            },
-            select: {
-                userId: true,
-                createdAt: true
-            }
+        // 1. Daily Revenue (Today)
+        const todaySales = await prisma.sale.groupBy({
+            by: ['userId'],
+            where: { createdAt: { gte: startOfToday } },
+            _sum: { totalAmount: true }
         });
+        const todayRevenueMap = {};
+        todaySales.forEach(s => todayRevenueMap[s.userId] = Number(s._sum.totalAmount || 0));
 
-        // Group by user and unique day
-        const activityMap = {};
+        // 2. Sales Activity (Worked Days for Cashiers)
+        const sales = await prisma.sale.findMany({
+            where: { createdAt: { gte: startOfMonth } },
+            select: { userId: true, createdAt: true }
+        });
+        const salesActivityMap = {};
         sales.forEach(sale => {
             const dateStr = sale.createdAt.toISOString().split('T')[0];
-            if (!activityMap[sale.userId]) activityMap[sale.userId] = new Set();
-            activityMap[sale.userId].add(dateStr);
+            if (!salesActivityMap[sale.userId]) salesActivityMap[sale.userId] = new Set();
+            salesActivityMap[sale.userId].add(dateStr);
+        });
+
+        // 3. Login History (Worked Days for Admins)
+        const loginLogs = await prisma.loginhistory.findMany({
+            where: { loginAt: { gte: startOfMonth } },
+            select: { userId: true, loginAt: true }
+        });
+        const loginActivityMap = {};
+        loginLogs.forEach(log => {
+            const dateStr = log.loginAt.toISOString().split('T')[0];
+            if (!loginActivityMap[log.userId]) loginActivityMap[log.userId] = new Set();
+            loginActivityMap[log.userId].add(dateStr);
         });
 
         const usersWithStats = users.map(user => {
             const isCreatedThisMonth = user.createdAt >= startOfMonth;
             
-            // For admins, we exempt them from absences or auto-fill worked days
+            // Determine Worked Days based on Role
+            let workedDays = 0;
             if (user.role === 'admin') {
-                const rate = Number(user.salary || 0);
-                return {
-                    ...user,
-                    workedDays: daysInMonthSoFar,
-                    absences: 0,
-                    monthlySalary: (daysInMonthSoFar * rate).toFixed(2)
-                };
+                workedDays = (loginActivityMap[user.id] && loginActivityMap[user.id].size) || 0;
+            } else {
+                workedDays = (salesActivityMap[user.id] && salesActivityMap[user.id].size) || 0;
             }
 
-            const workedDays = (activityMap[user.id] && activityMap[user.id].size) || 0;
-            
-            // Calculate potential working days since user was created (within this month)
+            // Calculate potential working days since creation (within this month)
             let effectiveDaysToCount = daysInMonthSoFar;
             if (isCreatedThisMonth) {
-                // Number of days from creation until today
                 const userCreationDay = user.createdAt.getDate();
                 effectiveDaysToCount = (daysInMonthSoFar - userCreationDay) + 1;
             }
 
             const absences = Math.max(0, effectiveDaysToCount - workedDays);
-            const rate = Number(user.salary || 0);
             
             return {
-                ...user,
+                id: user.id,
+                username: user.username,
+                fullName: user.fullName,
+                role: user.role,
+                workingDays: user.workingDays,
+                dailyRevenue: (todayRevenueMap[user.id] || 0).toFixed(2),
                 workedDays,
                 absences,
-                monthlySalary: (workedDays * rate).toFixed(2)
+                monthlySalary: Number(user.salary || 0).toFixed(2),
+                createdAt: user.createdAt
             };
         });
 

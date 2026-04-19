@@ -33,17 +33,18 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                     <thead>
                         <tr className="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/30 backdrop-blur-sm transition-colors">
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('fullName')}</th>
-                            <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('dailyRate')}</th>
+                            <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('dailyRevenue')}</th>
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider text-center">{t('workedDays')}</th>
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider text-center">{t('absences')}</th>
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('monthlySalary')}</th>
+                            <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('workingDays')}</th>
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider text-right">{t('actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="text-gray-700 dark:text-gray-300 divide-y divide-gray-100 dark:divide-gray-800 transition-colors">
                         {users.length === 0 ? (
                             <tr>
-                                <td colSpan="6" className="p-8 text-center text-gray-500 italic">{t('noUsersFound')}</td>
+                                <td colSpan="7" className="p-8 text-center text-gray-500 italic">{t('noUsersFound')}</td>
                             </tr>
                         ) : (
                             users.map((user, idx) => (
@@ -68,7 +69,7 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                                         </div>
                                     </td>
                                     <td className="p-4 font-semibold text-blue-600 dark:text-blue-400 font-mono">
-                                        {formatCurrency(Number(user.salary || 0))}
+                                        {formatCurrency(Number(user.dailyRevenue || 0))}
                                     </td>
                                     <td className="p-4 text-center">
                                         <div className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-green-500/5 text-green-600 dark:text-green-400 text-xs font-bold border border-green-500/10 shadow-sm">
@@ -89,6 +90,9 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                                                 {new Date().toLocaleString('default', { month: 'long' })}
                                             </span>
                                         </div>
+                                    </td>
+                                    <td className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 italic">
+                                        {user.workingDays || 'N/A'}
                                     </td>
                                     <td className="p-4 text-right">
                                         <div className="flex items-center justify-end gap-2 px-1">

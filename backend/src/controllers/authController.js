@@ -74,10 +74,15 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Identifiants invalides' });
         }
 
-        // Update lastLogin
+        // Update lastLogin and add to Login History
         await prisma.user.update({
             where: { id: user.id },
-            data: { lastLogin: new Date() }
+            data: { 
+                lastLogin: new Date(),
+                loginHistory: {
+                    create: {}
+                }
+            }
         });
 
         // Create Token

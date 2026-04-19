@@ -149,8 +149,19 @@ model user {
   status                 String                  @default("Active")
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+  loginHistory           loginhistory[]
 
   @@map("User")
+}
+
+model loginhistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginAt   DateTime @default(now())
+
+  @@index([userId])
+  @@map("LoginHistory")
 }
 
 enum sale_paymentMethod {
