@@ -138,8 +138,10 @@ model user {
   giveawayParticipations giveawayparticipation[]
   giveawayWins           giveawaywinner[]
   fullName               String                  @default("")
+  age                    Int?
   salary                 Decimal                 @default(0.00) @db.Decimal(10, 2)
   workingDays            String                  @default("")
+  shiftSchedule          String?
   email                  String?                 @unique(map: "User_email_key")
   isEmailVerified        Boolean                 @default(false)
   emailVerificationToken String?

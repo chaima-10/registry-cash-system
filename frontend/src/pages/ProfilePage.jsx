@@ -13,14 +13,15 @@ const ProfilePage = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
-    const [editFormData, setEditFormData] = useState({ fullName: '', email: '', phone: '' });
+    const [editFormData, setEditFormData] = useState({ fullName: '', email: '', phone: '', age: '' });
     const [passwordFormData, setPasswordFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
     const handleOpenEdit = () => {
         setEditFormData({
             fullName: user?.fullName || '',
             email: user?.email || '',
-            phone: user?.phone || ''
+            phone: user?.phone || '',
+            age: user?.age || ''
         });
         setIsEditModalOpen(true);
     };
@@ -62,6 +63,10 @@ const ProfilePage = () => {
         } catch {
             return 'Invalid Date';
         }
+    };
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TND' }).format(amount);
     };
 
     return (
@@ -125,7 +130,7 @@ const ProfilePage = () => {
                                         </div>
                                         <span>{user?.email || 'N/A'}</span>
                                         {user?.email && (
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${user?.isEmailVerified ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400'}`}>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${user?.isEmailVerified ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-red-400' : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400'}`}>
                                                 {user?.isEmailVerified ? 'Vérifié' : 'Non vérifié'}
                                             </span>
                                         )}
@@ -147,12 +152,101 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                             <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('age') || 'Age'}</label>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        <FiUser />
+                                    </div>
+                                    {user?.age || 'N/A'}
+                                </div>
+                            </div>
+                            <div>
                                 <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('accountCreated')}</label>
                                 <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                         <FiCalendar />
                                     </div>
                                     {formatDate(user?.createdAt)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* New Card: Work & Performance */}
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
+                        <div className="flex justify-between items-center mb-8">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <FiActivity className="text-orange-500" /> {t('workAndPerformance') || 'Work & Performance'}
+                            </h3>
+                        </div>
+
+                        {/* TODO: prime/bonus system */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('monthlySalary')}</label>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-black text-lg">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        💰
+                                    </div>
+                                    {formatCurrency(user?.stats?.monthlySalary || 0)}
+                                    {user.role === 'cashier' && <FiLock className="text-gray-400 ml-auto" size={14} title="Read-only" />}
+                                </div>
+                            </div>
+
+                            {user.role === 'cashier' && (
+                                <div>
+                                    <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('shiftSchedule') || 'Shift Schedule'}</label>
+                                    <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                        <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                            <FiClock />
+                                        </div>
+                                        {user.shiftSchedule || t('notSpecified', 'Non spécifié')}
+                                        <FiLock className="text-gray-400 ml-auto" size={14} title="Editable by admin only" />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('workedDays')}</label>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        📅
+                                    </div>
+                                    {user?.stats?.workedDays || 0} {t('days')}
+                                    <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('absences')}</label>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        ❌
+                                    </div>
+                                    {user?.stats?.absences || 0} {t('days')}
+                                    <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('dailyRevenue')}</label>
+                                <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400 font-bold">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        📈
+                                    </div>
+                                    {formatCurrency(user?.stats?.dailyRevenue || 0)}
+                                    <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('totalMonthlySales') || 'Total Monthly Sales'}</label>
+                                <div className="flex items-center gap-3 text-green-600 dark:text-green-400 font-bold">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        🏆
+                                    </div>
+                                    {formatCurrency(user?.stats?.totalSalesMonth || 0)}
+                                    <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
                                 </div>
                             </div>
                         </div>
@@ -227,6 +321,26 @@ const ProfilePage = () => {
                                         onChange={e => setEditFormData({ ...editFormData, fullName: e.target.value })}
                                     />
                                 </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('age') || 'Age'}</label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
+                                            value={editFormData.age}
+                                            onChange={e => setEditFormData({ ...editFormData, age: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('phoneNumber')}</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
+                                            value={editFormData.phone}
+                                            onChange={e => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('emailAddress')}</label>
                                     <input
@@ -234,15 +348,6 @@ const ProfilePage = () => {
                                         className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
                                         value={editFormData.email}
                                         onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('phoneNumber')}</label>
-                                    <input
-                                        type="text"
-                                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
-                                        value={editFormData.phone}
-                                        onChange={e => setEditFormData({ ...editFormData, phone: e.target.value })}
                                     />
                                 </div>
                                 <div className="pt-4 flex gap-3">

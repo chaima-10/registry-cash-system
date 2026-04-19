@@ -102,11 +102,12 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
-// Get current user profile
+// Get current user profile (with stats)
 exports.getProfile = async (req, res) => {
     try {
+        const userId = req.user.id;
         const user = await prisma.user.findUnique({
-            where: { id: req.user.id },
+            where: { id: userId },
             select: {
                 id: true,
                 username: true,
@@ -118,11 +119,77 @@ exports.getProfile = async (req, res) => {
                 isEmailVerified: true,
                 pendingEmail: true,
                 phone: true,
-                lastLogin: true
+                age: true,
+                lastLogin: true,
+                salary: true,
+                shiftSchedule: true
             }
         });
+
         if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json(user);
+
+        // Stats Logic
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const daysInMonthSoFar = now.getDate();
+
+        // 1. Sales Data (this month)
+        const monthlySales = await prisma.sale.findMany({
+            where: {
+                userId: userId,
+                createdAt: { gte: startOfMonth }
+            }
+        });
+
+        // 2. Daily Revenue (Today)
+        const todayRevenue = monthlySales
+            .filter(s => s.createdAt >= startOfToday)
+            .reduce((sum, s) => sum + Number(s.totalAmount), 0);
+
+        // 3. Total Monthly Sales count
+        const totalSalesMonth = monthlySales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
+
+        // 4. Worked Days Calculation
+        const saleDays = new Set(monthlySales.map(s => s.createdAt.toISOString().split('T')[0]));
+        
+        let workedDaysCount = 0;
+        if (user.role === 'admin') {
+            const loginLogs = await prisma.loginhistory.findMany({
+                where: {
+                    userId: userId,
+                    loginAt: { gte: startOfMonth }
+                },
+                select: { loginAt: true }
+            });
+            const loginDays = new Set(loginLogs.map(l => l.loginAt.toISOString().split('T')[0]));
+            
+            // UNION of login days and sale days for admin
+            const unionDays = new Set([...saleDays, ...loginDays]);
+            workedDaysCount = unionDays.size;
+        } else {
+            workedDaysCount = saleDays.size;
+        }
+
+        // 5. Absences
+        const isCreatedThisMonth = user.createdAt >= startOfMonth;
+        let effectiveDaysToCount = daysInMonthSoFar;
+        if (isCreatedThisMonth) {
+            const userCreationDay = user.createdAt.getDate();
+            effectiveDaysToCount = (daysInMonthSoFar - userCreationDay) + 1;
+        }
+        const absences = Math.max(0, effectiveDaysToCount - workedDaysCount);
+
+        res.json({
+            ...user,
+            stats: {
+                monthlySalary: Number(user.salary || 0).toFixed(2),
+                workedDays: workedDaysCount,
+                absences,
+                dailyRevenue: todayRevenue.toFixed(2),
+                totalSalesMonth: totalSalesMonth.toFixed(2)
+            }
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -131,7 +198,7 @@ exports.getProfile = async (req, res) => {
 // Update current user profile
 exports.updateProfile = async (req, res) => {
     try {
-        const { fullName, username, theme, email, phone } = req.body;
+        const { fullName, username, theme, email, phone, age, shiftSchedule } = req.body;
         const userId = req.user.id;
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -179,7 +246,9 @@ exports.updateProfile = async (req, res) => {
             fullName,
             username,
             theme,
-            phone
+            phone,
+            age: age ? parseInt(age) : null,
+            shiftSchedule
         };
 
         if (pendingEmail) {
@@ -198,6 +267,8 @@ exports.updateProfile = async (req, res) => {
                 theme: true,
                 email: true,
                 phone: true,
+                age: true,
+                shiftSchedule: true,
                 isEmailVerified: true,
                 pendingEmail: true
             }
