@@ -62,7 +62,7 @@ exports.login = async (req, res) => {
         }
 
         // Check for Email Verification (Bypassed for admin to resolve lockout)
-        if (user.email && !user.isEmailVerified && user.username !== 'admin') {
+        if (user.email && !user.isEmailVerified && user.username.toLowerCase() !== 'admin') {
             return res.status(403).json({ message: 'Veuillez vérifier votre adresse e-mail avant de vous connecter.' });
         }
 
