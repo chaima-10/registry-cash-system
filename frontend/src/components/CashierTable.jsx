@@ -33,7 +33,7 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                     <thead>
                         <tr className="text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-800/30 backdrop-blur-sm transition-colors">
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('fullName')}</th>
-                            <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('dailyRevenue')}</th>
+                            <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('dailySalary', 'Daily Salary')}</th>
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider text-center">{t('workedDays')}</th>
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider text-center">{t('absences')}</th>
                             <th className="p-4 font-bold uppercase text-[10px] tracking-wider">{t('monthlySalary')}</th>
@@ -69,7 +69,7 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                                         </div>
                                     </td>
                                     <td className="p-4 font-semibold text-blue-600 dark:text-blue-400 font-mono">
-                                        {formatCurrency(Number(user.dailyRevenue || 0))}
+                                        {formatCurrency(Number(user.salary || user.monthlySalary || 0) / 30, null, false)}
                                     </td>
                                     <td className="p-4 text-center">
                                         <div className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-green-500/5 text-green-600 dark:text-green-400 text-xs font-bold border border-green-500/10 shadow-sm">
@@ -84,7 +84,7 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                                     <td className="p-4">
                                         <div className="flex flex-col">
                                             <span className="font-black text-gray-900 dark:text-white text-sm">
-                                                {formatCurrency(Number(user.monthlySalary || 0))}
+                                                {formatCurrency(Number(user.salary || user.monthlySalary || 0), null, false)}
                                             </span>
                                             <span className="text-[9px] text-gray-400 uppercase font-black tracking-tighter opacity-70">
                                                 {new Date().toLocaleString('default', { month: 'long' })}

@@ -219,7 +219,7 @@ const ProfilePage = () => {
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                         💰
                                     </div>
-                                    {formatCurrency(user?.stats?.monthlySalary || 0)}
+                                    {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
                                     {user.role === 'cashier' && <FiLock className="text-gray-400 ml-auto" size={14} title="Read-only" />}
                                 </div>
                             </div>
@@ -326,7 +326,7 @@ const ProfilePage = () => {
                                             <p className="text-xs text-orange-600 dark:text-orange-400 font-bold flex items-center gap-2">
                                                 <FiActivity size={14} /> 
                                                 {user?.stats?.lastSystemDistribution 
-                                                    ? `Last distributed: ${formatCurrency(user.stats.lastSystemDistribution.amount)} — ${user.stats.lastSystemDistribution.reason} (${formatDate(user.stats.lastSystemDistribution.distributedAt)})`
+                                                    ? `Last distributed: ${formatCurrency(user.stats.lastSystemDistribution.amount, null, false)} — ${user.stats.lastSystemDistribution.reason} (${formatDate(user.stats.lastSystemDistribution.distributedAt)})`
                                                     : 'No prime distributed yet'
                                                 }
                                             </p>
@@ -339,7 +339,7 @@ const ProfilePage = () => {
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Dernière Prime</label>
                                         <p className="text-gray-900 dark:text-white font-bold flex items-center gap-2">
                                             {user?.stats?.lastPrime 
-                                                ? `${formatCurrency(user.stats.lastPrime.amount)} — ${user.stats.lastPrime.reason} (${formatDate(user.stats.lastPrime.distributedAt)})`
+                                                ? `${formatCurrency(user.stats.lastPrime.amount, null, false)} — ${user.stats.lastPrime.reason} (${formatDate(user.stats.lastPrime.distributedAt)})`
                                                 : 'No prime received yet'
                                             }
                                             <FiLock className="text-gray-400 ml-auto" size={12} />
@@ -348,7 +348,7 @@ const ProfilePage = () => {
                                     <div className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Total Primes Cette Année</label>
                                         <p className="text-green-600 dark:text-green-400 font-black text-xl flex items-center gap-2">
-                                            {formatCurrency(user?.stats?.totalPrimesYear || 0)}
+                                            {formatCurrency(user?.stats?.totalPrimesYear || 0, null, false)}
                                             <FiLock className="text-gray-400 ml-auto" size={12} />
                                         </p>
                                     </div>
