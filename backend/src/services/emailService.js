@@ -1,7 +1,10 @@
 const { Resend } = require('resend');
 
-// Initialize Resend with the API Key
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+if (!resend) {
+    console.warn('⚠️ RESEND_API_KEY is missing. Verification emails will not be sent.');
+}
 
 /**
  * Sends a verification email using Resend
@@ -15,6 +18,11 @@ exports.sendVerificationEmail = async (email, token) => {
     console.log(`Attempting to send verification email to ${email} via Resend...`);
 
     try {
+        if (!resend) {
+            console.error('❌ Resend is not initialized. Cannot send verification email.');
+            throw new Error('Le service d\'e-mail n\'est pas configuré.');
+        }
+
         const { data, error } = await resend.emails.send({
             from: 'Registry Cash System <onboarding@resend.dev>',
             to: [email],

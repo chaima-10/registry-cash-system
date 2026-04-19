@@ -121,6 +121,48 @@ exports.verifyEmail = async (req, res) => {
     }
 };
 
+// Resend Verification Email
+exports.resendVerification = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ message: 'E-mail requis' });
+
+        const user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { email: email },
+                    { pendingEmail: email }
+                ]
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'Utilisateur non trouvé' });
+        }
+
+        if (user.email === email && user.isEmailVerified) {
+            return res.status(400).json({ message: 'Cet e-mail est déjà vérifié' });
+        }
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const targetEmail = user.pendingEmail || user.email;
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { 
+                emailVerificationToken: token,
+                pendingEmail: targetEmail // Ensure it's in pending if it wasn't
+            }
+        });
+
+        await emailService.sendVerificationEmail(targetEmail, token);
+        res.json({ message: 'Lien de vérification renvoyé ! Veuillez consulter votre boîte mail.' });
+    } catch (error) {
+        console.error('Resend Verification Error:', error);
+        res.status(500).json({ message: 'Erreur serveur', error: error.message });
+    }
+};
+
 // Logout user (Client-side clear, but valid endpoint for testing)
 exports.logout = async (req, res) => {
     // Stateless JWT: We just return success. Client removes token.

@@ -118,6 +118,7 @@ router.post('/logout', authController.logout);
  *         description: Invalid token
  */
 router.get('/verify-email', authController.verifyEmail);
+router.post('/resend-verification', authController.resendVerification);
 
 /**
  * @swagger
