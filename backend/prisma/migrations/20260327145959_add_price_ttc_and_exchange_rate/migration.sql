@@ -1,6 +1,6 @@
 -- Safe way to drop indexes and re-add columns
 DROP PROCEDURE IF EXISTS DropIndexIfExists;
-DELIMITER //
+
 CREATE PROCEDURE DropIndexIfExists(IN tableName VARCHAR(64), IN indexName VARCHAR(64))
 BEGIN
     IF EXISTS (
@@ -14,8 +14,7 @@ BEGIN
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
     END IF;
-END //
-DELIMITER ;
+END;
 
 CALL DropIndexIfExists('Cart', 'Cart_userId_fkey');
 CALL DropIndexIfExists('CartItem', 'CartItem_cartId_fkey');
@@ -31,7 +30,7 @@ DROP PROCEDURE IF EXISTS DropIndexIfExists;
 
 -- Safe way to add columns
 DROP PROCEDURE IF EXISTS AddColumnIfNotExists;
-DELIMITER //
+
 CREATE PROCEDURE AddColumnIfNotExists(IN tableName VARCHAR(64), IN colName VARCHAR(64), IN colType VARCHAR(255))
 BEGIN
     IF NOT EXISTS (
@@ -45,8 +44,7 @@ BEGIN
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
     END IF;
-END //
-DELIMITER ;
+END;
 
 CALL AddColumnIfNotExists('CartItem', 'priceTTC', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00');
 CALL AddColumnIfNotExists('Sale', 'exchangeRate', 'DECIMAL(10, 4) NOT NULL DEFAULT 1.0000');

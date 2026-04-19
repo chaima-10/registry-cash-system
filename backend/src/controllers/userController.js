@@ -234,24 +234,30 @@ exports.distributePrime = async (req, res) => {
             return res.status(400).json({ message: 'Veuillez saisir un montant valide.' });
         }
 
-        // 2. Find all active users
-        const activeUsers = await prisma.user.findMany({
-            where: { status: 'Active' },
-            select: { id: true }
+        // 2. Find ALL users (most inclusive)
+        const targetUsers = await prisma.user.findMany({
+            select: { id: true, username: true, role: true }
         });
 
-        // 3. Create prime records for all active users
-        const primeData = activeUsers.map(user => ({
-            userId: user.id,
-            amount: parseFloat(amount),
-            reason: reason || 'Prime exceptionnelle'
-        }));
+        console.log(`[PRIME] Distributing ${amount} TND to ${targetUsers.length} users:`, targetUsers.map(u => u.username));
+
+        if (targetUsers.length === 0) {
+            return res.status(200).json({ message: "Aucun utilisateur trouvé dans la base de données." });
+        }
+
+        // 3. Create prime records for all targeted users
+        const amountNum = parseFloat(amount);
+        const reasonStr = reason || 'Prime exceptionnelle';
 
         await prisma.prime.createMany({
-            data: primeData
+            data: targetUsers.map(user => ({
+                userId: user.id,
+                amount: amountNum,
+                reason: reasonStr
+            }))
         });
 
-        res.json({ message: `Prime de ${amount} TND distribuée avec succès à ${activeUsers.length} employés.` });
+        res.json({ message: `Prime de ${amount} TND distribuée avec succès à ${targetUsers.length} employés.` });
     } catch (error) {
         console.error("Distribute Prime Error:", error);
         res.status(500).json({ message: 'Erreur serveur lors de la distribution.', error: error.message });

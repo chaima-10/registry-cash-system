@@ -66,14 +66,22 @@ const ProfilePage = () => {
         }
         setIsDistributing(true);
         try {
-            const res = await distributePrimes(primeData);
+            const res = await distributePrimes({ 
+                amount: parseFloat(primeData.amount), 
+                reason: primeData.reason 
+            });
+            
+            // Show detailed success message
             alert(res.message);
+            
             // Refresh profile to update stats
             const updatedProfile = await getProfile();
             updateUser(updatedProfile);
             setPrimeData({ amount: '', reason: '' });
         } catch (error) {
-            alert(error.response?.data?.message || t('failedToDistributePrime'));
+            const errorMsg = error.response?.data?.message || t('failedToDistributePrime', 'Échec de la distribution.');
+            alert(`Erreur: ${errorMsg}`);
+            console.error("Distribution Error:", error);
         } finally {
             setIsDistributing(false);
         }
@@ -199,7 +207,7 @@ const ProfilePage = () => {
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
                         <div className="flex justify-between items-center mb-8">
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                <FiActivity className="text-orange-500" /> {t('workAndPerformance') || 'Work & Performance'}
+                                <FiActivity className="text-orange-500" /> {t('workAndPerformance')}
                             </h3>
                         </div>
 
@@ -218,7 +226,7 @@ const ProfilePage = () => {
 
                             {user.role === 'cashier' && (
                                 <div>
-                                    <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('shiftSchedule') || 'Shift Schedule'}</label>
+                                    <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('shiftSchedule')}</label>
                                     <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                         <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                             <FiClock />
@@ -263,7 +271,7 @@ const ProfilePage = () => {
                             </div>
 
                             <div>
-                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('totalMonthlySales') || 'Total Monthly Sales'}</label>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('totalMonthlySales')}</label>
                                 <div className="flex items-center gap-3 text-green-600 dark:text-green-400 font-bold">
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                         🏆
@@ -277,7 +285,7 @@ const ProfilePage = () => {
                         {/* Primes Received Section */}
                         <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
                             <h4 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6 flex items-center gap-2">
-                                <FiActivity size={14} /> {t('primesReceived') || 'Primes Received'}
+                                <FiActivity size={14} /> {t('primesReceived')}
                             </h4>
 
                             {user.role === 'admin' ? (
