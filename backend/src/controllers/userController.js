@@ -180,6 +180,25 @@ exports.getProfile = async (req, res) => {
         }
         const absences = Math.max(0, effectiveDaysToCount - workedDaysCount);
 
+        // 6. Prime Logic
+        const allPrimes = await prisma.prime.findMany({
+            where: { userId: userId },
+            orderBy: { distributedAt: 'desc' }
+        });
+
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const primesThisYear = allPrimes.filter(p => p.distributedAt >= startOfYear);
+        const totalPrimesYear = primesThisYear.reduce((sum, p) => sum + Number(p.amount), 0);
+
+        // For Admin, show the absolute last distribution in the system
+        let lastSystemDistribution = null;
+        if (user.role === 'admin') {
+            lastSystemDistribution = await prisma.prime.findFirst({
+                orderBy: { distributedAt: 'desc' },
+                select: { amount: true, reason: true, distributedAt: true }
+            });
+        }
+
         res.json({
             ...user,
             stats: {
@@ -187,11 +206,55 @@ exports.getProfile = async (req, res) => {
                 workedDays: workedDaysCount,
                 absences,
                 dailyRevenue: todayRevenue.toFixed(2),
-                totalSalesMonth: totalSalesMonth.toFixed(2)
+                totalSalesMonth: totalSalesMonth.toFixed(2),
+                lastPrime: allPrimes[0] || null,
+                totalPrimesYear: totalPrimesYear.toFixed(2),
+                lastSystemDistribution: lastSystemDistribution
             }
         });
     } catch (error) {
+        console.error("getProfile Error:", error);
         res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Distribute prime to all active users
+exports.distributePrime = async (req, res) => {
+    try {
+        const { amount, reason } = req.body;
+        const adminId = req.user.id;
+
+        // 1. Double check admin role
+        const requester = await prisma.user.findUnique({ where: { id: adminId } });
+        if (requester.role !== 'admin') {
+            return res.status(403).json({ message: 'Seul un administrateur peut distribuer des primes.' });
+        }
+
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+            return res.status(400).json({ message: 'Veuillez saisir un montant valide.' });
+        }
+
+        // 2. Find all active users
+        const activeUsers = await prisma.user.findMany({
+            where: { status: 'Active' },
+            select: { id: true }
+        });
+
+        // 3. Create prime records for all active users
+        const primeData = activeUsers.map(user => ({
+            userId: user.id,
+            amount: parseFloat(amount),
+            reason: reason || 'Prime exceptionnelle'
+        }));
+
+        await prisma.prime.createMany({
+            data: primeData
+        });
+
+        res.json({ message: `Prime de ${amount} TND distribuée avec succès à ${activeUsers.length} employés.` });
+    } catch (error) {
+        console.error("Distribute Prime Error:", error);
+        res.status(500).json({ message: 'Erreur serveur lors de la distribution.', error: error.message });
     }
 };
 

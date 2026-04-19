@@ -152,8 +152,21 @@ model user {
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   loginHistory           loginhistory[]
+  primes                 prime[]
 
   @@map("User")
+}
+
+model prime {
+  id            Int      @id @default(autoincrement())
+  amount        Decimal  @db.Decimal(10, 2)
+  reason        String?
+  distributedAt DateTime @default(now())
+  userId        Int
+  user          user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("Prime")
 }
 
 model loginhistory {

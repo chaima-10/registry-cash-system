@@ -5,6 +5,8 @@ import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { updateProfile, changePassword } from '../api/auth';
+import { distributePrimes } from '../api/users';
+import { getProfile } from '../api/auth';
 
 const ProfilePage = () => {
     const { user, updateUser } = useAuth();
@@ -15,6 +17,8 @@ const ProfilePage = () => {
 
     const [editFormData, setEditFormData] = useState({ fullName: '', email: '', phone: '', age: '' });
     const [passwordFormData, setPasswordFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    const [primeData, setPrimeData] = useState({ amount: '', reason: '' });
+    const [isDistributing, setIsDistributing] = useState(false);
 
     const handleOpenEdit = () => {
         setEditFormData({
@@ -53,6 +57,25 @@ const ProfilePage = () => {
             alert(t('passwordChangedSuccess'));
         } catch (error) {
             alert(error.response?.data?.message || t('failedToChangePassword'));
+        }
+    };
+
+    const handleDistributePrime = async () => {
+        if (!primeData.amount || isNaN(primeData.amount) || parseFloat(primeData.amount) <= 0) {
+            return alert(t('pleaseEnterValidAmount', 'Veuillez saisir un montant valide.'));
+        }
+        setIsDistributing(true);
+        try {
+            const res = await distributePrimes(primeData);
+            alert(res.message);
+            // Refresh profile to update stats
+            const updatedProfile = await getProfile();
+            updateUser(updatedProfile);
+            setPrimeData({ amount: '', reason: '' });
+        } catch (error) {
+            alert(error.response?.data?.message || t('failedToDistributePrime'));
+        } finally {
+            setIsDistributing(false);
         }
     };
 
@@ -249,6 +272,80 @@ const ProfilePage = () => {
                                     <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Primes Received Section */}
+                        <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
+                            <h4 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6 flex items-center gap-2">
+                                <FiActivity size={14} /> {t('primesReceived') || 'Primes Received'}
+                            </h4>
+
+                            {user.role === 'admin' ? (
+                                <div className="space-y-6">
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-1 space-y-1.5">
+                                            <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Montant Prime (TND)</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0.00"
+                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500 font-bold"
+                                                value={primeData.amount}
+                                                onChange={e => setPrimeData({ ...primeData, amount: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="flex-1 space-y-1.5">
+                                            <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Raison / Occasion</label>
+                                            <input
+                                                type="text"
+                                                placeholder="ex: Eid Al-Fitr 2026"
+                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500 font-medium"
+                                                value={primeData.reason}
+                                                onChange={e => setPrimeData({ ...primeData, reason: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex flex-col gap-4">
+                                        <button
+                                            onClick={handleDistributePrime}
+                                            disabled={isDistributing}
+                                            className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black rounded-2xl shadow-lg shadow-orange-500/25 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {isDistributing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '🚀 Distribute to All'}
+                                        </button>
+                                        
+                                        <div className="p-4 bg-orange-50/50 dark:bg-orange-500/5 rounded-2xl border border-orange-100 dark:border-orange-500/10">
+                                            <p className="text-xs text-orange-600 dark:text-orange-400 font-bold flex items-center gap-2">
+                                                <FiActivity size={14} /> 
+                                                {user?.stats?.lastSystemDistribution 
+                                                    ? `Last distributed: ${formatCurrency(user.stats.lastSystemDistribution.amount)} — ${user.stats.lastSystemDistribution.reason} (${formatDate(user.stats.lastSystemDistribution.distributedAt)})`
+                                                    : 'No prime distributed yet'
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Dernière Prime</label>
+                                        <p className="text-gray-900 dark:text-white font-bold flex items-center gap-2">
+                                            {user?.stats?.lastPrime 
+                                                ? `${formatCurrency(user.stats.lastPrime.amount)} — ${user.stats.lastPrime.reason} (${formatDate(user.stats.lastPrime.distributedAt)})`
+                                                : 'No prime received yet'
+                                            }
+                                            <FiLock className="text-gray-400 ml-auto" size={12} />
+                                        </p>
+                                    </div>
+                                    <div className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Total Primes Cette Année</label>
+                                        <p className="text-green-600 dark:text-green-400 font-black text-xl flex items-center gap-2">
+                                            {formatCurrency(user?.stats?.totalPrimesYear || 0)}
+                                            <FiLock className="text-gray-400 ml-auto" size={12} />
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

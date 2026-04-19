@@ -167,4 +167,15 @@ router.put('/:id', userController.updateUser);
  */
 router.delete('/:id', userController.deleteUser);
 
+/**
+ * @swagger
+ * /api/users/distribute-prime:
+ *   post:
+ *     summary: Distribute prime to all active users (Admin)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/distribute-prime', userController.distributePrime);
+
 module.exports = router;
