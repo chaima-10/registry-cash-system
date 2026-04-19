@@ -66,7 +66,7 @@ const Layout = () => {
     const menuItems = [
         { to: '/', icon: FiHome, label: t('dashboard'), adminOnly: true },
         { to: '/pos', icon: FiShoppingCart, label: t('posTerminal'), adminOnly: false },
-        { to: '/products', icon: FiBox, label: t('products'), adminOnly: false },
+        { to: '/products', icon: FiBox, label: t('products'), adminOnly: true },
         { to: '/users', icon: FiUsers, label: t('users'), adminOnly: true },
         { to: '/analytics', icon: FiActivity, label: t('aiAnalytics', 'AI Analytics'), adminOnly: true },
         { to: '/giveaways', icon: FiGift, label: t('giveaways', 'Giveaways'), adminOnly: false },
