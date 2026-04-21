@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { updateProfile, changePassword } from '../api/auth';
 import { distributePrimes } from '../api/users';
 import { getProfile } from '../api/auth';
+import { calculateNetSalary } from '../utils/salaryCalculator';
 
 const ProfilePage = () => {
     const { user, updateUser } = useAuth();
@@ -214,14 +215,61 @@ const ProfilePage = () => {
                         {/* TODO: prime/bonus system */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
                             <div>
-                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('monthlySalary')}</label>
-                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-black text-lg">
-                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
-                                        💰
-                                    </div>
-                                    {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
-                                    {user.role === 'cashier' && <FiLock className="text-gray-400 ml-auto" size={14} title="Read-only" />}
-                                </div>
+                                {user?.role === 'cashier' ? (
+                                    <>
+                                        <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">
+                                            {t('netSalaryThisMonth', 'Net Salary This Month')}
+                                        </label>
+                                        {(() => {
+                                            const salaryData = calculateNetSalary(
+                                                user?.stats?.monthlySalary,
+                                                user?.stats?.absences,
+                                                user?.workingDays
+                                            );
+                                            return (
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center text-green-600">
+                                                            💰
+                                                        </div>
+                                                        <span className="text-gray-900 dark:text-white font-black text-lg">
+                                                            {formatCurrency(salaryData.netSalary, null, false)}
+                                                        </span>
+                                                        <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                                    </div>
+                                                    <div className="pl-11 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                                                        <div className="flex justify-between gap-4">
+                                                            <span>{t('originalSalary', 'Original')}:</span>
+                                                            <span className="line-through">{formatCurrency(salaryData.originalSalary, null, false)}</span>
+                                                        </div>
+                                                        {salaryData.absenceDays > 0 && (
+                                                            <>
+                                                                <div className="flex justify-between gap-4">
+                                                                    <span>{t('dailySalary', 'Daily Salary')}:</span>
+                                                                    <span>{formatCurrency(salaryData.dailySalary, null, false)}</span>
+                                                                </div>
+                                                                <div className="flex justify-between gap-4 text-red-500">
+                                                                    <span>{t('deductionForAbsences', 'Deduction')} ({salaryData.absenceDays} {t('days')}):</span>
+                                                                    <span>-{formatCurrency(salaryData.deduction, null, false)}</span>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </>
+                                ) : (
+                                    <>
+                                        <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('monthlySalary')}</label>
+                                        <div className="flex items-center gap-3 text-gray-900 dark:text-white font-black text-lg">
+                                            <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                                💰
+                                            </div>
+                                            {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {user.role === 'cashier' && (

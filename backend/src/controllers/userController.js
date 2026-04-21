@@ -122,6 +122,7 @@ exports.getProfile = async (req, res) => {
                 age: true,
                 lastLogin: true,
                 salary: true,
+                workingDays: true,
                 shiftSchedule: true
             }
         });

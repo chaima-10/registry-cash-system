@@ -3,6 +3,7 @@ import { FiEdit, FiTrash2, FiUser, FiInfo } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { calculateNetSalary } from '../utils/salaryCalculator';
 
 const CashierTable = ({ users, onEdit, onDelete }) => {
     const { t } = useTranslation();
@@ -69,7 +70,14 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                                         </div>
                                     </td>
                                     <td className="p-4 font-semibold text-blue-600 dark:text-blue-400 font-mono">
-                                        {formatCurrency(Number(user.salary || user.monthlySalary || 0) / 30, null, false)}
+                                        {(() => {
+                                            const salaryData = calculateNetSalary(
+                                                user.salary || user.monthlySalary,
+                                                user.absences,
+                                                user.workingDays
+                                            );
+                                            return formatCurrency(salaryData.dailySalary, null, false);
+                                        })()}
                                     </td>
                                     <td className="p-4 text-center">
                                         <div className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-green-500/5 text-green-600 dark:text-green-400 text-xs font-bold border border-green-500/10 shadow-sm">
@@ -83,10 +91,37 @@ const CashierTable = ({ users, onEdit, onDelete }) => {
                                     </td>
                                     <td className="p-4">
                                         <div className="flex flex-col">
-                                            <span className="font-black text-gray-900 dark:text-white text-sm">
-                                                {formatCurrency(Number(user.salary || user.monthlySalary || 0), null, false)}
-                                            </span>
-                                            <span className="text-[9px] text-gray-400 uppercase font-black tracking-tighter opacity-70">
+                                            {user.role === 'cashier' ? (
+                                                <>
+                                                    {(() => {
+                                                        const salaryData = calculateNetSalary(
+                                                            user.salary || user.monthlySalary,
+                                                            user.absences,
+                                                            user.workingDays
+                                                        );
+                                                        return (
+                                                            <>
+                                                                <span className="text-[10px] text-gray-400 dark:text-gray-500 line-through decoration-gray-400/50">
+                                                                    {formatCurrency(salaryData.originalSalary, null, false)}
+                                                                </span>
+                                                                <span className="font-black text-white text-sm">
+                                                                    {formatCurrency(salaryData.netSalary, null, false)}
+                                                                </span>
+                                                                {salaryData.absenceDays > 0 && (
+                                                                    <span className="text-[9px] text-red-400 uppercase font-bold tracking-tighter">
+                                                                        -{formatCurrency(salaryData.deduction, null, false)}
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </>
+                                            ) : (
+                                                <span className="font-black text-gray-900 dark:text-white text-sm">
+                                                    {formatCurrency(Number(user.salary || user.monthlySalary || 0), null, false)}
+                                                </span>
+                                            )}
+                                            <span className="text-[9px] text-gray-400 uppercase font-black tracking-tighter opacity-70 mt-0.5">
                                                 {new Date().toLocaleString('default', { month: 'long' })}
                                             </span>
                                         </div>
