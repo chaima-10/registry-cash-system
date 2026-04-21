@@ -63,10 +63,8 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Identifiants invalides' });
         }
 
-        // Check for Email Verification (Bypassed for admin to resolve lockout)
-        if (user.email && !user.isEmailVerified && user.username.toLowerCase() !== 'admin') {
-            return res.status(403).json({ message: 'Veuillez vérifier votre adresse e-mail avant de vous connecter.' });
-        }
+        // Check for Email Verification (Removed)
+        // We no longer block login for unverified emails.
 
         // Validate password
         const isMatch = await bcrypt.compare(password.trim(), user.password);
@@ -209,46 +207,20 @@ exports.updateProfile = async (req, res) => {
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         let emailUpdateMsg = "";
-        let pendingEmail = undefined;
-        let verificationToken = undefined;
-
-        // Handle Email Update with Verification
+        // Directly update email without verification flow
         if (email && email !== user.email) {
             // Check if email already taken
             const existingEmailUser = await prisma.user.findFirst({
                 where: {
                     email,
-                    isEmailVerified: true,
                     NOT: { id: userId }
                 }
             });
             if (existingEmailUser) {
                 return res.status(400).json({ message: 'Email already in use' });
             }
-
-            verificationToken = crypto.randomBytes(32).toString('hex');
-            
-            try {
-                await emailService.sendVerificationEmail(email, verificationToken);
-                pendingEmail = email;
-                emailUpdateMsg = " Un e-mail de confirmation a été envoyé à votre nouvelle adresse.";
-            } catch (emailErr) {
-                console.warn('Skipping email verification update due to send failure:', emailErr.message);
-                emailUpdateMsg = ` (L'e-mail de confirmation n'a pas pu être envoyé: ${emailErr.message})`;
-            }
-        }
-
-        const updateData = {
-            fullName,
-            phone,
-            age: age ? parseInt(age) : null,
-        };
-        if (username) updateData.username = username;
-        if (theme) updateData.theme = theme;
-
-        if (pendingEmail) {
-            updateData.pendingEmail = pendingEmail;
-            updateData.emailVerificationToken = verificationToken;
+            updateData.email = email;
+            updateData.isEmailVerified = true; // Auto-verify since feature is disabled
         }
 
         const updatedUser = await prisma.user.update({

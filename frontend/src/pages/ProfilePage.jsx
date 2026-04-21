@@ -176,30 +176,7 @@ const ProfilePage = () => {
                                             <FiMail />
                                         </div>
                                         <span>{user?.email || 'N/A'}</span>
-                                        {user?.email && (
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 ${user?.isEmailVerified ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400'}`}>
-                                                {user?.isEmailVerified ? 'Vérifié' : 'Non vérifié'}
-                                            </span>
-                                        )}
                                     </div>
-                                    {user?.email && !user?.isEmailVerified && (
-                                        <div className="pt-2 flex justify-center">
-                                            <button
-                                                onClick={handleResendVerification}
-                                                disabled={isSendingVerification}
-                                                className="flex items-center justify-center gap-2 px-4 py-2 w-full max-w-[200px] rounded-xl text-xs font-bold bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors disabled:opacity-50"
-                                                title="Renvoyer l'e-mail de vérification"
-                                            >
-                                                <FiSend size={12} />
-                                                {isSendingVerification ? 'Envoi en cours...' : 'Renvoyer l\'e-mail'}
-                                            </button>
-                                        </div>
-                                    )}
-                                    {user?.pendingEmail && (
-                                        <div className="text-xs text-blue-600 dark:text-blue-400 font-medium pl-11">
-                                            Changement en attente : {user.pendingEmail} (vérifiez votre boîte mail)
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                             <div>
