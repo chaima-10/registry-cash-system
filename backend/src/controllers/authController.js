@@ -222,10 +222,15 @@ exports.updateProfile = async (req, res) => {
             }
 
             verificationToken = crypto.randomBytes(32).toString('hex');
-            pendingEmail = email;
             
-            await emailService.sendVerificationEmail(email, verificationToken);
-            emailUpdateMsg = " Un e-mail de confirmation a été envoyé à votre nouvelle adresse.";
+            try {
+                await emailService.sendVerificationEmail(email, verificationToken);
+                pendingEmail = email;
+                emailUpdateMsg = " Un e-mail de confirmation a été envoyé à votre nouvelle adresse.";
+            } catch (emailErr) {
+                console.warn('Skipping email verification update due to send failure:', emailErr.message);
+                emailUpdateMsg = ` (L'e-mail de confirmation n'a pas pu être envoyé: ${emailErr.message})`;
+            }
         }
 
         const updateData = {

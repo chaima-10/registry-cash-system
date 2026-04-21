@@ -69,6 +69,6 @@ exports.sendVerificationEmail = async (email, token) => {
         return data;
     } catch (err) {
         console.error('Failed to send email via Resend:', err.message);
-        throw new Error('Erreur lors de l\'envoi de l\'e-mail de vérification');
+        throw new Error(`Échec de l'envoi de l'e-mail: ${err.message}`);
     }
 };
