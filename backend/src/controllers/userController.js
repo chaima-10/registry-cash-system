@@ -288,28 +288,19 @@ exports.updateProfile = async (req, res) => {
         }
 
         let emailUpdateMsg = "";
-        let pendingEmail = undefined;
-        let verificationToken = undefined;
-
-        // Handle Email Update with Verification
+        
+        // Handle Email Update (Directly without verification)
         if (email && email !== user.email) {
-            // Check if email already taken by another verified user
+            // Check if email already taken
             const existingEmailUser = await prisma.user.findFirst({
                 where: {
                     email,
-                    isEmailVerified: true,
                     NOT: { id: userId }
                 }
             });
             if (existingEmailUser) {
                 return res.status(400).json({ message: 'Email already in use' });
             }
-
-            verificationToken = crypto.randomBytes(32).toString('hex');
-            pendingEmail = email;
-            
-            await emailService.sendVerificationEmail(email, verificationToken);
-            emailUpdateMsg = " Un e-mail de confirmation a été envoyé à votre nouvelle adresse.";
         }
 
         const updateData = {
@@ -320,10 +311,10 @@ exports.updateProfile = async (req, res) => {
             age: age ? parseInt(age) : null,
             shiftSchedule
         };
-
-        if (pendingEmail) {
-            updateData.pendingEmail = pendingEmail;
-            updateData.emailVerificationToken = verificationToken;
+        
+        if (email && email !== user.email) {
+            updateData.email = email;
+            updateData.isEmailVerified = true;
         }
 
         const updatedUser = await prisma.user.update({
