@@ -311,7 +311,9 @@ const AIMarketing = () => {
                                                        {prod?.imageUrl && (
                                                            <img 
                                                                 crossOrigin="anonymous" 
-                                                                src={prod.imageUrl.startsWith('http') ? prod.imageUrl : `${API_URL}${prod.imageUrl}`} 
+                                                                src={prod.imageUrl.startsWith('http') 
+                                                                    ? `${API_URL}/api/proxy/image?url=${encodeURIComponent(prod.imageUrl)}` 
+                                                                    : `${API_URL}${prod.imageUrl}`} 
                                                                 className="w-full h-full object-cover" 
                                                                 alt={pName}
                                                             />

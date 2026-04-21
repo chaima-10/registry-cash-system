@@ -58,6 +58,7 @@ app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/sales', saleRoutes);
 app.use('/api/giveaways', giveawayRoutes);
 app.use('/api/ai', require('./routes/aiRoutes'));
+app.use('/api/proxy', require('./routes/imageProxy'));
 
 app.get('/', (req, res) => {
     res.send('Backend is running!');
