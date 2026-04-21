@@ -353,6 +353,13 @@
   "createGiveaway": "إنشاء جائزة",
   "giveawayTitle": "العنوان",
   "giveawayDescription": "الوصف",
+  "giveawayTitleLabel": "عنوان الجائزة",
+  "numberOfWinners": "عدد الفائزين",
+  "launchGiveaway": "إطلاق الجائزة",
+  "creating": "جاري الإنشاء...",
+  "createNewEvent": "إنشاء حدث جديد",
+  "giveawayTitlePlaceholder": "مثال: حزمة الصيف الكبيرة...",
+  "giveawayDescPlaceholder": "صف القواعد والجوائز...",
   "giveawayPrize": "الجائزة",
   "giveawayStatus": "الحالة",
   "giveawayWinner": "الفائز",
@@ -416,6 +423,7 @@
   "retry": "إعادة المحاولة",
   "back": "رجوع",
   "downloading": "جاري التحميل...",
+  "publishNow": "نشر الآن",
   "aiMarketingPrompt": "أنشئ 6 أفكار لحملات تسويقية لـ \"{{event}}\". استخدم هذه المنتجات: {{products}}. رد فقط بتنسيق JSON: [{\"title\": \"...\", \"description\": \"...\", \"products\": [\"...\"], \"discountPercent\": 20, \"timing\": \"...\", \"emoji\": \"...\", \"theme\": \"#hex\"}]",
   "publishPrompt": "اكتب منشور فيسبوك/انستغرام لحملتي \"{{title}}\". خصم: {{discount}}% لمدة {{timing}}."
 }

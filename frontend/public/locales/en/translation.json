@@ -355,6 +355,13 @@
   "createGiveaway": "Create Giveaway",
   "giveawayTitle": "Title",
   "giveawayDescription": "Description",
+  "giveawayTitleLabel": "Giveaway Title",
+  "numberOfWinners": "Number of Winners",
+  "launchGiveaway": "Launch Giveaway",
+  "creating": "Creating...",
+  "createNewEvent": "Create New Event",
+  "giveawayTitlePlaceholder": "E.g., Summer Mega Pack...",
+  "giveawayDescPlaceholder": "Describe the rules and prizes...",
   "giveawayPrize": "Prize",
   "giveawayStatus": "Status",
   "giveawayWinner": "Winner",
@@ -418,6 +425,7 @@
   "retry": "Retry",
   "back": "Back",
   "downloading": "Downloading...",
+  "publishNow": "Publish Now",
   "aiMarketingPrompt": "Generate 6 marketing campaign ideas for \"{{event}}\". Use these products: {{products}}. Respond ONLY in JSON format: [{\"title\": \"...\", \"description\": \"...\", \"products\": [\"...\"], \"discountPercent\": 20, \"timing\": \"...\", \"emoji\": \"...\", \"theme\": \"#hex\"}]",
   "publishPrompt": "Write a Facebook/Instagram post for my campaign \"{{title}}\". Discount: {{discount}}% for {{timing}}."
 }

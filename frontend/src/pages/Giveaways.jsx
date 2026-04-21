@@ -503,48 +503,48 @@ const Giveaways = () => {
                                     <FiGift size={24} />
                                 </div>
                                 <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                                    Create New Event
+                                    {t('createNewEvent')}
                                 </h2>
                             </div>
                             
                             <form onSubmit={handleCreateGiveaway} className="space-y-6">
                                 <div>
-                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Giveaway Title</label>
+                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{t('giveawayTitleLabel')}</label>
                                     <input type="text" required value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                         className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl font-bold focus:border-purple-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
-                                        placeholder="E.g., Summer Mega Pack..." />
+                                        placeholder={t('giveawayTitlePlaceholder', 'E.g., Summer Mega Pack...')} />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Description</label>
+                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{t('giveawayDescription')}</label>
                                     <textarea required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={3}
                                         className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl font-medium focus:border-purple-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
-                                        placeholder="Describe the rules and prizes..." />
+                                        placeholder={t('giveawayDescPlaceholder', 'Describe the rules and prizes...')} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Start Date</label>
+                                        <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{t('startDate')}</label>
                                         <input type="datetime-local" required value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                                             className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl font-bold focus:border-purple-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">End Date</label>
+                                        <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{t('endDate')}</label>
                                         <input type="datetime-local" required value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                                             className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl font-bold focus:border-purple-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm" />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Number of Winners</label>
+                                    <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">{t('numberOfWinners')}</label>
                                     <input type="number" min="1" max="100" required value={formData.winnerCount} onChange={(e) => setFormData({ ...formData, winnerCount: parseInt(e.target.value) || 1 })}
                                         className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl font-bold focus:border-purple-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm" />
                                 </div>
                                 <div className="flex gap-4 pt-6">
                                     <button type="button" onClick={() => setShowCreateForm(false)}
                                         className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-[1.5rem] font-bold transition-all">
-                                        Cancel
+                                        {t('cancel')}
                                     </button>
                                     <button type="submit" disabled={processing}
                                         className="flex-[2] py-4 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-[1.5rem] font-bold shadow-xl shadow-purple-500/20 transition-all flex justify-center items-center">
-                                        {processing ? 'Creating...' : 'Launch Giveaway'}
+                                        {processing ? t('creating') : t('launchGiveaway')}
                                     </button>
                                 </div>
                             </form>
