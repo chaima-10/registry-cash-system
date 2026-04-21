@@ -171,11 +171,11 @@ const AIMarketing = () => {
         try {
             const canvas = await html2canvas(posterRef.current, {
                 useCORS: true,
-                allowTaint: true,
+                allowTaint: false,
                 scale: 2,
                 logging: false,
                 backgroundColor: null,
-                imageTimeout: 0,
+                imageTimeout: 15000,
             });
             const imgData = canvas.toDataURL('image/png');
             const link = document.createElement('a');
