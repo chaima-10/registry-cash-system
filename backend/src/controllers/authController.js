@@ -197,7 +197,7 @@ exports.getProfile = async (req, res) => {
 // Update user profile
 exports.updateProfile = async (req, res) => {
     try {
-        const { fullName, email, phone } = req.body;
+        const { fullName, email, phone, age, username, theme } = req.body;
         const userId = req.user.id;
 
         const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -230,8 +230,11 @@ exports.updateProfile = async (req, res) => {
 
         const updateData = {
             fullName,
-            phone
+            phone,
+            age: age ? parseInt(age) : null,
         };
+        if (username) updateData.username = username;
+        if (theme) updateData.theme = theme;
 
         if (pendingEmail) {
             updateData.pendingEmail = pendingEmail;

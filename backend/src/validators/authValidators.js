@@ -37,6 +37,7 @@ const updateProfileSchema = Joi.object({
             'any.required': 'Phone number is required.',
         }),
     username: Joi.string().min(3).max(50).optional(),
+    age: Joi.number().integer().min(1).max(120).optional().allow(null, ''),
     theme: Joi.string().valid('light', 'dark').optional(),
 });
 
