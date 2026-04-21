@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiSend } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { updateProfile, changePassword } from '../api/auth';
+import { updateProfile, changePassword, resendVerificationEmail } from '../api/auth';
 import { distributePrimes } from '../api/users';
 import { getProfile } from '../api/auth';
 import { calculateNetSalary } from '../utils/salaryCalculator';
@@ -20,6 +20,21 @@ const ProfilePage = () => {
     const [passwordFormData, setPasswordFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
     const [primeData, setPrimeData] = useState({ amount: '', reason: '' });
     const [isDistributing, setIsDistributing] = useState(false);
+    const [isSendingVerification, setIsSendingVerification] = useState(false);
+
+    const handleResendVerification = async () => {
+        if (!user?.email || isSendingVerification) return;
+        setIsSendingVerification(true);
+        try {
+            const result = await resendVerificationEmail(user.email);
+            alert(result.message || 'E-mail de vérification envoyé !');
+        } catch (error) {
+            const msg = error.response?.data?.message || error.message || 'Échec de l\'envoi';
+            alert(`Erreur: ${msg}`);
+        } finally {
+            setIsSendingVerification(false);
+        }
+    };
 
     const handleOpenEdit = () => {
         setEditFormData({
@@ -162,9 +177,20 @@ const ProfilePage = () => {
                                         </div>
                                         <span>{user?.email || 'N/A'}</span>
                                         {user?.email && (
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${user?.isEmailVerified ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-red-400' : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400'}`}>
+                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${user?.isEmailVerified ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400'}`}>
                                                 {user?.isEmailVerified ? 'Vérifié' : 'Non vérifié'}
                                             </span>
+                                        )}
+                                        {user?.email && !user?.isEmailVerified && (
+                                            <button
+                                                onClick={handleResendVerification}
+                                                disabled={isSendingVerification}
+                                                className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+                                                title="Renvoyer l'e-mail de vérification"
+                                            >
+                                                <FiSend size={10} />
+                                                {isSendingVerification ? 'Envoi...' : 'Renvoyer'}
+                                            </button>
                                         )}
                                     </div>
                                     {user?.pendingEmail && (

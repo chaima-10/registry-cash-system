@@ -38,3 +38,8 @@ export const changePassword = async (data) => {
     const response = await api.put('/users/change-password', data);
     return response.data;
 };
+
+export const resendVerificationEmail = async (email) => {
+    const response = await api.post('/auth/resend-verification', { email });
+    return response.data;
+};

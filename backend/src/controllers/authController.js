@@ -162,8 +162,13 @@ exports.resendVerification = async (req, res) => {
             }
         });
 
-        await emailService.sendVerificationEmail(targetEmail, token);
-        res.json({ message: 'Lien de vérification renvoyé ! Veuillez consulter votre boîte mail.' });
+        try {
+            await emailService.sendVerificationEmail(targetEmail, token);
+            res.json({ message: 'Lien de vérification envoyé ! Veuillez consulter votre boîte mail.' });
+        } catch (emailErr) {
+            console.error('Email send failed:', emailErr.message);
+            res.status(500).json({ message: `L'e-mail n'a pas pu être envoyé: ${emailErr.message}` });
+        }
     } catch (error) {
         console.error('Resend Verification Error:', error);
         res.status(500).json({ message: 'Erreur serveur', error: error.message });
