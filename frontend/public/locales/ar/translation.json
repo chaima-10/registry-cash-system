@@ -150,6 +150,7 @@
   "delete": "حذف",
   "editUser": "تعديل المستخدم",
   "dailyRate": "الراتب اليومي",
+  "dailySalary": "الراتب اليومي",
   "monthlySalary": "الراتب الشهري",
   "workedDays": "أيام العمل",
   "absences": "الغيابات",
@@ -337,6 +338,7 @@
   "eventCampaigns": "حملات المناسبات",
   "chatPlaceholder": "اكتب هنا...",
   "giveaways": "الجوائز",
+  "giveawaysDesc": "إدارة المسابقات الترويجية وتفاعل مع المشاركين.",
   "aiMarketing": "التسويق بالذكاء الاصطناعي",
   "orderSummary": "ملخص الطلب",
   "change": "صرف",
@@ -389,6 +391,7 @@
   "startDate": "تاريخ البدء",
   "unitPurchasePrice": "وحدة الشراء",
   "unitSellingPrice": "وحدة البيع (TTC)",
+  "totalSellingPrice": "الإجمالي المحتمل",
   "totalPrice": "إجمالي الشراء",
   "currency": "العملة",
   "aiSuggestions": "اقتراحات الذكاء الاصطناعي",
@@ -413,7 +416,6 @@
   "retry": "إعادة المحاولة",
   "back": "رجوع",
   "downloading": "جاري التحميل...",
-  "registryCash": "ريجستري كاش",
   "aiMarketingPrompt": "أنشئ 6 أفكار لحملات تسويقية لـ \"{{event}}\". استخدم هذه المنتجات: {{products}}. رد فقط بتنسيق JSON: [{\"title\": \"...\", \"description\": \"...\", \"products\": [\"...\"], \"discountPercent\": 20, \"timing\": \"...\", \"emoji\": \"...\", \"theme\": \"#hex\"}]",
   "publishPrompt": "اكتب منشور فيسبوك/انستغرام لحملتي \"{{title}}\". خصم: {{discount}}% لمدة {{timing}}."
 }

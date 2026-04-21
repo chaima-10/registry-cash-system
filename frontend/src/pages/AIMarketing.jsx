@@ -404,7 +404,7 @@ const AIMarketing = () => {
                                 <div className="mt-6 md:mt-0 bg-black/20 p-4 md:p-8 rounded-[2rem] md:rounded-[3rem] flex justify-between items-center">
                                     <div className="flex items-center gap-3 md:gap-5">
                                         <div className="w-10 h-10 md:w-14 md:h-14 bg-white rounded-xl flex items-center justify-center text-slate-900"><FiShoppingBag size={20} /></div>
-                                        <span className="font-black text-sm md:text-base">{t('registryCash')}</span>
+                                        <span className="font-black text-sm md:text-base">Registry Cash</span>
                                     </div>
                                     <span className="font-mono text-[10px] md:text-xs opacity-50 uppercase">RCS-IA-2026</span>
                                 </div>

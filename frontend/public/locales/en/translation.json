@@ -150,6 +150,7 @@
   "delete": "Delete",
   "editUser": "Edit User",
   "dailyRate": "Daily Rate",
+  "dailySalary": "Daily Salary",
   "monthlySalary": "Monthly Salary",
   "dailyRevenue": "Daily Revenue",
   "workedDays": "Worked Days",
@@ -339,6 +340,7 @@
   "eventCampaigns": "Event Campaigns",
   "chatPlaceholder": "Type here...",
   "giveaways": "Giveaways",
+  "giveawaysDesc": "Manage promotional contests and engage your participants.",
   "aiMarketing": "AI Marketing",
   "orderSummary": "Order Summary",
   "change": "Change",
@@ -391,6 +393,7 @@
   "startDate": "Start Date",
   "unitPurchasePrice": "Purchase Unit",
   "unitSellingPrice": "Selling Unit (TTC)",
+  "totalSellingPrice": "Potential Total",
   "totalPrice": "Total Purchase",
   "currency": "Currency",
   "aiSuggestions": "AI SUGGESTIONS",
@@ -415,7 +418,6 @@
   "retry": "Retry",
   "back": "Back",
   "downloading": "Downloading...",
-  "registryCash": "Registry Cash",
   "aiMarketingPrompt": "Generate 6 marketing campaign ideas for \"{{event}}\". Use these products: {{products}}. Respond ONLY in JSON format: [{\"title\": \"...\", \"description\": \"...\", \"products\": [\"...\"], \"discountPercent\": 20, \"timing\": \"...\", \"emoji\": \"...\", \"theme\": \"#hex\"}]",
   "publishPrompt": "Write a Facebook/Instagram post for my campaign \"{{title}}\". Discount: {{discount}}% for {{timing}}."
 }
