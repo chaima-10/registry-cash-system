@@ -12,7 +12,7 @@ if (!resend) {
  * @param {string} token - Verification token
  */
 exports.sendVerificationEmail = async (email, token) => {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://registry-cash-system.vercel.app';
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
 
     console.log(`Attempting to send verification email to ${email} via Resend...`);
