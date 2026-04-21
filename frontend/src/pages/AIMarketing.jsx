@@ -224,6 +224,21 @@ const AIMarketing = () => {
             <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
                 <div className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center gap-6">
                     <div className="flex items-center gap-4">
+                        {/* Back Arrow - Only visible when poster is selected */}
+                        <AnimatePresence>
+                            {selectedPoster && (
+                                <motion.button
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    onClick={handleBackToSuggestions}
+                                    className="flex items-center justify-center w-12 h-12 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                    title={t('back')}
+                                >
+                                    <FiArrowLeft size={28} />
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
                         <div className="w-14 h-14 bg-blue-600 rounded-[1.25rem] flex items-center justify-center text-white"><FiZap size={28} /></div>
                         <div>
                             <h2 className="font-black text-2xl uppercase tracking-tighter">{t('aiSuggestions')}</h2>
