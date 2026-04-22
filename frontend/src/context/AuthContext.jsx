@@ -23,9 +23,9 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Format amount in chosen currency using real exchange rate
-    const formatCurrency = (amount, overrideCurrency) => {
+    const formatCurrency = (amount, overrideCurrency, applyExchange = true) => {
         const tgt = overrideCurrency || currency || 'USD';
-        const rate = (exchangeRates && exchangeRates[tgt]) ? exchangeRates[tgt] : 1;
+        const rate = (applyExchange && exchangeRates && exchangeRates[tgt]) ? exchangeRates[tgt] : 1;
         const converted = parseFloat(amount || 0) * rate;
         try {
             return new Intl.NumberFormat(undefined, { style: 'currency', currency: tgt }).format(converted);
@@ -57,6 +57,20 @@ export const AuthProvider = ({ children }) => {
         const savedCurrency = localStorage.getItem('currency') || 'USD';
         setCurrency(savedCurrency);
         fetchExchangeRates(); // Fetch on load
+
+        // Add focus listener to refresh auth profile (useful for email verification)
+        const onFocus = async () => {
+            if (localStorage.getItem('token')) {
+                try {
+                    const userData = await getProfile();
+                    setUser(prev => prev ? { ...prev, ...userData } : userData);
+                } catch (error) {
+                    console.error("Auth refresh on focus failed", error);
+                }
+            }
+        };
+        window.addEventListener('focus', onFocus);
+        return () => window.removeEventListener('focus', onFocus);
     }, []);
 
     const changeCurrency = (newCurrency) => {

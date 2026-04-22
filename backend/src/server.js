@@ -38,7 +38,12 @@ app.use(cors({
     optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', (req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET');
+    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+}, express.static(path.join(__dirname, '../uploads')));
 
 // Swagger Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
@@ -53,6 +58,7 @@ app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/sales', saleRoutes);
 app.use('/api/giveaways', giveawayRoutes);
 app.use('/api/ai', require('./routes/aiRoutes'));
+app.use('/api/proxy', require('./routes/imageProxy'));
 
 app.get('/', (req, res) => {
     res.send('Backend is running!');

@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiSend } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { updateProfile, changePassword } from '../api/auth';
+import { updateProfile, changePassword, resendVerificationEmail } from '../api/auth';
+import { distributePrimes } from '../api/users';
+import { getProfile } from '../api/auth';
+import { calculateNetSalary } from '../utils/salaryCalculator';
 
 const ProfilePage = () => {
     const { user, updateUser } = useAuth();
@@ -13,14 +16,32 @@ const ProfilePage = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
-    const [editFormData, setEditFormData] = useState({ fullName: '', email: '', phone: '' });
+    const [editFormData, setEditFormData] = useState({ fullName: '', email: '', phone: '', age: '' });
     const [passwordFormData, setPasswordFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    const [primeData, setPrimeData] = useState({ amount: '', reason: '' });
+    const [isDistributing, setIsDistributing] = useState(false);
+    const [isSendingVerification, setIsSendingVerification] = useState(false);
+
+    const handleResendVerification = async () => {
+        if (!user?.email || isSendingVerification) return;
+        setIsSendingVerification(true);
+        try {
+            const result = await resendVerificationEmail(user.email);
+            alert(result.message || 'E-mail de vérification envoyé !');
+        } catch (error) {
+            const msg = error.response?.data?.message || error.message || 'Échec de l\'envoi';
+            alert(`Erreur: ${msg}`);
+        } finally {
+            setIsSendingVerification(false);
+        }
+    };
 
     const handleOpenEdit = () => {
         setEditFormData({
             fullName: user?.fullName || '',
             email: user?.email || '',
-            phone: user?.phone || ''
+            phone: user?.phone || '',
+            age: user?.age || ''
         });
         setIsEditModalOpen(true);
     };
@@ -31,7 +52,7 @@ const ProfilePage = () => {
             const res = await updateProfile(editFormData);
             updateUser(res.user);
             setIsEditModalOpen(false);
-            alert(t('profileUpdatedSuccess'));
+            alert(res.message || t('profileUpdatedSuccess'));
         } catch (error) {
             alert(error.response?.data?.message || t('failedToUpdateProfile'));
         }
@@ -55,6 +76,33 @@ const ProfilePage = () => {
         }
     };
 
+    const handleDistributePrime = async () => {
+        if (!primeData.amount || isNaN(primeData.amount) || parseFloat(primeData.amount) <= 0) {
+            return alert(t('pleaseEnterValidAmount', 'Veuillez saisir un montant valide.'));
+        }
+        setIsDistributing(true);
+        try {
+            const res = await distributePrimes({ 
+                amount: parseFloat(primeData.amount), 
+                reason: primeData.reason 
+            });
+            
+            // Show detailed success message
+            alert(res.message);
+            
+            // Refresh profile to update stats
+            const updatedProfile = await getProfile();
+            updateUser(updatedProfile);
+            setPrimeData({ amount: '', reason: '' });
+        } catch (error) {
+            const errorMsg = error.response?.data?.message || t('failedToDistributePrime', 'Échec de la distribution.');
+            alert(`Erreur: ${errorMsg}`);
+            console.error("Distribution Error:", error);
+        } finally {
+            setIsDistributing(false);
+        }
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
         try {
@@ -62,6 +110,10 @@ const ProfilePage = () => {
         } catch {
             return 'Invalid Date';
         }
+    };
+
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TND' }).format(amount);
     };
 
     return (
@@ -118,11 +170,13 @@ const ProfilePage = () => {
                             </div>
                             <div>
                                 <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('emailAddress')}</label>
-                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
-                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
-                                        <FiMail />
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                        <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                            <FiMail />
+                                        </div>
+                                        <span>{user?.email || 'N/A'}</span>
                                     </div>
-                                    {user?.email || 'N/A'}
                                 </div>
                             </div>
                             <div>
@@ -135,6 +189,15 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                             <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('age') || 'Age'}</label>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        <FiUser />
+                                    </div>
+                                    {user?.age || 'N/A'}
+                                </div>
+                            </div>
+                            <div>
                                 <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('accountCreated')}</label>
                                 <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                     <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
@@ -143,6 +206,207 @@ const ProfilePage = () => {
                                     {formatDate(user?.createdAt)}
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* New Card: Work & Performance */}
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
+                        <div className="flex justify-between items-center mb-8">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <FiActivity className="text-orange-500" /> {t('workAndPerformance')}
+                            </h3>
+                        </div>
+
+                        {/* TODO: prime/bonus system */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                            <div>
+                                {user?.role === 'cashier' ? (
+                                    <>
+                                        <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">
+                                            {t('netSalaryThisMonth', 'Net Salary This Month')}
+                                        </label>
+                                        {(() => {
+                                            const salaryData = calculateNetSalary(
+                                                user?.stats?.monthlySalary,
+                                                user?.stats?.absences,
+                                                user?.workingDays
+                                            );
+                                            return (
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center text-green-600">
+                                                            💰
+                                                        </div>
+                                                        <span className="text-gray-900 dark:text-white font-black text-lg">
+                                                            {formatCurrency(salaryData.netSalary, null, false)}
+                                                        </span>
+                                                        <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                                    </div>
+                                                    <div className="pl-11 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                                                        <div className="flex justify-between gap-4">
+                                                            <span>{t('originalSalary', 'Original')}:</span>
+                                                            <span className="line-through">{formatCurrency(salaryData.originalSalary, null, false)}</span>
+                                                        </div>
+                                                        {salaryData.absenceDays > 0 && (
+                                                            <>
+                                                                <div className="flex justify-between gap-4">
+                                                                    <span>{t('dailySalary', 'Daily Salary')}:</span>
+                                                                    <span>{formatCurrency(salaryData.dailySalary, null, false)}</span>
+                                                                </div>
+                                                                <div className="flex justify-between gap-4 text-red-500">
+                                                                    <span>{t('deductionForAbsences', 'Deduction')} ({salaryData.absenceDays} {t('days')}):</span>
+                                                                    <span>-{formatCurrency(salaryData.deduction, null, false)}</span>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </>
+                                ) : (
+                                    <>
+                                        <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('monthlySalary')}</label>
+                                        <div className="flex items-center gap-3 text-gray-900 dark:text-white font-black text-lg">
+                                            <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                                💰
+                                            </div>
+                                            {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            {user.role === 'cashier' && (
+                                <div>
+                                    <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('shiftSchedule')}</label>
+                                    <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                        <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                            <FiClock />
+                                        </div>
+                                        {user.shiftSchedule || t('notSpecified', 'Non spécifié')}
+                                        <FiLock className="text-gray-400 ml-auto" size={14} title="Editable by admin only" />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('workedDays')}</label>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        📅
+                                    </div>
+                                    {user?.stats?.workedDays || 0} {t('days')}
+                                    <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('absences')}</label>
+                                <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        ❌
+                                    </div>
+                                    {user?.stats?.absences || 0} {t('days')}
+                                    <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('dailyRevenue')}</label>
+                                <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400 font-bold">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        📈
+                                    </div>
+                                    {formatCurrency(user?.stats?.dailyRevenue || 0)}
+                                    <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('totalMonthlySales')}</label>
+                                <div className="flex items-center gap-3 text-green-600 dark:text-green-400 font-bold">
+                                    <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        🏆
+                                    </div>
+                                    {formatCurrency(user?.stats?.totalSalesMonth || 0)}
+                                    <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Primes Received Section */}
+                        <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
+                            <h4 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6 flex items-center gap-2">
+                                <FiActivity size={14} /> {t('primesReceived')}
+                            </h4>
+
+                            {user.role === 'admin' ? (
+                                <div className="space-y-6">
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex-1 space-y-1.5">
+                                            <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Montant Prime (TND)</label>
+                                            <input
+                                                type="number"
+                                                placeholder="0.00"
+                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500 font-bold"
+                                                value={primeData.amount}
+                                                onChange={e => setPrimeData({ ...primeData, amount: e.target.value })}
+                                            />
+                                        </div>
+                                        <div className="flex-1 space-y-1.5">
+                                            <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Raison / Occasion</label>
+                                            <input
+                                                type="text"
+                                                placeholder="ex: Eid Al-Fitr 2026"
+                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500 font-medium"
+                                                value={primeData.reason}
+                                                onChange={e => setPrimeData({ ...primeData, reason: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex flex-col gap-4">
+                                        <button
+                                            onClick={handleDistributePrime}
+                                            disabled={isDistributing}
+                                            className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black rounded-2xl shadow-lg shadow-orange-500/25 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                                        >
+                                            {isDistributing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '🚀 Distribute to All'}
+                                        </button>
+                                        
+                                        <div className="p-4 bg-orange-50/50 dark:bg-orange-500/5 rounded-2xl border border-orange-100 dark:border-orange-500/10">
+                                            <p className="text-xs text-orange-600 dark:text-orange-400 font-bold flex items-center gap-2">
+                                                <FiActivity size={14} /> 
+                                                {user?.stats?.lastSystemDistribution 
+                                                    ? `Last distributed: ${formatCurrency(user.stats.lastSystemDistribution.amount, null, false)} — ${user.stats.lastSystemDistribution.reason} (${formatDate(user.stats.lastSystemDistribution.distributedAt)})`
+                                                    : 'No prime distributed yet'
+                                                }
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                    <div className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Dernière Prime</label>
+                                        <p className="text-gray-900 dark:text-white font-bold flex items-center gap-2">
+                                            {user?.stats?.lastPrime 
+                                                ? `${formatCurrency(user.stats.lastPrime.amount, null, false)} — ${user.stats.lastPrime.reason} (${formatDate(user.stats.lastPrime.distributedAt)})`
+                                                : 'No prime received yet'
+                                            }
+                                            <FiLock className="text-gray-400 ml-auto" size={12} />
+                                        </p>
+                                    </div>
+                                    <div className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Total Primes Cette Année</label>
+                                        <p className="text-green-600 dark:text-green-400 font-black text-xl flex items-center gap-2">
+                                            {formatCurrency(user?.stats?.totalPrimesYear || 0, null, false)}
+                                            <FiLock className="text-gray-400 ml-auto" size={12} />
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -215,6 +479,26 @@ const ProfilePage = () => {
                                         onChange={e => setEditFormData({ ...editFormData, fullName: e.target.value })}
                                     />
                                 </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('age') || 'Age'}</label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
+                                            value={editFormData.age}
+                                            onChange={e => setEditFormData({ ...editFormData, age: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('phoneNumber')}</label>
+                                        <input
+                                            type="text"
+                                            className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
+                                            value={editFormData.phone}
+                                            onChange={e => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('emailAddress')}</label>
                                     <input
@@ -222,15 +506,6 @@ const ProfilePage = () => {
                                         className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
                                         value={editFormData.email}
                                         onChange={e => setEditFormData({ ...editFormData, email: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('phoneNumber')}</label>
-                                    <input
-                                        type="text"
-                                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:border-blue-500 outline-none transition-all"
-                                        value={editFormData.phone}
-                                        onChange={e => setEditFormData({ ...editFormData, phone: e.target.value })}
                                     />
                                 </div>
                                 <div className="pt-4 flex gap-3">

@@ -129,7 +129,7 @@ const Products = () => {
             setFormData({ barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '' });
         }
         setImageFile(null);
-        setImagePreview(product?.imageUrl ? `${API_URL}${product.imageUrl}` : null);
+        setImagePreview(product?.imageUrl ? (product.imageUrl.startsWith('http') ? product.imageUrl : `${API_URL}${product.imageUrl}`) : null);
         setIsModalOpen(true);
     };
 
@@ -288,7 +288,7 @@ const Products = () => {
                                             <div className="w-12 h-12 rounded-lg overflow-hidden bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center shadow-sm">
                                                 {product.imageUrl ? (
                                                     <img
-                                                        src={`${API_URL}${product.imageUrl}`}
+                                                        src={product.imageUrl.startsWith('http') ? product.imageUrl : `${API_URL}${product.imageUrl}`}
                                                         alt={product.name}
                                                         className="w-full h-full object-contain"
                                                         onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}

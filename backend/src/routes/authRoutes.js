@@ -101,6 +101,27 @@ router.post('/logout', authController.logout);
 
 /**
  * @swagger
+ * /api/auth/verify-email:
+ *   get:
+ *     summary: Verify user email
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Email verified
+ *       400:
+ *         description: Invalid token
+ */
+router.get('/verify-email', authController.verifyEmail);
+router.post('/resend-verification', authController.resendVerification);
+
+/**
+ * @swagger
  * /api/auth/profile:
  *   put:
  *     summary: Update current user profile

@@ -1,4 +1,15 @@
 const prisma = require('../config/prisma');
+const cloudinary = require('../config/cloudinary');
+
+// Helper to upload buffer to Cloudinary
+const uploadToCloudinary = async (file) => {
+    if (!file) return null;
+    const fileBase64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const uploadResponse = await cloudinary.uploader.upload(fileBase64, {
+        folder: 'products',
+    });
+    return uploadResponse.secure_url;
+};
 
 // Create Product
 exports.createProduct = async (req, res) => {
@@ -42,17 +53,10 @@ exports.createProduct = async (req, res) => {
             }
         }
 
-        // Handle image URL (supports diskStorage or memoryStorage fallback)
+        // Handle image upload to Cloudinary
         let imageUrl = null;
         if (req.file) {
-            if (req.file.filename) {
-                imageUrl = `/uploads/${req.file.filename}`;
-            } else if (req.file.buffer) {
-                // If using memoryStorage on Vercel, we can't save to disk easily without cloud storage.
-                // We'll use a placeholder or log notice for now.
-                console.log('Image received in memory, but disk persistence is limited on Vercel.');
-                imageUrl = null; // Ideally upload to Cloudinary/S3 here
-            }
+            imageUrl = await uploadToCloudinary(req.file);
         }
 
         const product = await prisma.product.create({
@@ -178,7 +182,7 @@ exports.updateProduct = async (req, res) => {
         }
 
         if (req.file) {
-            updateData.imageUrl = `/uploads/${req.file.filename}`;
+            updateData.imageUrl = await uploadToCloudinary(req.file);
         }
 
         const product = await prisma.product.update({

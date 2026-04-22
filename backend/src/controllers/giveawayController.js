@@ -91,8 +91,9 @@ exports.getGiveawayById = async (req, res) => {
                 winners: {
                     include: {
                         user: {
-                            select: { id: true, username: true }
-                        }
+                            select: { id: true, username: true, fullName: true }
+                        },
+                        participation: true
                     },
                     orderBy: {
                         rank: 'asc'
@@ -116,8 +117,42 @@ exports.getGiveawayById = async (req, res) => {
 exports.participateInGiveaway = async (req, res) => {
     try {
         const { id } = req.params;
+        const { clientName, clientSurname, clientPhone } = req.body;
         const userId = req.user.id;
         const giveawayId = parseInt(id);
+
+        // 1. Only cashiers can register participants
+        if (req.user.role !== 'cashier') {
+            return res.status(403).json({ message: 'Only cashiers can register participants for giveaways' });
+        }
+
+        // 2. Client info validation
+        if (!clientName || !clientSurname || !clientPhone) {
+            return res.status(400).json({ message: 'Client name, surname and phone are required' });
+        }
+
+        const nameRegex = /^[a-zA-Z\sÀ-ÿ]+$/;
+        if (!nameRegex.test(clientName) || !nameRegex.test(clientSurname)) {
+            return res.status(400).json({ message: 'Name and Surname must contain only letters' });
+        }
+
+        const cleanPhone = clientPhone.replace(/\s/g, '');
+            if (!/^\+?[0-9]+$/.test(cleanPhone)) {
+                return res.status(400).json({ message: 'Phone must contain only digits and optional +' });
+            }
+
+            // Country-specific length (Tunisia example)
+            if (cleanPhone.startsWith('+216')) {
+                const numberPart = cleanPhone.substring(4);
+                if (numberPart.length !== 8 || !/^\d+$/.test(numberPart)) {
+                    return res.status(400).json({ message: 'Tunisian phone with +216 must have exactly 8 digits after the prefix' });
+                }
+            } else {
+                const localPhone = cleanPhone.startsWith('0') ? cleanPhone.substring(1) : cleanPhone;
+                if (localPhone.length !== 8 || !/^\d+$/.test(localPhone)) {
+                    return res.status(400).json({ message: 'Local Tunisian phone must be exactly 8 digits' });
+                }
+            }
 
         // Check if giveaway exists and is active
         const giveaway = await prisma.giveaway.findUnique({
@@ -136,17 +171,21 @@ exports.participateInGiveaway = async (req, res) => {
             return res.status(400).json({ message: 'Giveaway has ended' });
         }
 
-        // Check if user already participated
-        const existingParticipation = await prisma.giveawayparticipation.findUnique({
+        // Check if user already participated (by userId)
+        // If it's a cashier registering a client, we might need a different check
+        const existingParticipation = await prisma.giveawayparticipation.findFirst({
             where: {
-                giveawayId_userId: {
-                    giveawayId,
-                    userId
-                }
+                giveawayId,
+                userId: req.user.role === 'cashier' ? undefined : userId, // Skip userId check for cashiers if they are registering others
+                clientPhone: clientPhone || undefined
             }
         });
 
-        if (existingParticipation) {
+        if (existingParticipation && (clientPhone && existingParticipation.clientPhone === clientPhone)) {
+            return res.status(400).json({ message: 'This client has already participated in this giveaway' });
+        }
+
+        if (existingParticipation && !clientPhone && existingParticipation.userId === userId) {
             return res.status(400).json({ message: 'You have already participated in this giveaway' });
         }
 
@@ -154,7 +193,10 @@ exports.participateInGiveaway = async (req, res) => {
         const participation = await prisma.giveawayparticipation.create({
             data: {
                 giveawayId,
-                userId
+                userId: req.user.role === 'cashier' ? null : userId, // Don't associate cashier ID as participant
+                clientName: clientName || null,
+                clientSurname: clientSurname || null,
+                clientPhone: clientPhone || null
             }
         });
 
@@ -180,16 +222,17 @@ exports.selectWinners = async (req, res) => {
                         user: true
                     }
                 },
-                winners: true
+                winners: {
+                    include: {
+                        user: { select: { id: true, username: true, fullName: true } },
+                        participation: true
+                    }
+                }
             }
         });
 
         if (!giveaway) {
             return res.status(404).json({ message: 'Giveaway not found' });
-        }
-
-        if (giveaway.status !== 'ACTIVE') {
-            return res.status(400).json({ message: 'Giveaway is not active' });
         }
 
         if (new Date(giveaway.endDate) > new Date()) {
@@ -202,7 +245,12 @@ exports.selectWinners = async (req, res) => {
 
         // Check if winners already selected
         if (giveaway.winners.length > 0) {
-            return res.status(400).json({ message: 'Winners have already been selected' });
+            return res.json({ 
+                message: 'Winners already selected', 
+                winnersCount: giveaway.winners.length,
+                winners: giveaway.winners,
+                totalParticipants: giveaway.participants.length 
+            });
         }
 
         // Random winner selection
@@ -212,11 +260,12 @@ exports.selectWinners = async (req, res) => {
         // Create winner records
         const winnerData = selectedWinners.map((participant, index) => ({
             giveawayId,
-            userId: participant.userId,
+            participationId: participant.id,
+            userId: participant.userId || null,
             rank: index + 1
         }));
 
-        const winners = await prisma.giveawaywinner.createMany({
+        await prisma.giveawaywinner.createMany({
             data: winnerData
         });
 
@@ -228,7 +277,8 @@ exports.selectWinners = async (req, res) => {
 
         res.json({ 
             message: 'Winners selected successfully', 
-            winners: winners,
+            winnersCount: winnerData.length,
+            winners: selectedWinners, // Return the actual selected participants
             totalParticipants: giveaway.participants.length 
         });
     } catch (error) {

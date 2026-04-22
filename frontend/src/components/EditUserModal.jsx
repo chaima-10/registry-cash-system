@@ -58,7 +58,7 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 ml-1">{t('dailyRate')}</label>
+                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 ml-1">{t('monthlySalary')}</label>
                         <div className="relative group">
                             <input
                                 type="number"

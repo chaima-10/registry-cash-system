@@ -138,16 +138,45 @@ model user {
   giveawayParticipations giveawayparticipation[]
   giveawayWins           giveawaywinner[]
   fullName               String                  @default("")
+  age                    Int?
   salary                 Decimal                 @default(0.00) @db.Decimal(10, 2)
   workingDays            String                  @default("")
+  shiftSchedule          String?
   email                  String?                 @unique(map: "User_email_key")
+  isEmailVerified        Boolean                 @default(false)
+  emailVerificationToken String?
+  pendingEmail           String?
   lastLogin              DateTime?
   phone                  String?
   status                 String                  @default("Active")
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+  loginHistory           loginhistory[]
+  primes                 prime[]
 
   @@map("User")
+}
+
+model prime {
+  id            Int      @id @default(autoincrement())
+  amount        Decimal  @db.Decimal(10, 2)
+  reason        String?
+  distributedAt DateTime @default(now())
+  userId        Int
+  user          user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("Prime")
+}
+
+model loginhistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginAt   DateTime @default(now())
+
+  @@index([userId])
+  @@map("LoginHistory")
 }
 
 enum sale_paymentMethod {
@@ -176,30 +205,37 @@ model giveaway {
 }
 
 model giveawayparticipation {
-  id         Int      @id @default(autoincrement())
-  giveawayId Int
-  giveaway   giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  userId     Int
-  user       user     @relation(fields: [userId], references: [id])
-  joinedAt   DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  giveawayId    Int
+  giveaway      giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId        Int?     // Made optional for guest participants
+  user          user?    @relation(fields: [userId], references: [id])
+  clientName    String?
+  clientSurname String?
+  clientPhone   String?
+  joinedAt      DateTime @default(now())
 
-  @@unique([giveawayId, userId], map: "GiveawayParticipation_user_giveaway_unique")
   @@index([giveawayId])
   @@index([userId])
+  @@index([clientPhone])
+  winners       giveawaywinner[]
 }
 
 model giveawaywinner {
-  id         Int      @id @default(autoincrement())
-  giveawayId Int
-  giveaway   giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  userId     Int
-  user       user     @relation(fields: [userId], references: [id])
-  selectedAt DateTime @default(now())
-  rank       Int // 1st, 2nd, 3rd winner, etc.
+  id              Int                   @id @default(autoincrement())
+  giveawayId      Int
+  giveaway        giveaway              @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  participationId Int?                  // Link to participation record
+  participation   giveawayparticipation? @relation(fields: [participationId], references: [id])
+  userId          Int?                  // Made optional
+  user            user?                 @relation(fields: [userId], references: [id])
+  selectedAt      DateTime              @default(now())
+  rank            Int                   // 1st, 2nd, 3rd winner, etc.
 
   @@unique([giveawayId, userId], map: "GiveawayWinner_user_giveaway_unique")
   @@index([giveawayId])
   @@index([userId])
+  @@index([participationId])
 }
 
 enum giveaway_status {

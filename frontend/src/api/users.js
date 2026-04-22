@@ -17,3 +17,9 @@ export const deleteUser = async (id) => {
     const response = await api.delete(`/users/${id}`);
     return response.data;
 };
+
+// Distribute Primes
+export const distributePrimes = async (primeData) => {
+    const response = await api.post('/users/distribute-prime', primeData);
+    return response.data;
+};

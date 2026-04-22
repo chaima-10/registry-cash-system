@@ -1,6 +1,6 @@
 -- Safe way to drop foreign keys in MySQL
 DROP PROCEDURE IF EXISTS DropForeignKeyIfExists;
-DELIMITER //
+
 CREATE PROCEDURE DropForeignKeyIfExists(IN tableName VARCHAR(64), IN constraintName VARCHAR(64))
 BEGIN
     IF EXISTS (
@@ -15,8 +15,8 @@ BEGIN
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
     END IF;
-END //
-DELIMITER ;
+END;
+
 
 -- Call the procedure for each foreign key
 CALL DropForeignKeyIfExists('Cart', 'Cart_userId_fkey');
@@ -34,7 +34,7 @@ DROP PROCEDURE IF EXISTS DropForeignKeyIfExists;
 -- Add the new columns for TVA and currency support
 -- We use a similar procedure for columns to ensure idempotency
 DROP PROCEDURE IF EXISTS AddColumnIfNotExists;
-DELIMITER //
+
 CREATE PROCEDURE AddColumnIfNotExists(IN tableName VARCHAR(64), IN colName VARCHAR(64), IN colType VARCHAR(255))
 BEGIN
     IF NOT EXISTS (
@@ -48,8 +48,8 @@ BEGIN
         EXECUTE stmt;
         DEALLOCATE PREPARE stmt;
     END IF;
-END //
-DELIMITER ;
+END;
+
 
 CALL AddColumnIfNotExists('Cart', 'subtotalHT', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00');
 CALL AddColumnIfNotExists('Cart', 'tvaAmount', 'DECIMAL(10, 2) NOT NULL DEFAULT 0.00');

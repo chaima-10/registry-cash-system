@@ -23,9 +23,9 @@ export const logoutUser = async () => {
 };
 
 export const getProfile = async () => {
-    // Use the backend profile route (which is located in either /auth/profile or /users/profile)
-    // Currently backend has it at /auth/profile as well as /users/profile. We will use /auth/profile.
-    const response = await api.get('/auth/profile');
+    // Use the comprehensive /users/profile endpoint instead of the raw /auth/profile
+    // to ensure the 'stats' object (Primes, revenue, etc.) is included.
+    const response = await api.get('/users/profile');
     return response.data;
 };
 
@@ -36,5 +36,10 @@ export const updateProfile = async (data) => {
 
 export const changePassword = async (data) => {
     const response = await api.put('/users/change-password', data);
+    return response.data;
+};
+
+export const resendVerificationEmail = async (email) => {
+    const response = await api.post('/auth/resend-verification', { email });
     return response.data;
 };
