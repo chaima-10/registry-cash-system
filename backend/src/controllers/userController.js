@@ -87,7 +87,8 @@ exports.getAllUsers = async (req, res) => {
                 dailyRevenue: (todayRevenueMap[user.id] || 0).toFixed(2),
                 workedDays,
                 absences,
-                monthlySalary: Number(user.salary || 0).toFixed(2),
+                salary: user.salary,
+                monthlySalary: (Number(user.salary || 0) * workedDays).toFixed(2),
                 createdAt: user.createdAt
             };
         });
@@ -203,7 +204,7 @@ exports.getProfile = async (req, res) => {
         res.json({
             ...user,
             stats: {
-                monthlySalary: Number(user.salary || 0).toFixed(2),
+                monthlySalary: (Number(user.salary || 0) * workedDaysCount).toFixed(2),
                 workedDays: workedDaysCount,
                 absences,
                 dailyRevenue: todayRevenue.toFixed(2),

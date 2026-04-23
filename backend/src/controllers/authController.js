@@ -17,13 +17,7 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'Username already taken' });
         }
 
-        // Enforce Single Admin Rule
-        if (role === 'admin') {
-            const adminCount = await prisma.user.count({ where: { role: 'admin' } });
-            if (adminCount > 0) {
-                return res.status(403).json({ message: 'Operation failed. An administrator already exists.' });
-            }
-        }
+
 
         // Hash password
         const salt = await bcrypt.genSalt(10);

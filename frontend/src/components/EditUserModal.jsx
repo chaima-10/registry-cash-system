@@ -58,7 +58,7 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 ml-1">{t('monthlySalary')}</label>
+                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 ml-1">{t('dailySalary', 'Daily Salary')}</label>
                         <div className="relative group">
                             <input
                                 type="number"
@@ -70,24 +70,6 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
                                 className="w-full px-5 py-4 bg-gray-50/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium pr-14"
                             />
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black text-blue-500/50 dark:text-blue-400/30">TND</div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 ml-1">{t('workingDays')}</label>
-                        <input
-                            type="text"
-                            name="workingDays"
-                            placeholder={t('workingDaysPlaceholder', 'e.g. Mon,Tue,Wed')}
-                            value={formData.workingDays}
-                            onChange={handleChange}
-                            className="w-full px-5 py-4 bg-gray-50/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium"
-                        />
-                        <div className="flex items-start gap-2 mt-2 px-1">
-                            <div className="mt-0.5"><FiSave size={10} className="text-blue-500" /></div>
-                            <p className="text-[10px] text-gray-400 italic leading-relaxed">
-                                {t('workingDaysAutoNote', 'Les jours travaillés sont calculés automatiquement.')}
-                            </p>
                         </div>
                     </div>
 

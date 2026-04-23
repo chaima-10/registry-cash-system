@@ -214,11 +214,14 @@ const AIAnalytics = () => {
             }
         });
 
-        // Assume sales log is over 30 days for velocity calculation
+        // Calculate real number of days in current month for velocity
+        const now = new Date();
+        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        
         const alerts = [];
         products.forEach(p => {
             const totalSold = salesMap[p.id] || 0;
-            const dailyVelocity = totalSold / 30; // Approx sold per day
+            const dailyVelocity = totalSold / daysInMonth; // Actual days in month velocity
             const daysRemaining = dailyVelocity > 0 ? p.stockQuantity / dailyVelocity : 999;
             
             if (p.stockQuantity <= 10) {

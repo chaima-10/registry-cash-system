@@ -229,7 +229,8 @@ const ProfilePage = () => {
                                             const salaryData = calculateNetSalary(
                                                 user?.stats?.monthlySalary,
                                                 user?.stats?.absences,
-                                                user?.workingDays
+                                                user?.workingDays,
+                                                user?.stats?.workedDays
                                             );
                                             return (
                                                 <div className="flex flex-col gap-1">
@@ -244,21 +245,17 @@ const ProfilePage = () => {
                                                     </div>
                                                     <div className="pl-11 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
                                                         <div className="flex justify-between gap-4">
-                                                            <span>{t('originalSalary', 'Original')}:</span>
-                                                            <span className="line-through">{formatCurrency(salaryData.originalSalary, null, false)}</span>
+                                                            <span>{t('expectedMonthlySalary', 'Expected Monthly')}:</span>
+                                                            <span className="font-medium text-gray-400 line-through">{formatCurrency(salaryData.expectedMonthlySalary, null, false)}</span>
                                                         </div>
-                                                        {salaryData.absenceDays > 0 && (
-                                                            <>
-                                                                <div className="flex justify-between gap-4">
-                                                                    <span>{t('dailySalary', 'Daily Salary')}:</span>
-                                                                    <span>{formatCurrency(salaryData.dailySalary, null, false)}</span>
-                                                                </div>
-                                                                <div className="flex justify-between gap-4 text-red-500">
-                                                                    <span>{t('deductionForAbsences', 'Deduction')} ({salaryData.absenceDays} {t('days')}):</span>
-                                                                    <span>-{formatCurrency(salaryData.deduction, null, false)}</span>
-                                                                </div>
-                                                            </>
-                                                        )}
+                                                        <div className="flex justify-between gap-4">
+                                                            <span>{t('dailySalary', 'Daily Salary')}:</span>
+                                                            <span className="font-medium">{formatCurrency(salaryData.dailySalary, null, false)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between gap-4">
+                                                            <span>{t('workedDays')}:</span>
+                                                            <span className="font-medium">{user?.stats?.workedDays || 0} {t('days')}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
