@@ -3,7 +3,7 @@ import { FiPlus, FiUser, FiUserCheck, FiShield } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { register } from '../api/auth';
 import { getUsers, updateUser, deleteUser } from '../api/users';
-import CashierTable from '../components/CashierTable';
+import UserTable from '../components/UserTable';
 import EditUserModal from '../components/EditUserModal';
 import { useTranslation } from 'react-i18next';
 
@@ -39,7 +39,7 @@ const Users = () => {
             await register(formData);
             setMessage({ type: 'success', text: t('userRegisteredSuccess') });
             setFormData({ username: '', password: '', role: 'cashier', fullName: '', salary: '', workingDays: '' });
-            fetchUsers(); // Refresh list
+            fetchUsers(); 
         } catch (error) {
             setMessage({ type: 'error', text: error.response?.data?.message || t('registrationFailed') });
         }
@@ -78,7 +78,7 @@ const Users = () => {
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white px-2">{t('userManagement')}</h2>
 
             <div className="grid grid-cols-12 gap-8 items-start">
-                {/* Register Form - Narrower (4/12) */}
+                
                 <div className="col-span-12 lg:col-span-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl h-fit transition-colors sticky top-6">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="p-3 bg-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400"><FiUserCheck size={24} /></div>
@@ -121,21 +121,16 @@ const Users = () => {
                         </div>
 
                         <div className="space-y-1">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('monthlySalary')}</label>
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('dailySalary', 'Daily Salary')}</label>
                             <div className="relative">
                                 <span className="absolute left-3 top-2.5 text-blue-500 font-bold text-xs">TND</span>
                                 <input required type="number" step="0.001" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
-                                    placeholder="0,000"
+                                    placeholder={t('dailySalaryPlaceholder', 'Daily rate (e.g. 40.000)')}
                                     value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} />
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('workingDays')}</label>
-                            <input type="text" className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
-                                placeholder={t('workingDaysPlaceholder', 'e.g. Mon,Tue,Wed')}
-                                value={formData.workingDays} onChange={e => setFormData({ ...formData, workingDays: e.target.value })} />
-                        </div>
+                        {/* Working Days removed - now automatic */}
 
                         <div className="space-y-1">
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 mb-2">{t('role')}</label>
@@ -157,9 +152,20 @@ const Users = () => {
                     </form>
                 </div>
 
-                {/* Cashier Table - Wider (8/12) */}
-                <div className="col-span-12 lg:col-span-8">
-                    <CashierTable users={users} onEdit={handleEdit} onDelete={handleDelete} />
+                
+                <div className="col-span-12 lg:col-span-8 space-y-6">
+                    <UserTable 
+                        title={`${t('userManagement')} - ${t('cashiers', 'Cashiers')}`}
+                        users={users.filter(u => u.role === 'cashier')} 
+                        onEdit={handleEdit} 
+                        onDelete={handleDelete} 
+                    />
+                    <UserTable 
+                        title={`${t('userManagement')} - ${t('admins', 'Administrators')}`}
+                        users={users.filter(u => u.role === 'admin')} 
+                        onEdit={handleEdit} 
+                        onDelete={handleDelete} 
+                    />
                 </div>
             </div>
 

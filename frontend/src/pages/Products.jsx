@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiPlus, FiSearch, FiEdit2, FiTrash2, FiX, FiCamera } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import CameraScannerModal from '../components/CameraScannerModal';
@@ -8,14 +8,6 @@ import Barcode from 'react-barcode';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-
-// Generate a valid EAN-13 barcode (12 random digits + 1 check digit)
-const generateEAN13 = () => {
-    const digits = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10));
-    const checksum = digits.reduce((sum, d, i) => sum + d * (i % 2 === 0 ? 1 : 3), 0);
-    const checkDigit = (10 - (checksum % 10)) % 10;
-    return [...digits, checkDigit].join('');
-};
 
 const Products = () => {
     const { t } = useTranslation();
@@ -28,6 +20,7 @@ const Products = () => {
     const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
     const [filterCategory, setFilterCategory] = useState('');
     const [filterSubcategory, setFilterSubcategory] = useState('');
+    const [scannerTarget, setScannerTarget] = useState('search'); // 'search' or 'form'
 
     // Modal & Form State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,6 +33,15 @@ const Products = () => {
     const [imagePreview, setImagePreview] = useState(null);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const barcodeInputRef = useRef(null);
+
+    useEffect(() => {
+        if (isModalOpen && !isEditing && barcodeInputRef.current) {
+            setTimeout(() => {
+                barcodeInputRef.current?.focus();
+            }, 100);
+        }
+    }, [isModalOpen, isEditing]);
 
     useEffect(() => {
         fetchData();
@@ -61,7 +63,7 @@ const Products = () => {
     };
 
     const filteredProducts = products.filter(product => {
-        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) || product.barcode.includes(searchTerm);
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCat = filterCategory ? product.categoryId === parseInt(filterCategory) : true;
         const matchesSub = filterSubcategory ? product.subcategoryId === parseInt(filterSubcategory) : true;
         return matchesSearch && matchesCat && matchesSub;
@@ -76,7 +78,7 @@ const Products = () => {
     };
 
     const handleCreateCategory = async () => {
-        const name = window.prompt(t('newCategory') || "Nouvelle Catégorie");
+        const name = window.prompt(t('newCategory'));
         if (name) {
             try {
                 const res = await createCategory({ name });
@@ -94,7 +96,7 @@ const Products = () => {
             alert(t('selectCategoryFirst', "Sélectionnez d'abord une catégorie principale."));
             return;
         }
-        const name = window.prompt(t('newSubcategory') || "Nouvelle Sous-Catégorie");
+        const name = window.prompt(t('newSubcategory'));
         if (name) {
             try {
                 const res = await createSubcategory({ name, categoryId: filterCategory });
@@ -139,7 +141,7 @@ const Products = () => {
             const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
             const data = new FormData();
             
-            // Adjust prices back to base currency (USD) before saving
+            
             const submissionData = { ...formData };
             if (submissionData.price) submissionData.price = (parseFloat(submissionData.price) / rate).toFixed(6);
             if (submissionData.purchasePrice) submissionData.purchasePrice = (parseFloat(submissionData.purchasePrice) / rate).toFixed(6);
@@ -197,24 +199,15 @@ const Products = () => {
 
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-4">
-                <div className="relative flex-1 flex gap-2">
-                    <div className="relative w-full">
-                        <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder={t('searchPlaceholder')}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
-                        />
-                    </div>
-                    <button
-                        onClick={() => setIsCameraScannerOpen(true)}
-                        className="p-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-all shadow-sm border border-gray-200 dark:border-gray-700 flex items-center justify-center transform active:scale-95"
-                        title={t('scanWithCamera', 'Scan with Camera')}
-                    >
-                        <FiCamera size={22} />
-                    </button>
+                <div className="relative flex-1">
+                    <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="text"
+                        placeholder={t('searchPlaceholder')}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-gray-900 dark:text-gray-300 focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
+                    />
                 </div>
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex gap-1">
@@ -260,20 +253,20 @@ const Products = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50/50 dark:bg-gray-800/50 text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-800">
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('image') || 'Img'}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('barcode')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('name')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('category')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('subcategory')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider">{t('stock')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('unitSellingPrice', 'Selling Unit (TTC)')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('totalSellingPrice', 'Potential Total')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('unitPurchasePrice', 'Purchase Unit')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('totalPrice', 'Total Purchase')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('tvaPercent', "Tax %")}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-right">{t('remise', 'Discount')} %</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-center">{t('currency', 'Currency')}</th>
-                                <th className="p-4 font-bold uppercase text-xs tracking-wider text-center">{t('actions')}</th>
+                                <th className="p-4 font-bold uppercase text-xs">{t('image') || 'Img'}</th>
+                                <th className="p-4 font-bold uppercase text-xs">{t('barcode')}</th>
+                                <th className="p-4 font-bold uppercase text-xs">{t('name')}</th>
+                                <th className="p-4 font-bold uppercase text-xs">{t('category')}</th>
+                                <th className="p-4 font-bold uppercase text-xs">{t('subcategory')}</th>
+                                <th className="p-4 font-bold uppercase text-xs">{t('stock')}</th>
+                                <th className="p-4 font-bold uppercase text-xs text-right">{t('unitSellingPrice', 'Selling Unit (TTC)')}</th>
+                                <th className="p-4 font-bold uppercase text-xs text-right">{t('totalSellingPrice', 'Potential Total')}</th>
+                                <th className="p-4 font-bold uppercase text-xs text-right">{t('unitPurchasePrice', 'Purchase Unit')}</th>
+                                <th className="p-4 font-bold uppercase text-xs text-right">{t('totalPrice', 'Total Purchase')}</th>
+                                <th className="p-4 font-bold uppercase text-xs text-right">{t('tvaPercent', "Tax %")}</th>
+                                <th className="p-4 font-bold uppercase text-xs text-right">{t('remise', 'Discount')} %</th>
+                                <th className="p-4 font-bold uppercase text-xs text-center">{t('currency', 'Currency')}</th>
+                                <th className="p-4 font-bold uppercase text-xs text-center">{t('actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800 transition-colors">
@@ -391,20 +384,28 @@ const Products = () => {
                                     <div className="space-y-1">
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('barcode')}</label>
                                         <div className="flex gap-2">
-                                            <input required type="text" pattern="\d{12,13}" title="Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)"
-                                                className={`flex-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none transition-all font-mono ${isEditing ? 'opacity-60 cursor-not-allowed' : 'focus:border-blue-500 dark:focus:border-blue-400'}`}
-                                                value={formData.barcode}
-                                                onChange={e => setFormData({ ...formData, barcode: e.target.value.replace(/\D/g, '').slice(0, 13) })}
-                                                disabled={isEditing}
-                                                placeholder="e.g. 5901234123457" />
-                                            {!isEditing && (
-                                                <button type="button"
-                                                    onClick={() => setFormData({ ...formData, barcode: generateEAN13() })}
-                                                    className="px-3 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-800/60 text-blue-700 dark:text-blue-300 rounded-xl text-xs font-bold transition-all border border-blue-200 dark:border-blue-700 whitespace-nowrap"
-                                                    title="Auto-generate a valid EAN-13 barcode">
-                                                    EAN-13
-                                                </button>
-                                            )}
+                                            <div className="relative flex-1">
+                                                <input 
+                                                    ref={barcodeInputRef}
+                                                    required type="text" pattern="\d{12,13}" title="Barcode must be strictly EAN-13 (13 digits) or UPC-A (12 digits)"
+                                                    className={`w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 pr-10 text-gray-900 dark:text-white outline-none transition-all font-mono ${isEditing ? 'opacity-60 cursor-not-allowed' : 'focus:border-blue-500 dark:focus:border-blue-400'}`}
+                                                    value={formData.barcode}
+                                                    onChange={e => setFormData({ ...formData, barcode: e.target.value.replace(/\D/g, '').slice(0, 13) })}
+                                                    disabled={isEditing}
+                                                    placeholder="Scan barcode..." />
+                                                {!isEditing && (
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setScannerTarget('form');
+                                                            setIsCameraScannerOpen(true);
+                                                        }}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-500 hover:text-blue-600 transition-colors"
+                                                    >
+                                                        <FiCamera size={20} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="space-y-1">
@@ -560,11 +561,15 @@ const Products = () => {
             {/* Camera Scanner Modal */}
             <CameraScannerModal
                 isOpen={isCameraScannerOpen}
-                onClose={() => setIsCameraScannerOpen(false)}
-                onScan={(decodedText) => {
-                    setSearchTerm(decodedText);
+                onClose={useCallback(() => setIsCameraScannerOpen(false), [])}
+                onScan={useCallback((decodedText) => {
+                    if (scannerTarget === 'search') {
+                        setSearchTerm(decodedText);
+                    } else {
+                        setFormData(prev => ({ ...prev, barcode: decodedText }));
+                    }
                     setIsCameraScannerOpen(false);
-                }}
+                }, [scannerTarget])}
             />
         </div>
     );

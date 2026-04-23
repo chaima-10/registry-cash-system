@@ -60,48 +60,40 @@ export const getTotalWorkingDaysInMonth = (workingDaysSchedule) => {
     return count;
 };
 
+
 /**
- * Calculate net salary after absence deductions
- * Formula: Net = Monthly Salary - (Daily Salary × Absence Days)
- * Daily Salary = Monthly Salary ÷ Total working days in month
- * 
- * @param {number} monthlySalary - Original monthly salary
+ * @param {number} dailySalary - Rate per day
  * @param {number} absences - Number of absence days
  * @param {string} workingDaysSchedule - e.g., "Mon,Tue,Wed"
- * @returns {object} - { originalSalary, dailySalary, netSalary, absenceDays, totalWorkingDays }
+ * @param {number} workedDays - Number of days actually worked
+ * @returns {object} - { originalSalary, dailySalary, netSalary, absenceDays, totalWorkingDays, deduction }
  */
-export const calculateNetSalary = (monthlySalary, absences, workingDaysSchedule) => {
-    const salary = Number(monthlySalary || 0);
-    const absenceDays = Number(absences || 0);
+export const calculateNetSalary = (dailySalary, absences, workingDaysSchedule, workedDays) => {
+    const rate = Number(dailySalary || 0);
+    const worked = Number(workedDays || 0);
 
-    if (salary <= 0) {
-        return {
-            originalSalary: 0,
-            dailySalary: 0,
-            netSalary: 0,
-            absenceDays,
-            totalWorkingDays: 0,
-            deduction: 0
-        };
-    }
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    // Real number of days in the current month (28, 29, 30, or 31)
+    const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Potential working days based on schedule
+    const totalWorkingDaysInSchedule = getTotalWorkingDaysInMonth(workingDaysSchedule);
 
-    const totalWorkingDays = getTotalWorkingDaysInMonth(workingDaysSchedule);
+    // Expected Monthly Salary (Full month max)
+    const expectedMonthlySalary = rate * daysInCurrentMonth;
 
-    // Daily Salary = Monthly Salary ÷ Total working days
-    const dailySalary = salary / totalWorkingDays;
-
-    // Deduction = Daily Salary × Absence Days
-    const deduction = dailySalary * absenceDays;
-
-    // Net Salary = Monthly Salary - Deduction (minimum 0)
-    const netSalary = Math.max(0, salary - deduction);
+    // Actual Monthly Salary (Strictly based on worked days)
+    const netSalary = rate * worked;
 
     return {
-        originalSalary: salary,
-        dailySalary,
+        originalSalary: expectedMonthlySalary, // Using full month as "Original"
+        dailySalary: rate,
         netSalary,
-        absenceDays,
-        totalWorkingDays,
-        deduction
+        absenceDays: Number(absences || 0),
+        totalWorkingDays: totalWorkingDaysInSchedule,
+        daysInCurrentMonth,
+        expectedMonthlySalary
     };
 };

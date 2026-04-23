@@ -144,7 +144,7 @@
   "fullName": "Full Name",
   "salary": "Salary",
   "workingDays": "Working Days",
-  "workingDaysPlaceholder": "e.g. Mon,Tue,Wed",
+  "workingDaysPlaceholder": "e.g. Mon,Tue",
   "noUsersFound": "No users found",
   "edit": "Edit",
   "delete": "Delete",
