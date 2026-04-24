@@ -296,10 +296,10 @@ const Giveaways = () => {
             {/* 1. STATS BAR */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
                 {[
-                    { title: 'Total Giveaways', value: stats.total, icon: FiGift, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-900/30' },
-                    { title: 'Active', value: stats.active, icon: FiTrendingUp, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30' },
-                    { title: 'Total Participants', value: stats.participants, icon: FiUsers, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-900/30' },
-                    { title: 'Ended', value: stats.ended, icon: FiClock, color: 'text-gray-500', bg: 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800' }
+                    { title: 'totalGiveaways', value: stats.total, icon: FiGift, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-900/30' },
+                    { title: 'activeGiveaways', value: stats.active, icon: FiTrendingUp, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30' },
+                    { title: 'totalParticipants', value: stats.participants, icon: FiUsers, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20 border-purple-100 dark:border-purple-900/30' },
+                    { title: 'giveawayEnded', value: stats.ended, icon: FiClock, color: 'text-gray-500', bg: 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800' }
                 ].map((stat, i) => (
                     <motion.div key={i} initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay: i*0.1}} 
                         className="bg-white dark:bg-gray-800 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-5">
@@ -366,7 +366,7 @@ const Giveaways = () => {
                                     {/* Header Badges */}
                                     <div className="flex justify-between items-start mb-6">
                                         <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${active ? (isEndingSoon ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' : 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-400') : 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-900/50 dark:border-gray-700 dark:text-gray-400'}`}>
-                                            {active ? (isEndingSoon ? 'Ending Soon' : 'Active') : 'Ended'}
+                                            {active ? (isEndingSoon ? t('endingSoon', 'Ending Soon') : t('activeBadge', 'Active')) : t('endedBadge', 'Ended')}
                                         </div>
                                         {user?.role === 'admin' && (
                                             <button onClick={() => handleDeleteGiveaway(giveaway.id)} className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">
@@ -433,14 +433,14 @@ const Giveaways = () => {
                                                 className="flex-1 py-3.5 bg-gray-900 hover:bg-purple-600 dark:bg-white dark:hover:bg-purple-500 dark:text-gray-900 text-white rounded-[1.25rem] text-sm font-bold shadow-xl transition-all flex items-center justify-center gap-2 hover:-translate-y-1"
                                             >
                                                 <FiPlay size={18} />
-                                                {t('participateMsg', 'Participate Now')}
+                                                {t('participateNow', 'Participate Now')}
                                             </button>
                                         )}
                                         
                                         {(!active || !canParticipate(giveaway)) && !giveaway.winners?.length && user?.role !== 'admin' && (
                                             <div className="flex-1 py-3.5 bg-gray-100 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 rounded-[1.25rem] text-sm font-bold flex items-center justify-center gap-2 border border-gray-200 dark:border-transparent">
                                                 <FiCheckCircle size={18} />
-                                                {participating[giveaway.id] ? t('joinedMsg', 'You Joined') : t('endedMsg', 'Event Closed')}
+                                                {participating[giveaway.id] ? t('youJoined', 'Inscrit') : t('eventClosed', 'Event Closed')}
                                             </div>
                                         )}
 
@@ -451,7 +451,7 @@ const Giveaways = () => {
                                                 className={`flex-1 py-3.5 rounded-[1.25rem] text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${active ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed shadow-none' : 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-yellow-500/20 hover:-translate-y-1'}`}
                                             >
                                                 <FiAward size={18} />
-                                                {active ? t('waiting', 'Wait for End') : t('draw', 'Draw Winners')}
+                                                {active ? t('waitEnd', 'Wait for End') : t('drawWinners', 'Draw Winners')}
                                             </button>
                                         )}
                                     </div>
@@ -459,7 +459,7 @@ const Giveaways = () => {
                                     {/* Winners Results Display */}
                                     {ended && giveaway.winners && giveaway.winners.length > 0 && (
                                         <div className="mt-6 pt-5 flex flex-col gap-2">
-                                            <div className="text-[10px] font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-500 mb-1 flex items-center gap-1.5"><FiAward size={14}/> Official Winners</div>
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-500 mb-1 flex items-center gap-1.5"><FiAward size={14}/> {t('officialWinners', 'Official Winners')}</div>
                                             {giveaway.winners.map(w => {
                                                 const winnerName = w.participation?.clientName ? `${w.participation.clientName} ${w.participation.clientSurname}` : (w.user?.fullName || w.user?.username || `User ${w.userId}`);
                                                 return (
@@ -576,42 +576,42 @@ const Giveaways = () => {
                                 </div>
                                 <div>
                                     <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                                        Client Registration
+                                        {t('clientRegistration', 'Client Registration')}
                                     </h2>
-                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">Fill in participant details</p>
+                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-wider">{t('fillParticipantDetails', 'Fill in participant details')}</p>
                                 </div>
                             </div>
                             
                             <form onSubmit={(e) => { e.preventDefault(); submitParticipation(selectedGiveawayId, registrationData); }} className="space-y-5">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">First Name</label>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">{t('firstName', 'First Name')}</label>
                                         <input type="text" required value={registrationData.clientName} onChange={(e) => handleNameInput('clientName', e.target.value)}
                                             className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
-                                            placeholder="Name" />
+                                            placeholder={t('name', 'Name')} />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Surname</label>
+                                        <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">{t('surname', 'Surname')}</label>
                                         <input type="text" required value={registrationData.clientSurname} onChange={(e) => handleNameInput('clientSurname', e.target.value)}
                                             className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
-                                            placeholder="Surname" />
+                                            placeholder={t('surname', 'Surname')} />
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">Phone Number</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">{t('phoneNumber', 'Phone Number')}</label>
                                     <input type="tel" required value={registrationData.clientPhone} onChange={(e) => handlePhoneInput(e.target.value)}
                                         maxLength={8}
                                         className="w-full px-5 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-[1.25rem] font-bold focus:border-blue-500 focus:ring-0 text-gray-900 dark:text-white transition-all shadow-sm"
-                                        placeholder="8-digit number (Ex: 21654321)" />
+                                        placeholder={t('phonePlaceholder', '8-digit number (Ex: 21654321)')} />
                                 </div>
                                 <div className="flex gap-4 pt-6">
                                     <button type="button" onClick={() => setShowRegistrationForm(false)}
                                         className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-[1.5rem] font-bold transition-all">
-                                        Cancel
+                                        {t('cancel', 'Cancel')}
                                     </button>
                                     <button type="submit" disabled={participating[selectedGiveawayId]}
                                         className="flex-[2] py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-[1.5rem] font-bold shadow-xl shadow-blue-500/20 transition-all flex justify-center items-center">
-                                        {participating[selectedGiveawayId] ? 'Registering...' : 'Register Participant'}
+                                        {participating[selectedGiveawayId] ? t('registering', 'Registering...') : t('registerParticipant', 'Register Participant')}
                                     </button>
                                 </div>
                             </form>
@@ -642,7 +642,7 @@ const Giveaways = () => {
                                         <FiAward size={24} />
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Draw Winners</h2>
+                                        <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t('drawWinners', 'Draw Winners')}</h2>
                                         <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{drawingGiveaway.title}</p>
                                     </div>
                                 </div>
@@ -657,12 +657,12 @@ const Giveaways = () => {
                                     
                                     {drawStatus === 'idle' && (
                                         <div className="text-center">
-                                            <div className="text-4xl font-black text-gray-300 dark:text-gray-700 mb-4 tracking-tighter uppercase italic">Ready to Draw?</div>
+                                            <div className="text-4xl font-black text-gray-300 dark:text-gray-700 mb-4 tracking-tighter uppercase italic">{t('readyToDraw', 'Ready to Draw?')}</div>
                                             <button 
                                                 onClick={startDrawingProcess}
                                                 className="px-10 py-5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-2xl font-black shadow-xl shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 flex items-center gap-3 mx-auto"
                                             >
-                                                <FiPlay size={20} /> START RANDOM SELECTION
+                                                <FiPlay size={20} /> {t('startRandom', 'START RANDOM SELECTION')}
                                             </button>
                                         </div>
                                     )}
@@ -687,8 +687,8 @@ const Giveaways = () => {
                                     {drawStatus === 'revealed' && (
                                         <div className="w-full text-center">
                                             <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="mb-6">
-                                                <div className="text-yellow-500 mb-2 font-black uppercase tracking-[0.3em] text-[10px]">TIRAGE TERMINÉ</div>
-                                                <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-8">Félicitations aux Gagnants!</h3>
+                                                <div className="text-yellow-500 mb-2 font-black uppercase tracking-[0.3em] text-[10px]">{t('drawFinished', 'TIRAGE TERMINÉ')}</div>
+                                                <h3 className="text-3xl font-black text-gray-900 dark:text-white mb-8">{t('congratulationsWinners', 'Félicitations aux Gagnants!')}</h3>
                                             </motion.div>
                                             
                                             <div className="grid gap-4 max-w-md mx-auto">
@@ -715,7 +715,7 @@ const Giveaways = () => {
                                                 onClick={() => setShowDrawModal(false)}
                                                 className="mt-10 px-8 py-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-2xl font-black shadow-xl transition-all hover:opacity-90"
                                             >
-                                                Close & View Results
+                                                {t('closeViewResults', 'Close & View Results')}
                                             </button>
                                         </div>
                                     )}
@@ -724,10 +724,10 @@ const Giveaways = () => {
                                 {/* Participant Sidebar Info */}
                                 <div className="flex justify-between items-center px-4">
                                     <div className="flex items-center gap-2 text-gray-400 font-bold text-[10px] uppercase tracking-widest">
-                                        <FiUsers size={14} /> {drawingGiveaway.participants.length} Participants au total
+                                        <FiUsers size={14} /> {drawingGiveaway.participants.length} {t('totalParticipantsLabel', 'Participants au total')}
                                     </div>
                                     <div className="flex items-center gap-2 text-gray-400 font-bold text-[10px] uppercase tracking-widest">
-                                        <FiAward size={14} /> {drawingGiveaway.winnerCount} Gagnant(s) à tirer
+                                        <FiAward size={14} /> {drawingGiveaway.winnerCount} {t('winnersToDraw', 'Gagnant(s) à tirer')}
                                     </div>
                                 </div>
                             </div>

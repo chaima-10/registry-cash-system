@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 const AIAnalytics = () => {
     const { t } = useTranslation();
     const { formatCurrency } = useAuth();
-    const [activeTab, setActiveTab] = useState('overview');
+    const [activeTab, setActiveTab] = useState('products');
     const [topProductsSortBy, setTopProductsSortBy] = useState('revenue');
     
     const [products, setProducts] = useState([]);
@@ -32,8 +32,8 @@ const AIAnalytics = () => {
     const [selectedPoster, setSelectedPoster] = useState(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    // AI states (Marketing removed)
-    // Removed old chat hooks and marketing specific generation logic
+    // AI states
+    const [isGeneratingMarketing, setIsGeneratingMarketing] = useState(false);
 
     // Initial Data Fetch
     useEffect(() => {
@@ -154,7 +154,7 @@ const AIAnalytics = () => {
         return slow.map(p => ({
             ...p,
             suggestedDiscount: p.stockQuantity > 50 ? '-30%' : '-15%',
-            actionReason: `Stock élevé (${p.stockQuantity}) et ventes très faibles.`
+            actionReason: t('actionReasonSlow', { qty: p.stockQuantity })
         }));
     };
 
@@ -168,10 +168,23 @@ const AIAnalytics = () => {
             totalRevenue += parseFloat(s.totalAmount || 0);
         });
 
+        // Calculate peak hour
+        let peakH = 16; // default fallback
+        let maxC = 0;
+        hourCounts.forEach((count, h) => {
+            if (count > maxC) {
+                maxC = count;
+                peakH = h;
+            }
+        });
+
         const heatmapData = hourCounts.map((count, h) => ({ heure: `${h}h`, Transactions: count })).filter((d, i) => i > 7 && i < 22);
         const panierMoyen = sales.length > 0 ? (totalRevenue / sales.length).toFixed(2) : 0;
+        
+        const todaySalesCount = sales.filter(s => isToday(s.createdAt)).length;
+        const flow = todaySalesCount > 10 ? 'High' : todaySalesCount > 3 ? 'Moderate' : 'Stable';
 
-        return { heatmapData, panierMoyen, totalClients: sales.length };
+        return { heatmapData, panierMoyen, totalClients: sales.length, peakHour: `${peakH}:00`, flow };
     };
 
     const getAnomalies = () => {
@@ -188,7 +201,7 @@ const AIAnalytics = () => {
         // Dead stock anomaly
         products.forEach(p => {
             if (p.stockQuantity > 100 && (!salesMap[p.id] || salesMap[p.id] === 0)) {
-                anomaliesList.push({ type: 'Stock Mort', product: p, desc: 'Stock bloqué > 100 unités avec 0 vente récente.' });
+                anomaliesList.push({ type: t('stockMort', 'Stock Mort'), product: p, desc: t('stockMortDesc', 'Stock bloqué > 100 unités avec 0 vente récente.') });
             }
         });
 
@@ -197,7 +210,7 @@ const AIAnalytics = () => {
             const achat = p.purchasePrice ? parseFloat(p.purchasePrice) : 0;
             const vente = parseFloat(p.price);
             if (achat > 0 && vente <= achat) {
-                anomaliesList.push({ type: 'Marge Négative', product: p, desc: "Le prix de vente est inférieur ou égal au prix d'achat." });
+                anomaliesList.push({ type: t('margeNegative', 'Marge Négative'), product: p, desc: t('margeNegativeDesc', "Le prix de vente est inférieur ou égal au prix d'achat.") });
             }
         });
 
@@ -225,9 +238,9 @@ const AIAnalytics = () => {
             const daysRemaining = dailyVelocity > 0 ? p.stockQuantity / dailyVelocity : 999;
             
             if (p.stockQuantity <= 10) {
-                alerts.push({ p, days: daysRemaining.toFixed(1), urgency: 'high', reason: "Stock critique absolu (<10)" });
+                alerts.push({ p, days: daysRemaining.toFixed(1), urgency: 'high', reason: t('stockCriticalAbs', "Stock critique absolu (<10)") });
             } else if (dailyVelocity > 1 && daysRemaining < 7) {
-                alerts.push({ p, days: daysRemaining.toFixed(1), urgency: 'medium', reason: `Se vend très vite ! Rupture prévue dans ${daysRemaining.toFixed(0)} jours.` });
+                alerts.push({ p, days: daysRemaining.toFixed(1), urgency: 'medium', reason: t('sellingFastAlert', { days: daysRemaining.toFixed(0) }) });
             }
         });
         return alerts.sort((a,b) => a.days - b.days).slice(0, 8);
@@ -237,12 +250,12 @@ const AIAnalytics = () => {
         const monthlyAvg = sales.length > 0 ? sales.reduce((sum, s) => sum + parseFloat(s.totalAmount), 0) / Math.max(1, sales.length * 0.1) : 5000;
         const months = ['M+1', 'M+2', 'M+3', 'M+4', 'M+5', 'M+6'];
         return months.map((m, i) => {
-            const pred = monthlyAvg * (1 + (i * 0.05)) + (Math.random() * 500);
+            const pred = monthlyAvg * (1 + (i * 0.03)); // 3% growth linear
             return {
                 name: m,
                 Prédiction: pred,
                 Historique: monthlyAvg,
-                Approvisionnement: pred * 0.6 // Recommend 60% of pred as supply capital
+                Approvisionnement: pred * 0.6
             };
         });
     };
@@ -302,102 +315,14 @@ const AIAnalytics = () => {
         }
 
         switch (activeTab) {
-            case 'overview':
-                const daily = getDailySummary();
-                const slowOverviewProds = getSlowProductsWithPromos().slice(0, 3);
-                return (
-                    <div className="space-y-8">
-                        {/* Strategic BI Hero */}
-                        <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden text-white border border-white/5 group">
-                            <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 blur-[100px] rounded-full group-hover:bg-blue-500/20 transition-all duration-1000"></div>
-                            <div className="relative z-10 flex flex-col md:flex-row justify-between gap-8">
-                                <div className="max-w-2xl">
-                                    <div className="flex items-center gap-3 mb-6">
-                                        <span className="px-4 py-1.5 bg-blue-500/20 backdrop-blur-xl rounded-full text-[11px] font-black tracking-[0.2em] uppercase border border-white/10 text-blue-300">
-                                            IA ANALYTICS ENGINE 
-                                        </span>
-                                        <div className="flex gap-1.5">
-                                            {[1,2,3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-400/40 animate-pulse" style={{animationDelay: `${i*0.2}s`}}></div>)}
-                                        </div>
-                                    </div>
-                                    <h3 className="text-4xl font-black mb-4 leading-[1.1] tracking-tight">{t('aiHeroTitle', "Optimisez votre magasin avec l'IA.")}</h3>
-                                    <p className="text-slate-300 text-lg opacity-90 leading-relaxed">
-                                        {t('aiHeroDesc', "Analyse temps réel : Votre CA est de {{rev}}. Le volume est stable. Focus suggéré : Promotions ciblées.", {rev: formatCurrency(daily.todayRevenue)})}
-                                    </p>
-                                </div>
-                                <div className="flex flex-wrap md:flex-nowrap gap-4 shrink-0">
-                                    <div className="bg-white/5 backdrop-blur-2xl p-6 rounded-3xl border border-white/10 w-32 md:w-40 flex flex-col justify-center hover:scale-105 transition-transform">
-                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{t('sales', 'Ventes')}</div>
-                                        <div className="text-3xl font-black text-white">{daily.todayCount}</div>
-                                    </div>
-                                    <div className="bg-white/5 backdrop-blur-2xl p-6 rounded-3xl border border-white/10 w-32 md:w-40 flex flex-col justify-center hover:scale-105 transition-transform">
-                                        <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{t('alerts', 'Alertes')}</div>
-                                        <div className="text-3xl font-black text-orange-400">{getSmartAlerts().length}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-700">
-                                <div className="flex justify-between items-center mb-8">
-                                    <h3 className="text-xl font-black flex items-center gap-3 tracking-tighter uppercase"><FiTrendingUp className="text-blue-600" /> {t('topSelling', 'Top de Vente')}</h3>
-                                    <div className="flex bg-gray-50 dark:bg-slate-900 p-1.5 rounded-2xl border border-gray-100 dark:border-gray-800">
-                                        <button onClick={() => setTopProductsSortBy('revenue')} className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'revenue' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-md' : 'text-gray-400'}`}>{t('revenueSort', 'Revenu')}</button>
-                                        <button onClick={() => setTopProductsSortBy('quantity')} className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'quantity' ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-md' : 'text-gray-400'}`}>{t('quantitySort', 'Quantité')}</button>
-                                    </div>
-                                </div>
-                                <div className="space-y-4">
-                                    {getTopProducts().map((p, i) => (
-                                        <div key={i} className="flex justify-between items-center p-4 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform shadow-sm">
-                                                    {p.imageUrl ? <img src={`${API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-slate-400">{p.name.substring(0,2).toUpperCase()}</span>}
-                                                </div>
-                                                <div>
-                                                    <div className="font-black text-slate-800 dark:text-white truncate max-w-[150px]">{p.name}</div>
-                                                    <div className="text-xs text-slate-400 font-bold">{t('unitsSold', '{{count}} unités vendues', {count: p.qty})}</div>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-lg font-black text-blue-600 dark:text-blue-400">{formatCurrency(p.revenue)}</div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-700">
-                                <h3 className="text-xl font-black mb-8 flex items-center gap-3 tracking-tighter uppercase"><FiAlertCircle className="text-orange-500" /> {t('dormantStock', 'Produits Dormants')}</h3>
-                                <div className="space-y-4">
-                                    {slowOverviewProds.map((p, i) => (
-                                        <div key={i} className="flex justify-between items-center p-4 bg-orange-50/30 dark:bg-orange-900/10 rounded-2xl border border-transparent hover:border-orange-100 transition-all group">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border-2 border-orange-100 dark:border-orange-900/30 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform">
-                                                    {p.imageUrl ? <img src={`${API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-orange-300">{p.name.substring(0,2).toUpperCase()}</span>}
-                                                </div>
-                                                <div>
-                                                    <div className="font-black text-slate-800 dark:text-white truncate max-w-[150px]">{p.name}</div>
-                                                    <div className="text-xs text-orange-500/70 font-bold underline decoration-2 underline-offset-4">Stock: {p.stockQuantity}</div>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-xs font-black text-orange-600 bg-orange-100 dark:bg-orange-900/40 px-2 py-1 rounded-lg">PROMO {p.suggestedDiscount}</div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
             case 'products':
                 const slowProds = getSlowProductsWithPromos();
                 return (
                     <div className="space-y-6">
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                             <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><FiActivity className="text-orange-500" /> {t('adaptedPromotions', 'Promotions Adaptées')}</h3>
-                            <p className="text-sm text-gray-500 mb-6">Suggestions IA pour écouler les stocks dormants et maximiser la rotation.</p>
+                            <p className="text-sm text-gray-500 mb-6">{t('analyticsPromoDesc', 'Suggestions IA pour écouler les stocks dormants et maximiser la rotation.')}</p>
                             
                             <div className="grid gap-4 md:grid-cols-2">
                                 {slowProds.map((p, i) => (
@@ -412,8 +337,8 @@ const AIAnalytics = () => {
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="font-bold dark:text-white truncate">{p.name}</div>
-                                                <div className="text-xs text-gray-500">Stock: {p.stockQuantity} unités</div>
-                                                <div className="bg-orange-500 text-white font-bold px-2 py-0.5 rounded-md text-xs inline-block mt-1">Remise IA: {p.suggestedDiscount}</div>
+                                                <div className="text-xs text-gray-500">{t('stockCount', { count: p.stockQuantity })}</div>
+                                                <div className="bg-orange-500 text-white font-black px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider inline-block mt-1">{t('remiseAi', 'Remise IA')}: {p.suggestedDiscount}</div>
                                             </div>
                                         </div>
                                         <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">{p.actionReason}</p>
@@ -443,17 +368,17 @@ const AIAnalytics = () => {
                             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-2">{t('estimatedGrowth', 'Croissance Estimée')}</div>
                                 <div className="text-3xl font-black text-slate-800 dark:text-white">+12.5%</div>
-                                <div className="text-xs text-slate-400 mt-1 font-bold">Projection Q2 2026</div>
+                                <div className="text-xs text-slate-400 mt-1 font-bold">{t('projectionQ2', 'Projection Q2 2026')}</div>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-indigo-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('supplyUrgency', 'Urgence Approvisionnement')}</div>
                                 <div className="text-3xl font-black text-indigo-600">85%</div>
-                                <div className="text-xs text-slate-400 mt-1 font-bold">Capacité de stockage optimale</div>
+                                <div className="text-xs text-slate-400 mt-1 font-bold">{t('optimalStockCapacity', 'Capacité de stockage optimale')}</div>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-teal-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('marketTrend', 'Tendance Marché')}</div>
-                                <div className="text-3xl font-black text-teal-600">HAUSSE</div>
-                                <div className="text-xs text-slate-400 mt-1 font-bold">Saisonnalité favorable</div>
+                                <div className="text-3xl font-black text-teal-600">{t('uptrend', 'HAUSSE')}</div>
+                                <div className="text-xs text-slate-400 mt-1 font-bold">{t('favorableSeasonality', 'Saisonnalité favorable')}</div>
                             </div>
                         </div>
 
@@ -515,23 +440,23 @@ const AIAnalytics = () => {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-8 rounded-3xl shadow-xl text-white flex flex-col justify-between relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full -mr-16 -mt-16"></div>
-                                <div>
+                                 <div>
                                     <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">{t('peakActivity', 'Heure de Pointe')}</div>
-                                    <div className="text-4xl font-black">16:00</div>
+                                    <div className="text-4xl font-black">{behavior.peakHour}</div>
                                 </div>
-                                <div className="text-xs font-bold opacity-70 mt-4">+24% d'affluence vs matins</div>
+                                <div className="text-xs font-bold opacity-70 mt-4">{t('basedOnRealTransactions', 'Basé sur vos transactions réelles.')}</div>
                             </div>
 
                             <div className="bg-white dark:bg-gray-800 p-7 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
                                 <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('customerFlow', 'Flux Clients')}</div>
-                                <div className="text-3xl font-black text-slate-800 dark:text-white">High</div>
-                                <div className="text-xs text-green-500 mt-1 font-bold">Stable sur les 7 derniers jours</div>
+                                <div className="text-3xl font-black text-slate-800 dark:text-white">{t(`flow${behavior.flow}`, behavior.flow)}</div>
+                                <div className="text-xs text-green-500 mt-1 font-bold">{t('stableLastHours', 'Stable sur les dernières heures')}</div>
                             </div>
 
                             <div className="bg-white dark:bg-gray-800 p-7 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
-                                <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('repeatBuyers', 'Fidélité')}</div>
-                                <div className="text-3xl font-black text-slate-800 dark:text-white">68%</div>
-                                <div className="text-xs text-slate-400 mt-1 font-bold">Taux de retour clients hebdomadaire</div>
+                                <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('repeatBuyers', 'Panier Moyen')}</div>
+                                <div className="text-3xl font-black text-slate-800 dark:text-white">{formatCurrency(behavior.panierMoyen)}</div>
+                                <div className="text-xs text-slate-400 mt-1 font-bold">{t('avgSpendPerClient', 'Dépense moyenne par client')}</div>
                             </div>
                         </div>
 
@@ -543,7 +468,7 @@ const AIAnalytics = () => {
                                     <p className="text-slate-400 text-sm font-medium">{t('heatmapDesc', 'Visualisation des pics de transactions par tranche horaire.')}</p>
                                 </div>
                                 <div className="text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-4 py-2 rounded-full uppercase tracking-widest">
-                                    Mise à jour directe
+                                    {t('directUpdate', 'Mise à jour directe')}
                                 </div>
                             </div>
                             <div className="flex-1">
@@ -579,177 +504,8 @@ const AIAnalytics = () => {
                         </div>
                     </div>
                 );
-            case 'marketing':
-                return (
-                    <div className="space-y-8">
-                        <div className="bg-white dark:bg-gray-800 p-10 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700">
-                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-                                <div>
-                                    <h3 className="text-2xl font-black flex items-center gap-3 tracking-tighter uppercase">
-                                        <FiShoppingBag className="text-pink-500 scale-125" /> {t('tabMarketing', 'Marketing')}
-                                    </h3>
-                                    <p className="text-slate-500 font-medium mt-1">{t('aiMarketingDesc', "L'IA conçoit vos prochaines campagnes à partir de vos données réelles.")}</p>
-                                </div>
-                                <button
-                                    onClick={generateMarketingIdeas}
-                                    disabled={isGeneratingMarketing}
-                                    className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-slate-900 dark:bg-blue-600 text-white rounded-2xl text-sm font-black hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-50 group uppercase tracking-widest text-[11px]"
-                                >
-                                    {isGeneratingMarketing ? <FiRefreshCw className="animate-spin" /> : <FiActivity className="group-hover:rotate-180 transition-transform duration-500" />}
-                                    {isGeneratingMarketing ? t('loading', 'ANALYSE...') : t('btnGenerateAi', "GÉNÉRER AVEC L'IA")}
-                                </button>
-                            </div>
 
-                            {!marketingSuggested && !isGeneratingMarketing && (
-                                <div className="flex flex-col items-center justify-center py-24 text-center bg-slate-50 dark:bg-slate-900/50 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-slate-800">
-                                    <div className="w-24 h-24 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center mb-6 text-5xl shadow-lg">🚀</div>
-                                    <h4 className="text-xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-tight">{t('readyToBoost', 'Prêt à Booster ?')}</h4>
-                                    <p className="text-slate-500 max-w-sm font-medium text-sm">{t('marketingLaunchDesc', "Lancez l'intelligence marketing pour découvrir des opportunités uniques.")}</p>
-                                </div>
-                            )}
 
-                            {isGeneratingMarketing && (
-                                <div className="flex flex-col items-center justify-center py-24">
-                                    <FiRefreshCw className="animate-spin text-4xl text-blue-500 mb-4" />
-                                    <p className="text-slate-500 font-black tracking-widest uppercase text-[10px]">{t('aiCalculating', 'Calcul stratégique...')}</p>
-                                </div>
-                            )}
-
-                            <div className="grid gap-8 md:grid-cols-2">
-                                <AnimatePresence>
-                                    {marketingIdeas.map((idea, i) => (
-                                        <motion.div 
-                                            key={i}
-                                            initial={{ opacity: 0, y: 20 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: i * 0.1 }}
-                                            className="group bg-white dark:bg-slate-900 rounded-[2rem] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-lg hover:shadow-2xl transition-all"
-                                        >
-                                            <div className="relative p-8 text-white min-h-[160px] flex flex-col justify-end" style={{ backgroundColor: idea.theme }}>
-                                                <div className="absolute top-6 right-6 text-5xl opacity-20 group-hover:scale-125 transition-transform duration-500">{idea.emoji}</div>
-                                                <div className="relative z-10">
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-widest uppercase">Offre IA</span>
-                                                        {idea.timing && (
-                                                            <span className="px-3 py-1 bg-black/20 backdrop-blur-md rounded-full text-[10px] font-black tracking-widest uppercase flex items-center gap-1">
-                                                                <FiCalendar className="text-[10px]" /> {idea.timing}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <h4 className="font-black text-2xl tracking-tighter uppercase">{idea.title}</h4>
-                                                </div>
-                                            </div>
-                                            <div className="p-8">
-                                                <p className="text-slate-500 dark:text-slate-400 font-medium leading-relaxed mb-6 text-sm">{idea.description}</p>
-                                                
-                                                {idea.products && idea.products.length > 0 && (
-                                                    <div className="grid grid-cols-2 gap-4 mb-8">
-                                                        <div>
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{t('featuredProducts', 'Produits à l\'honneur')}</p>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {idea.products.map((pName, j) => (
-                                                                    <span key={j} className="text-[10px] font-black bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded-lg border border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                                                                        {pName}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">{t('visualSupport', 'Support Visuel')}</p>
-                                                            <div className="flex gap-2">
-                                                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs" title={t('poster', 'Affiche')}>🖼️</div>
-                                                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-xs" title={t('catalog', 'Catalogue')}>📚</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                                
-                                                <div className="flex gap-3">
-                                                    {posterGenerated[i] ? (
-                                                        <button
-                                                            onClick={() => setSelectedPoster(idea)}
-                                                            className="flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest rounded-2xl bg-green-500 text-white shadow-lg shadow-green-500/20 hover:scale-[1.02] transition-transform"
-                                                        >
-                                                            ✨ {t('seePoster', 'Voir l\'Affiche')}
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleGeneratePoster(i)}
-                                                            disabled={generatingPoster[i]}
-                                                            className={`flex-1 flex items-center justify-center gap-2 py-4 text-[10px] font-black uppercase tracking-widest rounded-2xl border-2 transition-all ${
-                                                                generatingPoster[i] ? 'opacity-50 cursor-wait' : 'hover:bg-slate-50 dark:hover:bg-slate-800'
-                                                            }`}
-                                                            style={{ borderColor: idea.theme, color: idea.theme }}
-                                                        >
-                                                            {generatingPoster[i] ? (
-                                                                <>
-                                                                    <FiRefreshCw className="animate-spin" /> {t('loading', 'Chargement...')}
-                                                                </>
-                                                            ) : (
-                                                                <>🎨 {t('generatePoster', 'Générer l\'affiche')}</>
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                    <button 
-                                                        className="px-6 py-4 bg-slate-100 dark:bg-slate-800 rounded-2xl text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
-                                                        title={t('moreDetails', 'Plus de détails')}
-                                                    >
-                                                        <FiArrowUpRight />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </AnimatePresence>
-                            </div>
-                        </div>
-                    </div>
-                );
-            case 'alerts':
-                const smartAlerts = getSmartAlerts();
-                return (
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <div className="mb-6">
-                            <h3 className="text-lg font-bold flex items-center gap-2"><FiAlertCircle className="text-red-500"/> {t('anticipatingShortages', 'Anticipation des Ruptures')}</h3>
-                            <p className="text-sm text-gray-500 mt-1">{t('stockVelocityDesc', 'Basé sur la vélocité des ventes récentes.')}</p>
-                        </div>
-                        <div className="space-y-3">
-                            {smartAlerts.length === 0 ? (
-                                <p className="text-green-500 font-medium">{t('everythingIsFine', 'Tout va bien ! Aucune rupture anticipée.')}</p>
-                            ) : (
-                                smartAlerts.map((a, i) => (
-                                    <div key={i} className={`flex items-center justify-between p-4 border rounded-xl relative overflow-hidden ${
-                                        a.urgency === 'high' ? 'bg-red-50 border-red-100 dark:bg-red-900/10 dark:border-red-800/50' : 'bg-orange-50 border-orange-100 dark:bg-orange-900/10 dark:border-orange-800/50'
-                                    }`}>
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}></div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0 ml-2">
-                                                {a.p.imageUrl ? (
-                                                    <img src={`${API_URL}${a.p.imageUrl}`} alt={a.p.name} className="w-full h-full object-contain" />
-                                                ) : (
-                                                    <span className="text-[10px] font-black text-gray-400">{a.p.name.substring(0, 2).toUpperCase()}</span>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <p className={`font-bold ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>
-                                                    {a.p.name}
-                                                </p>
-                                                <p className={`text-sm mt-1 font-medium ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>
-                                                    {a.reason}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col items-end gap-2">
-                                            <span className={`px-3 py-1 text-white font-bold rounded-lg text-sm ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}>
-                                                {a.p.stockQuantity} en stock
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                );
             default:
                 return null;
         }
@@ -763,11 +519,9 @@ const AIAnalytics = () => {
                 {/* Tabs */}
                 <div className="flex space-x-2 mb-6 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar">
                     {[
-                        { id: 'overview', label: t('tabOverview', "Vue d'ensemble"), icon: FiPieChart },
                         { id: 'products', label: t('tabProductsPromos', 'Produits & Promos'), icon: FiBox },
                         { id: 'forecasts', label: t('tabForecasts', 'Prévisions'), icon: FiTrendingUp },
-                        { id: 'behavior', label: t('tabBehavior', 'Comportement'), icon: FiCalendar },
-                        { id: 'alerts', label: t('tabAlerts', 'Alertes stock'), icon: FiAlertCircle }
+                        { id: 'behavior', label: t('tabBehavior', 'Comportement'), icon: FiCalendar }
                     ].map(tab => (
                         <button
                             key={tab.id}

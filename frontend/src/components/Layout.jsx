@@ -35,7 +35,7 @@ const SidebarItem = ({ to, icon: Icon, label, collapsed }) => (
 );
 
 const Layout = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { logout, user, toggleTheme } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
@@ -85,8 +85,10 @@ const Layout = () => {
         return item ? item.label : t('dashboard');
     };
 
+    const isRtl = i18n.language === 'ar';
+
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden font-sans transition-colors duration-300">
+        <div className="flex h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 overflow-hidden font-sans transition-colors duration-300" dir={isRtl ? 'rtl' : 'ltr'}>
             {/* Sidebar */}
             <motion.aside
                 animate={{ width: collapsed ? 80 : 280 }}
