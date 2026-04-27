@@ -188,42 +188,17 @@ const Giveaways = () => {
         if (!drawingGiveaway?.participants?.length) return;
         setDrawStatus('drawing');
         
-        
-        let speed = 50; 
-        let maxSpeed = 300; 
-
-        const interval = setInterval(() => {
+        // SUSPENSE ANIMATION: Rapidly cycle through names
+        const shuffleInterval = setInterval(() => {
             setCurrentIndex(prev => (prev + 1) % drawingGiveaway.participants.length);
-
-            
-            speed += 10;
-
-            if (speed >= maxSpeed) {
-                clearInterval(interval);
-
-                const finalIndex = Math.floor(Math.random() * drawingGiveaway.participants.length);
-                setCurrentIndex(finalIndex);
-            }
-
-            
-            clearInterval(interval);
-
-            setTimeout(() => {
-                const newInterval = setInterval(() => {
-                    setCurrentIndex(prev => (prev + 1) % drawingGiveaway.participants.length);
-                }, speed);
-
-            
-                window.currentShuffle = newInterval;
-        }, 0);
-
-    }, speed);
+        }, 80);
 
         try {
+            // Trigger backend selection
             const response = await api.post(`/giveaways/${drawingGiveaway.id}/select-winners`);
             const winners = response.data.winners;
             
-            // Artificial delay for suspense
+            // Artificial delay for suspense (min 3 seconds)
             await new Promise(r => setTimeout(r, 3000));
             
             clearInterval(shuffleInterval);

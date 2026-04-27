@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const productController = require('../controllers/productController');
-const authMiddleware = require('../middleware/authMiddleware');
-const upload = require('../middleware/upload');
+const authMiddleware = require('../middlewares/authMiddleware');
+const upload = require('../middlewares/upload');
 
 // All product routes protected by auth
 router.use(authMiddleware.protect);

@@ -1,4 +1,4 @@
-const aiService = require('../api/aiService');
+const aiService = require('../services/aiService');
 
 exports.chat = async (req, res) => {
     try {

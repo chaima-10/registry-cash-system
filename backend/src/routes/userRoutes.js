@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { protect } = require('../middleware/authMiddleware');
-const validate = require('../middleware/validateMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
+const validate = require('../middlewares/validateMiddleware');
 const { updateProfileSchema, changePasswordSchema } = require('../validators/authValidators');
-const upload = require('../middleware/upload');
+const upload = require('../middlewares/upload');
 
 // Public routes (none for now)
 

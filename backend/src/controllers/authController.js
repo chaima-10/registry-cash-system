@@ -1,122 +1,45 @@
-const prisma = require('../config/prisma');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const cloudinary = require('../config/cloudinary');
-
-// Helper to upload buffer to Cloudinary
-const uploadToCloudinary = async (file) => {
-    if (!file) return null;
-    const fileBase64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-    const uploadResponse = await cloudinary.uploader.upload(fileBase64, {
-        folder: 'profiles',
-    });
-    return uploadResponse.secure_url;
-};
-
+const authService = require('../services/authService');
+const userRepository = require('../repositories/userRepository');
+const uploadService = require('../services/uploadService');
 
 // Register a new user
 exports.register = async (req, res) => {
     try {
-        const { username, password, role, fullName, salary } = req.body;
-
-        // Check if user exists
-        const existingUser = await prisma.user.findUnique({
-            where: { username },
-        });
-        if (existingUser) {
-            return res.status(400).json({ message: 'Username already taken' });
-        }
-
-
-
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Create user
-        const user = await prisma.user.create({
-            data: {
-                username,
-                password: hashedPassword,
-                role: role || 'cashier',
-                fullName: fullName || '',
-                salary: salary ? parseFloat(salary) : 0.00
-            },
-        });
-
+        const user = await authService.register(req.body);
         res.status(201).json({ message: 'User registered successfully', userId: user.id });
     } catch (error) {
+        if (error.message === 'Username already taken') {
+            return res.status(400).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 
-// Login user (supports either username or email)
+// Login user
 exports.login = async (req, res) => {
     try {
         const { username, email, password } = req.body;
-
-        // Find user by email OR username depending on what was provided
-        let user;
-        if (email) {
-            user = await prisma.user.findFirst({ where: { email } });
-        } else {
-            user = await prisma.user.findUnique({ where: { username } });
-        }
-
-        if (!user) {
-            return res.status(400).json({ message: 'Identifiants invalides' });
-        }
-
-        // Check for Email Verification (Removed)
-        // We no longer block login for unverified emails.
-
-        // Validate password
-        const isMatch = await bcrypt.compare(password.trim(), user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Identifiants invalides' });
-        }
-
-        // Update lastLogin and add to Login History
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { 
-                lastLogin: new Date(),
-                loginHistory: {
-                    create: {}
-                }
-            }
-        });
-
-        // Create Token
-        const payload = { id: user.id, role: user.role };
-        const token = jwt.sign(payload, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });
-
-        res.json({ token, role: user.role });
+        const result = await authService.login(email, username, password);
+        res.json(result);
     } catch (error) {
+        if (error.message === 'Identifiants invalides') {
+            return res.status(400).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 
-
-
-// Logout user (Client-side clear, but valid endpoint for testing)
+// Logout user
 exports.logout = async (req, res) => {
-    // Stateless JWT: We just return success. Client removes token.
-    // Enhanced: Add token to a Redis blacklist if strict security is needed.
     res.json({ message: 'Logged out successfully' });
 };
 
-// Get current user profile
+// Get current user profile (authController version)
 exports.getProfile = async (req, res) => {
     try {
-        const user = await prisma.user.findUnique({
-            where: { id: req.user.id },
-        });
-
+        const user = await userRepository.findUserById(req.user.id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // Exclude password from response
         const { password, ...userWithoutPassword } = user;
         res.json(userWithoutPassword);
     } catch (error) {
@@ -124,13 +47,13 @@ exports.getProfile = async (req, res) => {
     }
 };
 
-// Update user profile
+// Update user profile (authController version)
 exports.updateProfile = async (req, res) => {
     try {
         const { fullName, email, phone, age, username, theme } = req.body;
         const userId = req.user.id;
 
-        const user = await prisma.user.findUnique({ where: { id: userId } });
+        const user = await userRepository.findUserById(userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
         const updateData = {
@@ -141,33 +64,22 @@ exports.updateProfile = async (req, res) => {
             theme: theme !== undefined ? theme : user.theme
         };
 
-        // Directly update email without verification flow
         if (email && email !== user.email) {
-            // Check if email already taken
-            const existingEmailUser = await prisma.user.findFirst({
-                where: {
-                    email,
-                    NOT: { id: userId }
-                }
-            });
+            const existingEmailUser = await userRepository.findUserByEmailNotId(email, userId);
             if (existingEmailUser) {
                 return res.status(400).json({ message: 'Email already in use' });
             }
             updateData.email = email;
-            updateData.isEmailVerified = true; // Auto-verify since feature is disabled
+            updateData.isEmailVerified = true;
         }
 
         if (req.body.removeProfilePicture === 'true') {
             updateData.profilePicture = null;
         } else if (req.file) {
-            updateData.profilePicture = await uploadToCloudinary(req.file);
+            updateData.profilePicture = await uploadService.uploadImage(req.file, 'profiles');
         }
 
-        const updatedUser = await prisma.user.update({
-            where: { id: userId },
-            data: updateData,
-        });
-
+        const updatedUser = await userRepository.updateUser(userId, updateData);
         const { password, ...userWithoutPassword } = updatedUser;
         res.json({ 
             message: 'Profil mis à jour avec succès.', 

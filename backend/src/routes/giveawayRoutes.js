@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const giveawayController = require('../controllers/giveawayController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
 
 // All giveaway routes protected by auth
 router.use(protect);

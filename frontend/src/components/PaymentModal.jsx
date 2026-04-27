@@ -232,6 +232,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                                 <div className="flex justify-between text-gray-500 dark:text-gray-400 font-medium">
                                                     <span>{t('TVA')}</span>
                                                     <span className="text-purple-500 font-bold">{formatCurrency(Number(cart?.tvaAmount || 0))}</span>
+                                                </div>
                                             </div>
                                             <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
                                             <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white">
@@ -240,7 +241,6 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
                                 <div className="space-y-4">
                                     <button
@@ -266,17 +266,16 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                 </div>
                             </div>
                         </div>
-                </div>
+                        <CameraScannerModal
+                            isOpen={isQRScannerOpen}
+                            onClose={() => setIsQRScannerOpen(false)}
+                            onScan={handleQRScan}
+                        />
+                    </div>
                     </motion.div>
-                </div >
+                </div>
             )}
-{/* QR Scanner Modal */ }
-<CameraScannerModal
-    isOpen={isQRScannerOpen}
-    onClose={() => setIsQRScannerOpen(false)}
-    onScan={handleQRScan}
-/>
-        </AnimatePresence >
+        </AnimatePresence>
     );
 };
 

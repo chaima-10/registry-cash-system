@@ -1,12 +1,9 @@
-const prisma = require('../config/prisma');
+const categoryService = require('../services/categoryService');
 
 // Create Category
 exports.createCategory = async (req, res) => {
     try {
-        const { name } = req.body;
-        const category = await prisma.category.create({
-            data: { name },
-        });
+        const category = await categoryService.createCategory(req.body);
         res.status(201).json(category);
     } catch (error) {
         res.status(500).json({ message: 'Error creating category', error: error.message });
@@ -16,9 +13,7 @@ exports.createCategory = async (req, res) => {
 // Get All Categories (with subcategories)
 exports.getAllCategories = async (req, res) => {
     try {
-        const categories = await prisma.category.findMany({
-            include: { subcategories: true },
-        });
+        const categories = await categoryService.getAllCategories();
         res.json(categories);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching categories', error: error.message });
@@ -29,30 +24,12 @@ exports.getAllCategories = async (req, res) => {
 exports.createSubcategory = async (req, res) => {
     try {
         console.log('Received Create Subcategory Request:', req.body); // DEBUG LOG
-
-        const { name, categoryId } = req.body;
-
-        if (!name) {
-            return res.status(400).json({ message: 'Name is required' });
-        }
-        if (!categoryId) {
-            console.log('Missing categoryId. Received:', categoryId);
-            return res.status(400).json({ message: 'categoryId is required' });
-        }
-
-        const parsedCategoryId = parseInt(categoryId);
-        if (isNaN(parsedCategoryId)) {
-            return res.status(400).json({ message: 'categoryId must be a number' });
-        }
-
-        const subcategory = await prisma.subcategory.create({
-            data: {
-                name,
-                categoryId: parsedCategoryId,
-            },
-        });
+        const subcategory = await categoryService.createSubcategory(req.body);
         res.status(201).json(subcategory);
     } catch (error) {
+        if (error.message === 'Name is required' || error.message === 'categoryId is required' || error.message === 'categoryId must be a number') {
+            return res.status(400).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Error creating subcategory', error: error.message });
     }
 };
@@ -60,9 +37,7 @@ exports.createSubcategory = async (req, res) => {
 // Get All Subcategories
 exports.getAllSubcategories = async (req, res) => {
     try {
-        const subcategories = await prisma.subcategory.findMany({
-            include: { category: true }
-        });
+        const subcategories = await categoryService.getAllSubcategories();
         res.json(subcategories);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching subcategories', error: error.message });

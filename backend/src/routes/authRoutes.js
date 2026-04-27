@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const authMiddleware = require('../middleware/authMiddleware');
-const validate = require('../middleware/validateMiddleware');
-const upload = require('../middleware/upload');
+const authMiddleware = require('../middlewares/authMiddleware');
+const validate = require('../middlewares/validateMiddleware');
+const upload = require('../middlewares/upload');
 const { loginSchema, updateProfileSchema } = require('../validators/authValidators');
 
 /**

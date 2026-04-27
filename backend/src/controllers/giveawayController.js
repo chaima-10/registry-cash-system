@@ -1,39 +1,15 @@
-const prisma = require('../config/prisma');
+const giveawayService = require('../services/giveawayService');
 
 // Create Giveaway
 exports.createGiveaway = async (req, res) => {
     try {
-        const { title, description, startDate, endDate, winnerCount } = req.body;
-        const createdBy = req.user.id;
-
-        // Validation
-        if (!title || !endDate) {
-            return res.status(400).json({ message: 'Title and end date are required' });
-        }
-
-        if (new Date(endDate) <= new Date()) {
-            return res.status(400).json({ message: 'End date must be in the future' });
-        }
-
-        if (winnerCount < 1 || winnerCount > 100) {
-            return res.status(400).json({ message: 'Winner count must be between 1 and 100' });
-        }
-
-        const giveaway = await prisma.giveaway.create({
-            data: {
-                title,
-                description,
-                startDate: startDate ? new Date(startDate) : new Date(),
-                endDate: new Date(endDate),
-                winnerCount: parseInt(winnerCount) || 1,
-                status: 'ACTIVE',
-                createdBy
-            }
-        });
-
+        const giveaway = await giveawayService.createGiveaway(req.body, req.user.id);
         res.status(201).json(giveaway);
     } catch (error) {
         console.error('Error creating giveaway:', error);
+        if (['Title and end date are required', 'End date must be in the future', 'Winner count must be between 1 and 100'].includes(error.message)) {
+            return res.status(400).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Error creating giveaway', error: error.message });
     }
 };
@@ -41,36 +17,8 @@ exports.createGiveaway = async (req, res) => {
 // Get All Giveaways
 exports.getAllGiveaways = async (req, res) => {
     try {
-        const giveaways = await prisma.giveaway.findMany({
-            include: {
-                creator: {
-                    select: { id: true, username: true }
-                },
-                _count: {
-                    select: {
-                        participants: true
-                    }
-                },
-                winners: {
-                    include: {
-                        user: { select: { id: true, username: true, fullName: true } },
-                        participation: true
-                    }
-                }
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        });
-
-        // Format response
-        const formattedGiveaways = giveaways.map(giveaway => ({
-            ...giveaway,
-            participantCount: giveaway._count.participants,
-            creator: giveaway.creator
-        }));
-
-        res.json(formattedGiveaways);
+        const giveaways = await giveawayService.getAllGiveaways();
+        res.json(giveaways);
     } catch (error) {
         console.error('Error fetching giveaways:', error);
         res.status(500).json({ message: 'Error fetching giveaways', error: error.message });
@@ -80,41 +28,13 @@ exports.getAllGiveaways = async (req, res) => {
 // Get Single Giveaway
 exports.getGiveawayById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const giveaway = await prisma.giveaway.findUnique({
-            where: { id: parseInt(id) },
-            include: {
-                creator: {
-                    select: { id: true, username: true }
-                },
-                participants: {
-                    include: {
-                        user: {
-                            select: { id: true, username: true }
-                        }
-                    }
-                },
-                winners: {
-                    include: {
-                        user: {
-                            select: { id: true, username: true, fullName: true }
-                        },
-                        participation: true
-                    },
-                    orderBy: {
-                        rank: 'asc'
-                    }
-                }
-            }
-        });
-
-        if (!giveaway) {
-            return res.status(404).json({ message: 'Giveaway not found' });
-        }
-
+        const giveaway = await giveawayService.getGiveawayById(parseInt(req.params.id));
         res.json(giveaway);
     } catch (error) {
         console.error('Error fetching giveaway:', error);
+        if (error.message === 'Giveaway not found') {
+            return res.status(404).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Error fetching giveaway', error: error.message });
     }
 };
@@ -122,220 +42,44 @@ exports.getGiveawayById = async (req, res) => {
 // Participate in Giveaway
 exports.participateInGiveaway = async (req, res) => {
     try {
-        const { id } = req.params;
-        const { clientName, clientSurname, clientPhone } = req.body;
-        const userId = req.user.id;
-        const giveawayId = parseInt(id);
-
-        // 1. Only cashiers can register participants
-        if (req.user.role !== 'cashier') {
-            return res.status(403).json({ message: 'Only cashiers can register participants for giveaways' });
-        }
-
-        // 2. Client info validation
-        if (!clientName || !clientSurname || !clientPhone) {
-            return res.status(400).json({ message: 'Client name, surname and phone are required' });
-        }
-
-        const nameRegex = /^[a-zA-Z\sÀ-ÿ]+$/;
-        if (!nameRegex.test(clientName) || !nameRegex.test(clientSurname)) {
-            return res.status(400).json({ message: 'Name and Surname must contain only letters' });
-        }
-
-        const cleanPhone = clientPhone.replace(/\s/g, '');
-            if (!/^\+?[0-9]+$/.test(cleanPhone)) {
-                return res.status(400).json({ message: 'Phone must contain only digits and optional +' });
-            }
-
-            // Country-specific length (Tunisia example)
-            if (cleanPhone.startsWith('+216')) {
-                const numberPart = cleanPhone.substring(4);
-                if (numberPart.length !== 8 || !/^\d+$/.test(numberPart)) {
-                    return res.status(400).json({ message: 'Tunisian phone with +216 must have exactly 8 digits after the prefix' });
-                }
-            } else {
-                const localPhone = cleanPhone.startsWith('0') ? cleanPhone.substring(1) : cleanPhone;
-                if (localPhone.length !== 8 || !/^\d+$/.test(localPhone)) {
-                    return res.status(400).json({ message: 'Local Tunisian phone must be exactly 8 digits' });
-                }
-            }
-
-        // Check if giveaway exists and is active
-        const giveaway = await prisma.giveaway.findUnique({
-            where: { id: giveawayId }
-        });
-
-        if (!giveaway) {
-            return res.status(404).json({ message: 'Giveaway not found' });
-        }
-
-        if (giveaway.status !== 'ACTIVE') {
-            return res.status(400).json({ message: 'Giveaway is not active' });
-        }
-
-        if (new Date(giveaway.endDate) <= new Date()) {
-            return res.status(400).json({ message: 'Giveaway has ended' });
-        }
-
-        // Check if user already participated (by userId)
-        // If it's a cashier registering a client, we might need a different check
-        const existingParticipation = await prisma.giveawayparticipation.findFirst({
-            where: {
-                giveawayId,
-                userId: req.user.role === 'cashier' ? undefined : userId, // Skip userId check for cashiers if they are registering others
-                clientPhone: clientPhone || undefined
-            }
-        });
-
-        if (existingParticipation && (clientPhone && existingParticipation.clientPhone === clientPhone)) {
-            return res.status(400).json({ message: 'This client has already participated in this giveaway' });
-        }
-
-        if (existingParticipation && !clientPhone && existingParticipation.userId === userId) {
-            return res.status(400).json({ message: 'You have already participated in this giveaway' });
-        }
-
-        // Create participation
-        const participation = await prisma.giveawayparticipation.create({
-            data: {
-                giveawayId,
-                userId: req.user.role === 'cashier' ? null : userId, // Don't associate cashier ID as participant
-                clientName: clientName || null,
-                clientSurname: clientSurname || null,
-                clientPhone: clientPhone || null
-            }
-        });
-
+        const participation = await giveawayService.participateInGiveaway(
+            parseInt(req.params.id), 
+            req.user.id, 
+            req.user.role, 
+            req.body
+        );
         res.status(201).json({ message: 'Successfully participated in giveaway', participation });
     } catch (error) {
         console.error('Error participating in giveaway:', error);
-        res.status(500).json({ message: 'Error participating in giveaway', error: error.message });
+        if (error.message === 'Giveaway not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        if (error.message === 'Only cashiers can register participants for giveaways') {
+            return res.status(403).json({ message: error.message });
+        }
+        res.status(400).json({ message: error.message });
     }
 };
 
 // Select Winners (Random Selection)
 exports.selectWinners = async (req, res) => {
     try {
-        const { id } = req.params;
-        const giveawayId = parseInt(id);
-
-        // Get giveaway with participants
-        const giveaway = await prisma.giveaway.findUnique({
-            where: { id: giveawayId },
-            include: {
-                participants: {
-                    include: {
-                        user: true
-                    }
-                },
-                winners: {
-                    include: {
-                        user: { select: { id: true, username: true, fullName: true } },
-                        participation: true
-                    }
-                }
-            }
-        });
-
-        if (!giveaway) {
-            return res.status(404).json({ message: 'Giveaway not found' });
-        }
-
-        if (new Date(giveaway.endDate) > new Date()) {
-            return res.status(400).json({ message: 'Giveaway has not ended yet' });
-        }
-
-        if (giveaway.participants.length === 0) {
-            return res.status(400).json({ message: 'No participants in this giveaway' });
-        }
-
-        // Check if winners already selected
-        if (giveaway.winners.length > 0) {
-            return res.json({ 
-                message: 'Winners already selected', 
-                winnersCount: giveaway.winners.length,
-                winners: giveaway.winners,
-                totalParticipants: giveaway.participants.length 
-            });
-        }
-
-        // Random winner selection
-        const shuffledParticipants = giveaway.participants.sort(() => 0.5 - Math.random());
-        const selectedWinners = shuffledParticipants.slice(0, Math.min(giveaway.winnerCount, giveaway.participants.length));
-
-        // Create winner records
-        const winnerData = selectedWinners.map((participant, index) => ({
-            giveawayId,
-            participationId: participant.id,
-            userId: participant.userId || null,
-            rank: index + 1
-        }));
-
-        await prisma.giveawaywinner.createMany({
-            data: winnerData
-        });
-
-        // Update giveaway status
-        await prisma.giveaway.update({
-            where: { id: giveawayId },
-            data: { status: 'ENDED' }
-        });
-
-        res.json({ 
-            message: 'Winners selected successfully', 
-            winnersCount: winnerData.length,
-            winners: selectedWinners, // Return the actual selected participants
-            totalParticipants: giveaway.participants.length 
-        });
+        const result = await giveawayService.selectWinners(parseInt(req.params.id));
+        res.json(result);
     } catch (error) {
         console.error('Error selecting winners:', error);
-        res.status(500).json({ message: 'Error selecting winners', error: error.message });
+        if (error.message === 'Giveaway not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        res.status(400).json({ message: error.message });
     }
 };
 
 // Get User's Giveaway History
 exports.getUserGiveawayHistory = async (req, res) => {
     try {
-        const userId = req.user.id;
-
-        const participations = await prisma.giveawayparticipation.findMany({
-            where: { userId },
-            include: {
-                giveaway: {
-                    include: {
-                        creator: {
-                            select: { username: true }
-                        }
-                    }
-                }
-            },
-            orderBy: {
-                joinedAt: 'desc'
-            }
-        });
-
-        const wins = await prisma.giveawaywinner.findMany({
-            where: { userId },
-            include: {
-                giveaway: {
-                    include: {
-                        creator: {
-                            select: { username: true }
-                        }
-                    }
-                }
-            },
-            orderBy: {
-                selectedAt: 'desc'
-            }
-        });
-
-        res.json({
-            participations,
-            wins,
-            totalParticipations: participations.length,
-            totalWins: wins.length
-        });
+        const history = await giveawayService.getUserGiveawayHistory(req.user.id);
+        res.json(history);
     } catch (error) {
         console.error('Error fetching user giveaway history:', error);
         res.status(500).json({ message: 'Error fetching giveaway history', error: error.message });
@@ -345,31 +89,16 @@ exports.getUserGiveawayHistory = async (req, res) => {
 // Delete Giveaway (Admin only)
 exports.deleteGiveaway = async (req, res) => {
     try {
-        const { id } = req.params;
-        const giveawayId = parseInt(id);
-
-        // Check if giveaway exists
-        const giveaway = await prisma.giveaway.findUnique({
-            where: { id: giveawayId }
-        });
-
-        if (!giveaway) {
-            return res.status(404).json({ message: 'Giveaway not found' });
-        }
-
-        // Only admin or creator can delete
-        if (req.user.role !== 'admin' && giveaway.createdBy !== req.user.id) {
-            return res.status(403).json({ message: 'Not authorized to delete this giveaway' });
-        }
-
-        // Delete giveaway (cascade will delete participants and winners)
-        await prisma.giveaway.delete({
-            where: { id: giveawayId }
-        });
-
+        await giveawayService.deleteGiveaway(parseInt(req.params.id), req.user.id, req.user.role);
         res.json({ message: 'Giveaway deleted successfully' });
     } catch (error) {
         console.error('Error deleting giveaway:', error);
+        if (error.message === 'Giveaway not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        if (error.message === 'Not authorized to delete this giveaway') {
+            return res.status(403).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Error deleting giveaway', error: error.message });
     }
 };

@@ -1,122 +1,17 @@
-const prisma = require('../config/prisma');
+const saleService = require('../services/saleService');
 
 // Process Checkout & Create Sale
 exports.createSale = async (req, res) => {
     try {
-        const userId = req.user.id;
-        const { paymentMethod, currency, exchangeRate, amountTendered, changeAmount } = req.body; // CASH, CARD, VOUCHER
-
-        if (!['CASH', 'CARD', 'VOUCHER'].includes(paymentMethod)) {
-            return res.status(400).json({ message: 'Invalid payment method' });
-        }
-
-        // Start Transaction
-        const result = await prisma.$transaction(async (tx) => {
-            // 1. Get current cart
-            const cart = await tx.cart.findFirst({
-                where: { userId },
-                include: {
-                    items: {
-                        include: { product: true }
-                    }
-                }
-            });
-
-            if (!cart || cart.items.length === 0) {
-                throw new Error('Cart is empty');
-            }
-
-            // 2. Verify stock availability (again, for concurrency)
-            for (const item of cart.items) {
-                if (item.product.stockQuantity < item.quantity) {
-                    throw new Error(`Insufficient stock for ${item.product.name}`);
-                }
-            }
-
-            // 3. Create Sale record
-            const sale = await tx.sale.create({
-                data: {
-                    userId,
-                    totalAmount: cart.totalAmount,
-                    subtotalHT: cart.subtotalHT,
-                    tvaAmount: cart.tvaAmount,
-                    currency: currency || 'USD',
-                    exchangeRate: exchangeRate ? parseFloat(exchangeRate) : 1.0,
-                    paymentMethod,
-                    amountTendered: amountTendered ? parseFloat(amountTendered) : null,
-                    changeAmount: changeAmount ? parseFloat(changeAmount) : null
-                }
-            });
-
-            // 4. Create saleitem and Decrement Stock
-            for (const item of cart.items) {
-                const productPrice = parseFloat(item.product.price);
-                const remise = parseFloat(item.product.remise || 0);
-                const tvaRate = parseFloat(item.tvaRate || 0);
-                const discountedPrice = productPrice * (1 - remise / 100);
-                const priceTTC = discountedPrice * (1 + tvaRate / 100);
-
-                // Create sale item with full TVA snapshot
-                await tx.saleitem.create({
-                    data: {
-                        saleId: sale.id,
-                        productId: item.productId,
-                        quantity: item.quantity,
-                        price: discountedPrice,       // price HT
-                        tvaRate: item.tvaRate,
-                        tvaAmount: item.tvaAmount,
-                        priceTTC,                     // price TTC per unit
-                        subtotal: item.subtotal        // subtotal HT
-                    }
-                });
-
-                // Decrement stock
-                await tx.product.update({
-                    where: { id: item.productId },
-                    data: {
-                        stockQuantity: {
-                            decrement: item.quantity
-                        }
-                    }
-                });
-            }
-
-            // 5. Clear cart
-            await tx.cartitem.deleteMany({ where: { cartId: cart.id } });
-            await tx.cart.update({
-                where: { id: cart.id },
-                data: { totalAmount: 0, subtotalHT: 0, tvaAmount: 0 }
-            });
-
-            // Return sale with items
-            return await tx.sale.findUnique({
-                where: { id: sale.id },
-                include: {
-                    items: {
-                        include: { product: true }
-                    },
-                    user: {
-                        select: {
-                            id: true,
-                            username: true,
-                            role: true
-                        }
-                    }
-                }
-            });
-        }, {
-            maxWait: 5000, // default: 2000
-            timeout: 15000 // default: 5000
-        });
-
+        const result = await saleService.createSale(req.user.id, req.body);
         res.status(201).json({
             message: 'Sale completed successfully',
             sale: result
         });
-
     } catch (error) {
         console.error('Sale creation error:', error);
-        res.status(500).json({
+        const status = error.message === 'Invalid payment method' ? 400 : 500;
+        res.status(status).json({
             message: error.message || 'Error processing sale',
             error: error.message
         });
@@ -126,22 +21,7 @@ exports.createSale = async (req, res) => {
 // Get all sales (Admin)
 exports.getAllSales = async (req, res) => {
     try {
-        const sales = await prisma.sale.findMany({
-            include: {
-                items: {
-                    include: { product: true }
-                },
-                user: {
-                    select: {
-                        id: true,
-                        username: true,
-                        role: true
-                    }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-
+        const sales = await saleService.getAllSales();
         res.json(sales);
     } catch (error) {
         res.status(500).json({ message: 'Error fetching sales', error: error.message });
@@ -151,27 +31,12 @@ exports.getAllSales = async (req, res) => {
 // Get sale by ID
 exports.getSaleById = async (req, res) => {
     try {
-        const { id } = req.params;
-        const sale = await prisma.sale.findUnique({
-            where: { id: parseInt(id) },
-            include: {
-                items: {
-                    include: { product: true }
-                },
-                user: {
-                    select: {
-                        id: true,
-                        username: true,
-                        role: true
-                    }
-                }
-            }
-        });
-
-        if (!sale) return res.status(404).json({ message: 'Sale not found' });
-
+        const sale = await saleService.getSaleById(parseInt(req.params.id));
         res.json(sale);
     } catch (error) {
+        if (error.message === 'Sale not found') {
+            return res.status(404).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Error fetching sale', error: error.message });
     }
 };
