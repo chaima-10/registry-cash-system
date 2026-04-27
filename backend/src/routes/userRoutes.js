@@ -4,6 +4,7 @@ const userController = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
 const { updateProfileSchema, changePasswordSchema } = require('../validators/authValidators');
+const upload = require('../middleware/upload');
 
 // Public routes (none for now)
 
@@ -65,7 +66,7 @@ router.get('/profile', userController.getProfile);
  *       400:
  *         description: Validation error or username taken
  */
-router.put('/profile', validate(updateProfileSchema), userController.updateProfile);
+router.put('/profile', upload.single('profilePicture'), validate(updateProfileSchema), userController.updateProfile);
 
 /**
  * @swagger

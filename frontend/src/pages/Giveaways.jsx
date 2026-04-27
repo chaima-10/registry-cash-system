@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
     FiGift, FiUsers, FiCalendar, FiAward, FiPlus, 
-    FiTrash2, FiPlay, FiCheckCircle, FiClock, FiTrendingUp 
+    FiTrash2, FiPlay, FiCheckCircle, FiClock, FiTrendingUp, FiLoader 
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -19,12 +19,13 @@ const Giveaways = () => {
         description: '',
         startDate: '',
         endDate: '',
-        winnerCount: 1
+        winnerCount: ''
     });
     const [participating, setParticipating] = useState({});
     const [processing, setProcessing] = useState(false);
+    const [isDrawing, setIsDrawing] = useState(null);
     
-    // New states for client registration (cashier only)
+    
     const [showRegistrationForm, setShowRegistrationForm] = useState(false);
     const [selectedGiveawayId, setSelectedGiveawayId] = useState(null);
     const [registrationData, setRegistrationData] = useState({
@@ -33,7 +34,7 @@ const Giveaways = () => {
         clientPhone: ''
     });
 
-    // States for Drawing Animation
+    
     const [showDrawModal, setShowDrawModal] = useState(false);
     const [drawingGiveaway, setDrawingGiveaway] = useState(null);
     const [drawStatus, setDrawStatus] = useState('idle'); // idle, drawing, revealed
@@ -82,7 +83,7 @@ const Giveaways = () => {
     };
 
     const submitParticipation = async (giveawayId, clientData = {}) => {
-        // Validation for cashier registration
+        
         if (user?.role === 'cashier') {
             const nameRegex = /^[a-zA-Z\sÀ-ÿ]+$/;
             const phoneRegex = /^\+?[0-9]+$/;
@@ -96,7 +97,7 @@ const Giveaways = () => {
                 return;
             }
 
-            // Country-specific phone validation (Tunisia +216)
+            
             const phone = clientData.clientPhone.replace(/\s/g, '');
             if (phone.startsWith('+216')) {
                 const numberPart = phone.substring(4);
@@ -105,7 +106,7 @@ const Giveaways = () => {
                     return;
                 }
             } else {
-                // Local Tunisian number must be exactly 8 digits
+            
                 const localPhone = phone.startsWith('0') ? phone.substring(1) : phone;
                 if (localPhone.length !== 8 || !/^\d+$/.test(localPhone)) {
                     alert(t('invalidLocalPhone', 'Local Tunisian phone numbers must contain exactly 8 digits.'));
@@ -142,7 +143,7 @@ const Giveaways = () => {
     };
 
     const handlePhoneInput = (value) => {
-        // Only allow digits for local 8-digit format
+    
         let digits = value.replace(/\D/g, '');
         
         // Enforce maximum length of 8
@@ -187,10 +188,36 @@ const Giveaways = () => {
         if (!drawingGiveaway?.participants?.length) return;
         setDrawStatus('drawing');
         
-        // Start shuffling index
-        const shuffleInterval = setInterval(() => {
+        
+        let speed = 50; 
+        let maxSpeed = 300; 
+
+        const interval = setInterval(() => {
             setCurrentIndex(prev => (prev + 1) % drawingGiveaway.participants.length);
-        }, 100);
+
+            
+            speed += 10;
+
+            if (speed >= maxSpeed) {
+                clearInterval(interval);
+
+                const finalIndex = Math.floor(Math.random() * drawingGiveaway.participants.length);
+                setCurrentIndex(finalIndex);
+            }
+
+            
+            clearInterval(interval);
+
+            setTimeout(() => {
+                const newInterval = setInterval(() => {
+                    setCurrentIndex(prev => (prev + 1) % drawingGiveaway.participants.length);
+                }, speed);
+
+            
+                window.currentShuffle = newInterval;
+        }, 0);
+
+    }, speed);
 
         try {
             const response = await api.post(`/giveaways/${drawingGiveaway.id}/select-winners`);
@@ -234,7 +261,8 @@ const Giveaways = () => {
     };
 
     const canParticipate = (giveaway) => {
-        return isGiveawayActive(giveaway) && !participating[giveaway.id] && user?.role === 'cashier';
+        return isGiveawayActive(giveaway) && !participating[giveaway.id] && user?.role === 'cashier' &&
+           user?.role !== 'admin';
     };
 
     const getTimeLeft = (endDate) => {
@@ -259,7 +287,6 @@ const Giveaways = () => {
         return Math.min(100, Math.max(0, ((now - startDate) / (endDate - startDate)) * 100));
     };
 
-    // Calculate dynamic stats
     const stats = {
         total: giveaways.length,
         active: giveaways.filter(g => isGiveawayActive(g)).length,
@@ -276,10 +303,10 @@ const Giveaways = () => {
                         <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-2xl text-purple-600">
                             <FiGift size={28} />
                         </div>
-                        {t('giveaways', 'Giveaways Events')}
+                        {t('giveaways')}
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium ml-1">
-                        {t('giveawaysDesc', 'Manage promotional contests and engage your participants.')}
+                        {t('giveawaysDesc', 'Manage promotional contests and engage your participants')}
                     </p>
                 </div>
                 {user?.role === 'admin' && (
@@ -293,7 +320,7 @@ const Giveaways = () => {
                 )}
             </div>
 
-            {/* 1. STATS BAR */}
+            
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
                 {[
                     { title: 'totalGiveaways', value: stats.total, icon: FiGift, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-900/30' },
@@ -315,8 +342,18 @@ const Giveaways = () => {
             </div>
 
             {loading ? (
-                <div className="flex justify-center items-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600"></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1,2,3].map((_, i) => (
+                        <div key={i} className="p-6 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse">
+                        
+                            <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
+                            
+                            <div className="h-4 w-full bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
+                            <div className="h-4 w-3/4 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
+                            
+                            <div className="h-3 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
+                        </div>
+                    ))}
                 </div>
             ) : giveaways.length === 0 ? (
                 /* 4. EMPTY STATE */
@@ -349,6 +386,18 @@ const Giveaways = () => {
                         const ended = giveaway.status === 'ENDED' || new Date(giveaway.endDate) <= new Date();
                         const isEndingSoon = active && (new Date(giveaway.endDate).getTime() - Date.now() < 86400000 * 2);
                         const progress = calculateProgress(giveaway.startDate, giveaway.endDate);
+                        
+                        // Robust Button Logic
+                        const isDrawingActive = isDrawing !== null;
+                        const hasNoParticipants = giveaway.participantCount === 0;
+                        const isStillActive = active;
+                        
+                        // Disable if: 
+                        // 1. System is already processing a draw
+                        // 2. Giveaway hasn't ended yet
+                        // 3. We KNOW there are 0 participants (explicit zero)
+                        // Note: undefined/null (loading) will NOT disable the button here
+                        const isDrawDisabled = isDrawingActive || isStillActive || hasNoParticipants;
 
                         return (
                             /* 2. CARD REDESIGN */
@@ -405,7 +454,7 @@ const Giveaways = () => {
                                                 <span className="text-[10px] font-black uppercase tracking-wider">{t('timeLeft', 'Time Left')}</span>
                                             </div>
                                             <span className={`text-xl font-black ${isEndingSoon ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
-                                                {active ? timeLeft : 'Ended'}
+                                                {active ? timeLeft : t('ended', 'Ended')}
                                             </span>
                                         </div>
                                     </div>
@@ -413,7 +462,7 @@ const Giveaways = () => {
                                     {/* Progress Bar */}
                                     <div className="mb-8 mt-auto">
                                         <div className="flex justify-between text-[10px] font-black text-gray-400 dark:text-gray-500 mb-2 uppercase tracking-widest">
-                                            <span>Timeline</span>
+                                            <span>{t('timeline', 'Timeline')}</span>
                                             <span>{Math.round(progress)}%</span>
                                         </div>
                                         <div className="h-2.5 w-full bg-gray-100 dark:bg-gray-900/80 rounded-full overflow-hidden shadow-inner">
@@ -425,55 +474,122 @@ const Giveaways = () => {
                                     </div>
 
                                     {/* Action Buttons */}
-                                    <div className="flex gap-3">
-                                        {active && canParticipate(giveaway) && (
-                                            <button
-                                                onClick={() => handleParticipate(giveaway.id)}
-                                                disabled={participating[giveaway.id]}
-                                                className="flex-1 py-3.5 bg-gray-900 hover:bg-purple-600 dark:bg-white dark:hover:bg-purple-500 dark:text-gray-900 text-white rounded-[1.25rem] text-sm font-bold shadow-xl transition-all flex items-center justify-center gap-2 hover:-translate-y-1"
-                                            >
-                                                <FiPlay size={18} />
-                                                {t('participateNow', 'Participate Now')}
-                                            </button>
-                                        )}
-                                        
-                                        {(!active || !canParticipate(giveaway)) && !giveaway.winners?.length && user?.role !== 'admin' && (
-                                            <div className="flex-1 py-3.5 bg-gray-100 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 rounded-[1.25rem] text-sm font-bold flex items-center justify-center gap-2 border border-gray-200 dark:border-transparent">
-                                                <FiCheckCircle size={18} />
-                                                {participating[giveaway.id] ? t('youJoined', 'Inscrit') : t('eventClosed', 'Event Closed')}
-                                            </div>
-                                        )}
-
-                                        {user?.role === 'admin' && (!giveaway.winners || giveaway.winners.length === 0) && (
-                                            <button
-                                                onClick={() => handleSelectWinners(giveaway.id)}
-                                                disabled={processing || !giveaway.participantCount || active}
-                                                className={`flex-1 py-3.5 rounded-[1.25rem] text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${active ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed shadow-none' : 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-yellow-500/20 hover:-translate-y-1'}`}
-                                            >
-                                                <FiAward size={18} />
-                                                {active ? t('waitEnd', 'Wait for End') : t('drawWinners', 'Draw Winners')}
-                                            </button>
-                                        )}
+                                    <div className="flex gap-3 h-[52px]">
+                                        <AnimatePresence mode="wait">
+                                            {active && canParticipate(giveaway) ? (
+                                                <motion.button
+                                                    key="participate"
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: 10 }}
+                                                    onClick={() => handleParticipate(giveaway.id)}
+                                                    disabled={participating[giveaway.id]}
+                                                    className="flex-1 py-3.5 bg-gray-900 hover:bg-purple-600 dark:bg-white dark:hover:bg-purple-500 dark:text-gray-900 text-white rounded-[1.25rem] text-sm font-bold shadow-xl transition-all flex items-center justify-center gap-2 hover:-translate-y-1"
+                                                >
+                                                    <FiPlay size={18} />
+                                                    {t('participateNow', 'Participate Now')}
+                                                </motion.button>
+                                            ) : (!active || !canParticipate(giveaway)) && !giveaway.winners?.length && user?.role !== 'admin' ? (
+                                                <motion.div 
+                                                    key="closed"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    className="flex-1 py-3.5 bg-gray-100 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 rounded-[1.25rem] text-sm font-bold flex items-center justify-center gap-2 border border-gray-200 dark:border-transparent"
+                                                >
+                                                    <FiCheckCircle size={18} />
+                                                    {participating[giveaway.id] ? t('youJoined', 'Inscrit') : t('eventClosed', 'Event Closed')}
+                                                </motion.div>
+                                            ) : user?.role === 'admin' && (!giveaway.winners || giveaway.winners.length === 0) ? (
+                                                <motion.button
+                                                    key="draw"
+                                                    initial={{ opacity: 0, scale: 0.95 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    exit={{ opacity: 0, scale: 0.95 }}
+                                                    onClick={async () => {
+                                                        if (isDrawing) return;
+                                                        setIsDrawing(giveaway.id);
+                                                        
+                                                        // Simulate delay for suspense (3 seconds)
+                                                        await new Promise(resolve => setTimeout(resolve, 3000));
+                                                        
+                                                        try {
+                                                            await api.post(`/giveaways/${giveaway.id}/select-winners`);
+                                                            const response = await api.get('/giveaways');
+                                                            setGiveaways(response.data || []);
+                                                        } catch (err) {
+                                                            console.error('Quick draw failed', err);
+                                                            alert(err.response?.data?.message || 'Error drawing winner');
+                                                        } finally {
+                                                            setIsDrawing(null);
+                                                        }
+                                                    }}
+                                                    disabled={isDrawDisabled}
+                                                    className={`flex-1 py-3.5 rounded-[1.25rem] text-sm font-bold shadow-lg transition-all flex items-center justify-center gap-2 ${
+                                                        isDrawDisabled 
+                                                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed shadow-none' 
+                                                            : 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-yellow-500/20 hover:-translate-y-1'
+                                                    }`}
+                                                >
+                                                    {isDrawing === giveaway.id ? (
+                                                        <FiLoader className="animate-spin" size={18} />
+                                                    ) : (
+                                                        <FiAward size={18} />
+                                                    )}
+                                                    {isDrawing === giveaway.id ? t('drawing', 'Drawing...') : (active ? t('waitEnd', 'Wait for End') : t('drawWinners', 'Draw Winners'))}
+                                                </motion.button>
+                                            ) : giveaway.winners && giveaway.winners.length > 0 ? (
+                                                <motion.div 
+                                                    key="winner-badge"
+                                                    initial={{ opacity: 0, scale: 0.5 }}
+                                                    animate={{ opacity: 1, scale: 1 }}
+                                                    className="flex-1 py-3.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-[1.25rem] text-sm font-black flex items-center justify-center gap-2 border border-green-100 dark:border-green-900/50"
+                                                >
+                                                    <FiAward size={18} className="text-green-500" />
+                                                    {t('winnerLabel', 'Winner')}: {
+                                                        giveaway.winners[0].participation?.clientName 
+                                                            ? `${giveaway.winners[0].participation.clientName} ${giveaway.winners[0].participation.clientSurname}` 
+                                                            : (giveaway.winners[0].user?.fullName || giveaway.winners[0].user?.username || 'Guest')
+                                                    }
+                                                </motion.div>
+                                            ) : null}
+                                        </AnimatePresence>
                                     </div>
                                     
                                     {/* Winners Results Display */}
-                                    {ended && giveaway.winners && giveaway.winners.length > 0 && (
-                                        <div className="mt-6 pt-5 flex flex-col gap-2">
-                                            <div className="text-[10px] font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-500 mb-1 flex items-center gap-1.5"><FiAward size={14}/> {t('officialWinners', 'Official Winners')}</div>
-                                            {giveaway.winners.map(w => {
-                                                const winnerName = w.participation?.clientName ? `${w.participation.clientName} ${w.participation.clientSurname}` : (w.user?.fullName || w.user?.username || `User ${w.userId}`);
-                                                return (
-                                                    <div key={w.id} className="flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 rounded-2xl border border-yellow-200/60 dark:border-yellow-900/50 shadow-sm">
-                                                        <span className="font-bold text-sm text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
-                                                            <span className="w-6 h-6 rounded-full bg-yellow-200 dark:bg-yellow-700 flex items-center justify-center text-xs text-yellow-800 dark:text-yellow-50">#{w.rank}</span>
-                                                            {winnerName}
-                                                        </span>
-                                                        {w.participation?.clientPhone && <span className="text-[10px] text-yellow-700 dark:text-yellow-400 opacity-60 font-bold">{w.participation.clientPhone}</span>}
-                                                    </div>
-                                                )
-                                            })}
-                                        </div>
-                                    )}
+                                    <AnimatePresence>
+                                        {ended && giveaway.winners && giveaway.winners.length > 0 && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, height: 0, y: 10 }}
+                                                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                                                transition={{ duration: 0.5, ease: "easeOut" }}
+                                                className="mt-6 pt-5 flex flex-col gap-2 overflow-hidden"
+                                            >
+                                                <div className="text-[10px] font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-500 mb-1 flex items-center gap-1.5">
+                                                    <FiAward size={14}/> {t('officialWinners', 'Official Winners')}
+                                                </div>
+                                                {giveaway.winners.map((w, wIdx) => {
+                                                    const winnerName = w.participation?.clientName 
+                                                        ? `${w.participation.clientName} ${w.participation.clientSurname}` 
+                                                        : (w.user?.fullName || w.user?.username || `User ${w.userId}`);
+                                                    return (
+                                                        <motion.div 
+                                                            key={w.id}
+                                                            initial={{ opacity: 0, x: -20 }}
+                                                            animate={{ opacity: 1, x: 0 }}
+                                                            transition={{ delay: wIdx * 0.1 + 0.3 }}
+                                                            className="flex justify-between items-center bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 rounded-2xl border border-yellow-200/60 dark:border-yellow-900/50 shadow-sm"
+                                                        >
+                                                            <span className="font-bold text-sm text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
+                                                                <span className="w-6 h-6 rounded-full bg-yellow-200 dark:bg-yellow-700 flex items-center justify-center text-xs text-yellow-800 dark:text-yellow-50">#{w.rank}</span>
+                                                                {winnerName}
+                                                            </span>
+                                                            {w.participation?.clientPhone && <span className="text-[10px] text-yellow-700 dark:text-yellow-400 opacity-60 font-bold">{w.participation.clientPhone}</span>}
+                                                        </motion.div>
+                                                    );
+                                                })}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </div>
                             </motion.div>
                         );

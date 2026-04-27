@@ -82,45 +82,103 @@ const Dashboard = () => {
         return isThisMonth(d);
     };
 
-    let totalRevenue = 0;
-    let totalCost = 0;
-    let transactionCount = 0;
-    const cashierMap = {};
     const productLookup = products.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+    
+    const getDashboardData = () => {
+        const now = new Date();
+        let currentRev = 0;
+        let currentCost = 0;
+        let prevRev = 0;
+        let prevCost = 0;
+        let currentCount = 0;
+        const cashierMap = {};
 
-    sales.forEach(s => {
-        const saleDate = new Date(s.createdAt);
-        if (!checkPeriod(saleDate)) return;
+        // Calculate boundaries for previous period
+        const yesterday = new Date(); yesterday.setDate(now.getDate() - 1);
+        const lastMonth = new Date(); lastMonth.setMonth(now.getMonth() - 1);
+        const lastYear = new Date(); lastYear.setFullYear(now.getFullYear() - 1);
 
-        const rev = parseFloat(s.totalAmount || 0);
-        totalRevenue += rev;
-        transactionCount++;
+        const isPreviousPeriod = (d) => {
+            if (period === 'day') {
+                return d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
+            }
+            if (period === 'week') {
+                const diff = (now - d) / (1000 * 60 * 60 * 24);
+                return diff > 7 && diff <= 14;
+            }
+            if (period === 'month') {
+                // If current month is Jan, previous is Dec of previous year
+                const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+                const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+                return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+            }
+            return false;
+        };
 
-        if (s.items && Array.isArray(s.items)) {
-            s.items.forEach(item => {
-                const prod = productLookup[item.productId || item.id];
-                const costPrice = prod ? parseFloat(prod.purchasePrice || 0) : 0;
-                totalCost += (costPrice * (item.quantity || 1));
-            });
-        } else {
-            totalCost += (rev * 0.65);
-        }
+        sales.forEach(s => {
+            const saleDate = new Date(s.createdAt);
+            const rev = parseFloat(s.totalAmount || 0);
+            
+            let cost = 0;
+            // Use the product data already embedded in the sale items if available
+            if (s.items && s.items.length > 0) {
+                s.items.forEach(item => {
+                    // Try to find product info in item, then in lookup
+                    const prod = item.product || productLookup[item.productId || item.id];
+                    if (prod) {
+                        const tvaRate = parseFloat(prod.tva || 0);
+                        const purchasePrice = parseFloat(prod.purchasePrice || 0);
+                        const costPrice = purchasePrice * (1 + tvaRate / 100);
+                        cost += (costPrice * (item.quantity || 1));
+                    } else {
+                        // Fallback cost if product info is completely missing (approx 70% of item subtotal)
+                        cost += parseFloat(item.subtotal || 0) * 0.7;
+                    }
+                });
+            } else {
+                cost = rev * 0.7; // Global fallback estimate
+            }
 
-        const cName = s.user?.username || t('userNumber', 'Utilisateur #{{id}}', { id: s.userId });
-        if (!cashierMap[cName]) cashierMap[cName] = { name: cName, revenue: 0, count: 0 };
-        cashierMap[cName].revenue += rev;
-        cashierMap[cName].count += 1;
-    });
+            if (checkPeriod(saleDate)) {
+                currentRev += rev;
+                currentCost += cost;
+                currentCount++;
+                const cName = s.user?.username || t('userNumber', { id: s.userId });
+                if (!cashierMap[cName]) cashierMap[cName] = { name: cName, revenue: 0, count: 0 };
+                cashierMap[cName].revenue += rev;
+                cashierMap[cName].count += 1;
+            } else if (isPreviousPeriod(saleDate)) {
+                prevRev += rev;
+                prevCost += cost;
+            }
+        });
 
-    const netProfit = totalRevenue - totalCost;
-    const margin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
+        const calculateTrend = (curr, prev) => {
+            if (prev === 0) return curr > 0 ? 100 : 0;
+            return Math.round(((curr - prev) / prev) * 100);
+        };
+
+        const totalRevenue = currentRev;
+        const totalCost = currentCost;
+        const netProfit = totalRevenue - totalCost;
+        const margin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
+
+        return {
+            revTrend: calculateTrend(currentRev, prevRev),
+            profitTrend: calculateTrend(currentRev - currentCost, prevRev - prevCost),
+            totalRevenue,
+            totalCost,
+            netProfit,
+            margin,
+            transactionCount: currentCount,
+            cashierMap
+        };
+    };
+
+    const { totalRevenue, totalCost, netProfit, margin, transactionCount, cashierMap, revTrend, profitTrend } = getDashboardData();
     const inventoryValue = products.reduce((acc, p) => acc + (p.stockQuantity * parseFloat(p.price || 0)), 0);
 
-    const getPeriodSummary = () => {
-        let rev = 0; let count = 0;
-        sales.forEach(s => { if (checkPeriod(new Date(s.createdAt))) { rev += parseFloat(s.totalAmount || 0); count++; } });
-        return { rev, count };
-    };
+    const getPeriodSummary = () => ({ rev: totalRevenue, count: transactionCount });
 
     const getTopProducts = () => {
         const map = {};
@@ -167,6 +225,12 @@ const Dashboard = () => {
     const topCashiers = Object.values(cashierMap).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
     const maxCashierRevenue = topCashiers.length > 0 ? topCashiers[0].revenue : 1;
 
+    const getImageUrl = (url) => {
+        if (!url) return null;
+        if (url.startsWith('http')) return url;
+        return `${API_URL}${url}`;
+    };
+
     return (
         <div className="space-y-8 p-1">
             {/* Header & Period Switcher */}
@@ -206,20 +270,26 @@ const Dashboard = () => {
             </motion.div>
 
             {/* Original StatCards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title={t('turnover', 'CA')} value={formatCurrency(totalRevenue)} icon={FiDollarSign} color="bg-blue-600" trend={12} subtitle={t('periodTransactions', { count: transactionCount, period: t(`period${period.charAt(0).toUpperCase() + period.slice(1)}`) })} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <StatCard title={t('turnover', 'CA')} value={formatCurrency(totalRevenue)} icon={FiDollarSign} color="bg-blue-600" trend={revTrend} subtitle={t('periodTransactions', { count: transactionCount, period: t(`period${period.charAt(0).toUpperCase() + period.slice(1)}`) })} />
                 <StatCard title={t('totalPurchases', 'Achats')} value={formatCurrency(totalCost)} icon={FiBox} color="bg-amber-500" subtitle={t('cogsDesc', "Coût des produits vendus")} />
-                <StatCard title={t('profitRealized', 'Bénéfice')} value={formatCurrency(netProfit)} icon={FiZap} color="bg-emerald-600" trend={8} subtitle={t('marginLabel', { margin })} />
-                <StatCard title={t('inventoryValue', 'Valeur Stock')} value={formatCurrency(inventoryValue)} icon={FiPieChart} color="bg-indigo-600" subtitle={t('potentialSales', "Potentiel CA résiduel")} />
+                <StatCard title={t('profitRealized', 'Bénéfice')} value={formatCurrency(netProfit)} icon={FiZap} color="bg-emerald-600" trend={profitTrend} subtitle={t('marginLabel', { margin })} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Recent Transactions (Old) */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/40 dark:shadow-none">
-                    <div className="flex justify-between items-center mb-8"><h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3 tracking-tighter uppercase"><FiClock className="text-blue-600" /> {t('recentTransactions', 'Dernières Transactions')}</h3><FiArrowRight className="text-slate-300" /></div>
-                    <div className="space-y-4">
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/40 dark:shadow-none flex flex-col h-[500px]">
+                    <div className="flex justify-between items-center mb-8 shrink-0">
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3 tracking-tighter uppercase">
+                            <FiClock className="text-blue-600" /> {t('recentTransactions', 'Dernières Transactions')}
+                        </h3>
+                        <div className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full uppercase tracking-widest">
+                            {sales.length} {t('total')}
+                        </div>
+                    </div>
+                    <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
                         <AnimatePresence mode="popLayout">
-                            {recentTransactions.map((tx, i) => (
+                            {sales.map((tx, i) => (
                                 <motion.div layout key={tx.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center justify-between p-5 bg-slate-50/50 dark:bg-slate-800/40 rounded-3xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
                                     <div className="flex items-center gap-4">
                                         <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-lg shadow-sm group-hover:scale-105 transition-transform">{tx.user?.username?.charAt(0).toUpperCase() || 'U'}</div>
@@ -243,13 +313,13 @@ const Dashboard = () => {
                                 onClick={() => setTopProductsSortBy('revenue')} 
                                 className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'revenue' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-400'}`}
                             >
-                                {t('revenueLabel', 'Revenu')}
+                                {t('revenueLabel')}
                             </button>
                             <button 
                                 onClick={() => setTopProductsSortBy('quantity')} 
                                 className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'quantity' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-400'}`}
                             >
-                                {t('quantityLabel', 'Quantité')}
+                                {t('quantityLabel')}
                             </button>
                         </div>
                     </div>
@@ -258,7 +328,7 @@ const Dashboard = () => {
                             <div key={i} className="flex justify-between items-center p-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform">
-                                        {p.imageUrl ? <img src={`${API_URL}${p.imageUrl}`} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-slate-400">{p.name.substring(0,2).toUpperCase()}</span>}
+                                        {p.imageUrl ? <img src={getImageUrl(p.imageUrl)} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-slate-400">{p.name.substring(0,2).toUpperCase()}</span>}
                                     </div>
                                     <div><div className="font-black text-slate-800 dark:text-white truncate max-w-[150px]">{p.name}</div><div className="text-xs text-slate-400 font-bold">{t('unitsSold', { count: p.qty })}</div></div>
                                 </div>
@@ -286,10 +356,10 @@ const Dashboard = () => {
 
                 {/* Stock Alerts (New) */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-xl">
-                    <h3 className="text-xl font-black flex items-center gap-3 tracking-tighter uppercase mb-8"><FiAlertCircle className="text-red-500" /> {t('stockAlerts', 'Alertes Stock')}</h3>
+                    <h3 className="text-xl font-black flex items-center gap-3 tracking-tighter uppercase mb-8"><FiAlertCircle className="text-red-500" /> {t('stockAlerts')}</h3>
                     <div className="space-y-3">
                         {alerts.length === 0 ? <p className="text-slate-400 text-sm font-bold text-center py-6">{t('noAlerts', 'Aucune alerte.')}</p> : alerts.map((a, i) => (
-                            <div key={i} className={`flex items-center justify-between p-4 border rounded-2xl relative overflow-hidden ${a.urgency === 'high' ? 'bg-red-50 border-red-100 dark:bg-red-900/10' : 'bg-orange-50 border-orange-100 dark:bg-orange-900/10'}`}><div className={`absolute left-0 top-0 bottom-0 w-1 ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}></div><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0 ml-2">{a.p.imageUrl ? <img src={`${API_URL}${a.p.imageUrl}`} alt={a.p.name} className="w-full h-full object-contain" /> : <span className="text-[10px] font-black text-gray-400">{a.p.name.substring(0, 2).toUpperCase()}</span>}</div><div><p className={`font-bold text-xs ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>{a.p.name}</p><p className={`text-[10px] mt-0.5 font-bold ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>{a.reason}</p></div></div><span className={`px-3 py-1 text-white font-black rounded-lg text-[10px] ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}>{a.p.stockQuantity} {t('units', 'unités')}</span></div>
+                            <div key={i} className={`flex items-center justify-between p-4 border rounded-2xl relative overflow-hidden ${a.urgency === 'high' ? 'bg-red-50 border-red-100 dark:bg-red-900/10' : 'bg-orange-50 border-orange-100 dark:bg-orange-900/10'}`}><div className={`absolute left-0 top-0 bottom-0 w-1 ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}></div><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0 ml-2">{a.p.imageUrl ? <img src={getImageUrl(a.p.imageUrl)} alt={a.p.name} className="w-full h-full object-contain" /> : <span className="text-[10px] font-black text-gray-400">{a.p.name.substring(0, 2).toUpperCase()}</span>}</div><div><p className={`font-bold text-xs ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>{a.p.name}</p><p className={`text-[10px] mt-0.5 font-bold ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>{a.reason}</p></div></div><span className={`px-3 py-1 text-white font-black rounded-lg text-[10px] ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}>{a.p.stockQuantity} {t('units', 'unités')}</span></div>
                         ))}
                     </div>
                 </div>

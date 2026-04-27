@@ -259,10 +259,10 @@ const Products = () => {
                                 <th className="p-4 font-bold uppercase text-xs">{t('category')}</th>
                                 <th className="p-4 font-bold uppercase text-xs">{t('subcategory')}</th>
                                 <th className="p-4 font-bold uppercase text-xs">{t('stock')}</th>
+                                <th className="p-4 font-bold uppercase text-xs text-right">{t('unitPurchasePrice', 'Purchase Unit')} (TTC)</th>
+                                <th className="p-4 font-bold uppercase text-xs text-right">{t('totalPrice', 'Total Purchase')}</th>
                                 <th className="p-4 font-bold uppercase text-xs text-right">{t('unitSellingPrice', 'Selling Unit (TTC)')}</th>
                                 <th className="p-4 font-bold uppercase text-xs text-right">{t('totalSellingPrice', 'Potential Total')}</th>
-                                <th className="p-4 font-bold uppercase text-xs text-right">{t('unitPurchasePrice', 'Purchase Unit')}</th>
-                                <th className="p-4 font-bold uppercase text-xs text-right">{t('totalPrice', 'Total Purchase')}</th>
                                 <th className="p-4 font-bold uppercase text-xs text-right">{t('tvaPercent', "Tax %")}</th>
                                 <th className="p-4 font-bold uppercase text-xs text-right">{t('remise', 'Discount')} %</th>
                                 <th className="p-4 font-bold uppercase text-xs text-center">{t('currency', 'Currency')}</th>
@@ -318,15 +318,15 @@ const Products = () => {
                                                 {product.stockQuantity}
                                             </span>
                                         </td>
+                                        <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">{formatCurrency(Number(product.purchasePrice || 0) * (1 + (product.tva || 0) / 100))}</td>
+                                        <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-black">
+                                            {formatCurrency(Number(product.purchasePrice || 0) * (1 + (product.tva || 0) / 100) * product.stockQuantity)}
+                                        </td>
                                         <td className="p-4 text-right text-blue-600 dark:text-blue-400 font-bold">
                                             {formatCurrency(((Number(product.price) * (1 - (product.remise || 0) / 100)) * (1 + (product.tva || 0) / 100)))}
                                         </td>
                                         <td className="p-4 text-right text-blue-800 dark:text-blue-300 font-black">
                                             {formatCurrency(((Number(product.price) * (1 - (product.remise || 0) / 100)) * (1 + (product.tva || 0) / 100)) * product.stockQuantity)}
-                                        </td>
-                                        <td className="p-4 text-right text-gray-700 dark:text-gray-300 font-medium">{formatCurrency(Number(product.purchasePrice || 0))}</td>
-                                        <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-black">
-                                            {formatCurrency(Number(product.purchasePrice || 0) * product.stockQuantity)}
                                         </td>
                                         <td className="p-4 text-right text-purple-600 dark:text-purple-400 font-bold">
                                             {product.tva ? `${product.tva}%` : '0%'}
@@ -392,7 +392,7 @@ const Products = () => {
                                                     value={formData.barcode}
                                                     onChange={e => setFormData({ ...formData, barcode: e.target.value.replace(/\D/g, '').slice(0, 13) })}
                                                     disabled={isEditing}
-                                                    placeholder="Scan barcode..." />
+                                                />
                                                 {!isEditing && (
                                                     <button 
                                                         type="button"
@@ -473,7 +473,7 @@ const Products = () => {
                                     <div className="space-y-1">
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('tvaPercent', 'TVA')} (%)</label>
                                         <input type="number" step="0.01" max="100" min="0" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
-                                            value={formData.tva} onChange={e => setFormData({ ...formData, tva: e.target.value })} placeholder="e.g. 19" />
+                                            value={formData.tva} onChange={e => setFormData({ ...formData, tva: e.target.value })} />
                                     </div>
                                 </div>
 

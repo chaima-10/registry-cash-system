@@ -18,7 +18,7 @@ const Login = () => {
         e.preventDefault();
         setError('');
         try {
-            // Robust input handling: trim to prevent accidental spaces issues
+            
             const cleanIdentifier = identifier.trim();
             const cleanPassword = password.trim();
             
@@ -32,7 +32,7 @@ const Login = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white relative overflow-hidden">
-            {/* Background Elements */}
+            
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-50 animate-blob"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full mix-blend-multiply filter blur-[128px] opacity-50 animate-blob animation-delay-2000"></div>
 

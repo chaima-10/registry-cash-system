@@ -50,6 +50,12 @@ exports.getAllGiveaways = async (req, res) => {
                     select: {
                         participants: true
                     }
+                },
+                winners: {
+                    include: {
+                        user: { select: { id: true, username: true, fullName: true } },
+                        participation: true
+                    }
                 }
             },
             orderBy: {

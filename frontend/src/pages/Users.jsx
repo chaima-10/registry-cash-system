@@ -125,7 +125,7 @@ const Users = () => {
                             <div className="relative">
                                 <span className="absolute left-3 top-2.5 text-blue-500 font-bold text-xs">TND</span>
                                 <input required type="number" step="0.001" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
-                                    placeholder={t('dailySalaryPlaceholder', 'Daily rate (e.g. 40.000)')}
+                                
                                     value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} />
                             </div>
                         </div>

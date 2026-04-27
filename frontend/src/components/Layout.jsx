@@ -58,11 +58,6 @@ const Layout = () => {
         logout();
         navigate('/login');
     };
-
-    // Unified theme toggle now handled in AuthContext
-    // const toggleTheme = () => { ... } is no longer needed locally
-
-    // Definition des onglets du menu
     const menuItems = [
         { to: '/', icon: FiHome, label: t('dashboard'), adminOnly: true },
         { to: '/pos', icon: FiShoppingCart, label: t('posTerminal'), adminOnly: false },
@@ -72,8 +67,6 @@ const Layout = () => {
         { to: '/giveaways', icon: FiGift, label: t('giveaways', 'Giveaways'), adminOnly: false },
         { to: '/marketing', icon: FiShoppingBag, label: t('marketingStudio', 'Marketing Studio'), adminOnly: true },
     ];
-
-    // Filtrer le menu pour le caissier
     const visibleMenuItems = menuItems.filter(item => 
         user?.role === 'admin' || !item.adminOnly
     );
@@ -122,7 +115,6 @@ const Layout = () => {
                     ))}
                 </nav>
 
-                {/* Sidebar Footer (Version) */}
                 <div className="p-4 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-500 dark:text-gray-600 transition-colors duration-300">
                     {!collapsed && <span>v1.0.0</span>}
                 </div>
@@ -135,7 +127,7 @@ const Layout = () => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{getPageTitle()}</h1>
 
                     <div className="flex items-center gap-6">
-                        {/* Theme Toggle */}
+                    
                         <button
                             onClick={toggleTheme}
                             className="p-2 rounded-lg text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -145,8 +137,6 @@ const Layout = () => {
                         </button>
 
                         <LanguageSwitcher />
-
-                        {/* Profile Dropdown */}
                         <div className="relative" ref={dropdownRef}>
                             <button
                                 onClick={() => setDropdownOpen(!dropdownOpen)}

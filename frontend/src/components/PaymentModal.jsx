@@ -3,7 +3,7 @@ import { FiX, FiCreditCard, FiDollarSign, FiGift, FiCheck, FiCheckCircle, FiActi
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import QRScannerModal from './QRScannerModal';
+import CameraScannerModal from './CameraScannerModal';
 
 const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const { t } = useTranslation();
@@ -11,11 +11,11 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const [selectedMethod, setSelectedMethod] = useState('CASH');
     const [cashTendered, setCashTendered] = useState('');
     const [processing, setProcessing] = useState(false);
-    
+
     // Gift voucher states
     const [voucherQR, setVoucherQR] = useState('');
     const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
-    
+
     // Credit card states
     const [cardPin, setCardPin] = useState('');
 
@@ -37,12 +37,12 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
             alert(t('insufficientCash') || 'Insufficient cash tendered');
             return;
         }
-        
+
         if (selectedMethod === 'VOUCHER' && !voucherQR) {
             alert(t('voucherRequired') || 'Please scan QR code');
             return;
         }
-        
+
         if (selectedMethod === 'CARD') {
             if (!cardPin) {
                 alert(t('pinRequired') || 'Please enter PIN code');
@@ -55,6 +55,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
             const paymentData = {
                 method: selectedMethod,
                 cashTendered: selectedMethod === 'CASH' ? tendered : null,
+                change: selectedMethod === 'CASH' ? change : null,
                 voucherQR: selectedMethod === 'VOUCHER' ? voucherQR : null,
                 cardDetails: selectedMethod === 'CARD' ? {
                     pin: cardPin
@@ -72,20 +73,20 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
             setProcessing(false);
         }
     };
-    
+
 
 
     // Handle QR code scan
     const handleQRScan = (qrData) => {
         setVoucherQR(qrData);
         setIsQRScannerOpen(false);
-    }; // Updated for Vercel deployment
+    };
 
     return (
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    {/* Backdrop click to close */}
+
                     <div className="absolute inset-0" onClick={onClose} />
 
                     <motion.div
@@ -94,7 +95,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden transition-colors"
                     >
-                        {/* Header */}
+
                         <div className="p-8 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50 transition-colors">
                             <div>
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{t('finalizePayment')}</h3>
@@ -107,7 +108,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
 
                         <div className="p-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                {/* Left: Summary */}
+
                                 <div className="space-y-6">
                                     <div className="p-6 bg-blue-50 dark:bg-blue-500/10 rounded-2xl border border-blue-100 dark:border-blue-500/20 transition-colors">
                                         <p className="text-blue-600 dark:text-blue-400 font-bold mb-1 uppercase text-xs tracking-wider">{t('totalAmount')}</p>
@@ -126,8 +127,8 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                                     key={method.id}
                                                     onClick={() => setSelectedMethod(method.id)}
                                                     className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${selectedMethod === method.id
-                                                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-600/10 scale-[1.02] shadow-lg shadow-blue-500/10'
-                                                            : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500'
+                                                        ? 'border-blue-600 bg-blue-50 dark:bg-blue-600/10 scale-[1.02] shadow-lg shadow-blue-500/10'
+                                                        : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-400 dark:text-gray-500'
                                                         }`}
                                                 >
                                                     <div className={`p-3 rounded-xl ${method.bg} ${method.color}`}>
@@ -140,7 +141,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                         </div>
                                     </div>
 
-                                    {/* Cash Input */}
+
                                     {selectedMethod === 'CASH' && (
                                         <motion.div
                                             initial={{ opacity: 0, height: 0 }}
@@ -170,7 +171,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                         </motion.div>
                                     )}
 
-                                    {/* Gift Voucher Input */}
+
                                     {selectedMethod === 'VOUCHER' && (
                                         <motion.div
                                             initial={{ opacity: 0, height: 0 }}
@@ -191,7 +192,7 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                         </motion.div>
                                     )}
 
-                                    {/* Credit Card Input */}
+
                                     {selectedMethod === 'CARD' && (
                                         <motion.div
                                             initial={{ opacity: 0, height: 0 }}
@@ -229,53 +230,53 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
                                                     <span className="text-gray-900 dark:text-white font-bold">{formatCurrency(Number(cart?.subtotalHT || 0))}</span>
                                                 </div>
                                                 <div className="flex justify-between text-gray-500 dark:text-gray-400 font-medium">
-                                                    <span>TVA</span>
+                                                    <span>{t('TVA')}</span>
                                                     <span className="text-purple-500 font-bold">{formatCurrency(Number(cart?.tvaAmount || 0))}</span>
-                                                </div>
-                                                <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
-                                                <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white">
-                                                    <span>{t('total')}</span>
-                                                    <span>{formatRaw(amount)}</span>
-                                                </div>
+                                            </div>
+                                            <div className="h-px bg-gray-200 dark:bg-gray-700 my-2" />
+                                            <div className="flex justify-between text-xl font-bold text-gray-900 dark:text-white">
+                                                <span>{t('total')}</span>
+                                                <span>{formatRaw(amount)}</span>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
 
-                                    <div className="space-y-4">
-                                        <button
-                                            onClick={handleConfirm}
-                                            disabled={processing || (selectedMethod === 'CASH' && change < 0)}
-                                            className="w-full py-5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 text-white font-black text-xl rounded-2xl transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-95"
-                                        >
-                                            {processing ? (
-                                                <span className="animate-pulse">{t('processing') || 'Processing...'}</span>
-                                            ) : (
-                                                <>
-                                                    <FiCheckCircle size={24} />
-                                                    {t('completePurchase')}
-                                                </>
-                                            )}
-                                        </button>
-                                        <button
-                                            onClick={onClose}
-                                            className="w-full py-4 text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all"
-                                        >
-                                            {t('cancel')}
-                                        </button>
-                                    </div>
+                                <div className="space-y-4">
+                                    <button
+                                        onClick={handleConfirm}
+                                        disabled={processing || (selectedMethod === 'CASH' && change < 0)}
+                                        className="w-full py-5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 text-white font-black text-xl rounded-2xl transition-all shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 active:scale-95"
+                                    >
+                                        {processing ? (
+                                            <span className="animate-pulse">{t('processing') || 'Processing...'}</span>
+                                        ) : (
+                                            <>
+                                                <FiCheckCircle size={24} />
+                                                {t('completePurchase')}
+                                            </>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={onClose}
+                                        className="w-full py-4 text-gray-500 dark:text-gray-400 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-2xl transition-all"
+                                    >
+                                        {t('cancel')}
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
                 </div>
+                    </motion.div>
+                </div >
             )}
-        {/* QR Scanner Modal */}
-            <QRScannerModal
-                isOpen={isQRScannerOpen}
-                onClose={() => setIsQRScannerOpen(false)}
-                onScan={handleQRScan}
-            />
-        </AnimatePresence>
+{/* QR Scanner Modal */ }
+<CameraScannerModal
+    isOpen={isQRScannerOpen}
+    onClose={() => setIsQRScannerOpen(false)}
+    onScan={handleQRScan}
+/>
+        </AnimatePresence >
     );
 };
 

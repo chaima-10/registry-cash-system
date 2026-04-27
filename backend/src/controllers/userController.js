@@ -1,7 +1,18 @@
 const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const emailService = require('../services/emailService');
+const cloudinary = require('../config/cloudinary');
+
+// Helper to upload buffer to Cloudinary
+const uploadToCloudinary = async (file) => {
+    if (!file) return null;
+    const fileBase64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const uploadResponse = await cloudinary.uploader.upload(fileBase64, {
+        folder: 'profiles',
+    });
+    return uploadResponse.secure_url;
+};
+
 
 // Get all users (with current month stats and today's revenue)
 exports.getAllUsers = async (req, res) => {
@@ -305,17 +316,23 @@ exports.updateProfile = async (req, res) => {
         }
 
         const updateData = {
-            fullName,
-            username,
-            theme,
-            phone,
-            age: age ? parseInt(age) : null,
-            shiftSchedule
+            fullName: fullName !== undefined ? fullName : user.fullName,
+            username: username !== undefined ? username : user.username,
+            theme: theme !== undefined ? theme : user.theme,
+            phone: phone !== undefined ? phone : user.phone,
+            age: (age !== undefined && age !== '') ? parseInt(age) : (age === '' ? null : user.age),
+            shiftSchedule: shiftSchedule !== undefined ? shiftSchedule : user.shiftSchedule
         };
         
         if (email && email !== user.email) {
             updateData.email = email;
             updateData.isEmailVerified = true;
+        }
+
+        if (req.body.removeProfilePicture === 'true') {
+            updateData.profilePicture = null;
+        } else if (req.file) {
+            updateData.profilePicture = await uploadToCloudinary(req.file);
         }
 
         const updatedUser = await prisma.user.update({

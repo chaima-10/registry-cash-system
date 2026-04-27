@@ -16,7 +16,7 @@ const SettingsPage = () => {
         <div className="space-y-6 max-w-2xl">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('settings')}</h2>
 
-            {/* Appearance Card */}
+        
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-purple-500/20 rounded-lg text-purple-600 dark:text-purple-400">
@@ -49,7 +49,7 @@ const SettingsPage = () => {
                 </div>
             </div>
 
-            {/* Language Card */}
+            
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-green-500/20 rounded-lg text-green-600 dark:text-green-400">
@@ -67,7 +67,7 @@ const SettingsPage = () => {
                 </div>
             </div>
 
-            {/* Currency Card */}
+            
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm transition-colors">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-yellow-500/20 rounded-lg text-yellow-600 dark:text-yellow-400">

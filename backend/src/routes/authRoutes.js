@@ -3,6 +3,7 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const authMiddleware = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
+const upload = require('../middleware/upload');
 const { loginSchema, updateProfileSchema } = require('../validators/authValidators');
 
 /**
@@ -99,26 +100,7 @@ router.get('/profile', authMiddleware.protect, authController.getProfile);
  */
 router.post('/logout', authController.logout);
 
-/**
- * @swagger
- * /api/auth/verify-email:
- *   get:
- *     summary: Verify user email
- *     tags: [Auth]
- *     parameters:
- *       - in: query
- *         name: token
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Email verified
- *       400:
- *         description: Invalid token
- */
-router.get('/verify-email', authController.verifyEmail);
-router.post('/resend-verification', authController.resendVerification);
+
 
 /**
  * @swagger
@@ -132,6 +114,6 @@ router.post('/resend-verification', authController.resendVerification);
  *       200:
  *         description: Profile updated
  */
-router.put('/profile', authMiddleware.protect, validate(updateProfileSchema), authController.updateProfile);
+router.put('/profile', authMiddleware.protect, upload.single('profilePicture'), validate(updateProfileSchema), authController.updateProfile);
 
 module.exports = router;

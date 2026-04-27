@@ -10,7 +10,7 @@ export const createCategory = async (categoryData) => {
     return response.data;
 };
 
-export const createSubcategory = async (categoryId, subcategoryData) => {
-    const response = await api.post(`/categories/${categoryId}/subcategories`, subcategoryData);
+export const createSubcategory = async (subcategoryData) => {
+    const response = await api.post('/categories/sub', subcategoryData);
     return response.data;
 };

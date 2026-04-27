@@ -6,13 +6,13 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [currency, setCurrency] = useState('USD');
-    const [exchangeRates, setExchangeRates] = useState({ USD: 1 });
+    const [currency, setCurrency] = useState('TND');
+    const [exchangeRates, setExchangeRates] = useState({ TND: 1 });
 
     // Fetch real exchange rates from open.er-api.com (free, no key required)
     const fetchExchangeRates = async () => {
         try {
-            const res = await fetch('https://open.er-api.com/v6/latest/USD');
+            const res = await fetch('https://open.er-api.com/v6/latest/TND');
             const data = await res.json();
             if (data.result === 'success') {
                 setExchangeRates(data.rates);
@@ -54,33 +54,19 @@ export const AuthProvider = ({ children }) => {
         };
         initAuth();
 
-        const savedCurrency = localStorage.getItem('currency') || 'USD';
+        const savedCurrency = localStorage.getItem('currency') || 'TND';
         setCurrency(savedCurrency);
-        fetchExchangeRates(); // Fetch on load
+        fetchExchangeRates();
 
-        // Add focus listener to refresh auth profile (useful for email verification)
-        const onFocus = async () => {
-            if (localStorage.getItem('token')) {
-                try {
-                    const userData = await getProfile();
-                    setUser(prev => prev ? { ...prev, ...userData } : userData);
-                } catch (error) {
-                    console.error("Auth refresh on focus failed", error);
-                }
-            }
-        };
-        window.addEventListener('focus', onFocus);
-        return () => window.removeEventListener('focus', onFocus);
+
     }, []);
 
     const changeCurrency = (newCurrency) => {
         setCurrency(newCurrency);
         localStorage.setItem('currency', newCurrency);
-        // Re-fetch rates when currency changes (they are relative to USD always)
         fetchExchangeRates();
     };
     const login = async (identifier, password) => {
-        // If identifier contains '@', treat as email, otherwise username
         const isEmail = identifier.includes('@');
         const credentials = isEmail 
             ? { email: identifier, password } 
@@ -98,7 +84,7 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         logoutUser();
         setUser(null);
-        applyTheme('light'); // Revert to default or keep last preference? 'light' is safe.
+        applyTheme('light'); 
         localStorage.removeItem('theme');
     };
 
@@ -123,7 +109,6 @@ export const AuthProvider = ({ children }) => {
     const toggleTheme = async () => {
         const currentTheme = user?.theme || localStorage.getItem('theme') || 'light';
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
         // 1. Update DOM immediately for instant feedback
         applyTheme(newTheme);
 

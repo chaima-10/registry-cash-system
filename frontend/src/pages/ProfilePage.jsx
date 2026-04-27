@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiSend } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiSend, FiCamera } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { updateProfile, changePassword, resendVerificationEmail } from '../api/auth';
+import { updateProfile, changePassword } from '../api/auth';
 import { distributePrimes } from '../api/users';
 import { getProfile } from '../api/auth';
 import { calculateNetSalary } from '../utils/salaryCalculator';
@@ -20,21 +20,12 @@ const ProfilePage = () => {
     const [passwordFormData, setPasswordFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
     const [primeData, setPrimeData] = useState({ amount: '', reason: '' });
     const [isDistributing, setIsDistributing] = useState(false);
-    const [isSendingVerification, setIsSendingVerification] = useState(false);
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [removeProfilePicture, setRemoveProfilePicture] = useState(false);
+    const fileInputRef = useRef(null);
 
-    const handleResendVerification = async () => {
-        if (!user?.email || isSendingVerification) return;
-        setIsSendingVerification(true);
-        try {
-            const result = await resendVerificationEmail(user.email);
-            alert(result.message || 'E-mail de vérification envoyé !');
-        } catch (error) {
-            const msg = error.response?.data?.message || error.message || 'Échec de l\'envoi';
-            alert(`Erreur: ${msg}`);
-        } finally {
-            setIsSendingVerification(false);
-        }
-    };
+
 
     const handleOpenEdit = () => {
         setEditFormData({
@@ -49,13 +40,49 @@ const ProfilePage = () => {
     const handleEditSubmit = async (e) => {
         e.preventDefault();
         try {
-            const res = await updateProfile(editFormData);
+            const data = new FormData();
+            Object.keys(editFormData).forEach(key => {
+                if (editFormData[key] !== null && editFormData[key] !== undefined) {
+                    data.append(key, editFormData[key]);
+                }
+            });
+            if (imageFile) {
+                data.append('profilePicture', imageFile);
+            }
+            if (removeProfilePicture) {
+                data.append('removeProfilePicture', 'true');
+            }
+
+            const res = await updateProfile(data);
             updateUser(res.user);
             setIsEditModalOpen(false);
+            setImageFile(null);
+            setImagePreview(null);
+            setRemoveProfilePicture(false);
             alert(res.message || t('profileUpdatedSuccess'));
         } catch (error) {
-            alert(error.response?.data?.message || t('failedToUpdateProfile'));
+            const errorMsg = error.response?.data?.errors?.join('\n') || error.response?.data?.message || t('failedToUpdateProfile');
+            alert(errorMsg);
         }
+    };
+
+    const handleImageClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setImageFile(file);
+            setImagePreview(URL.createObjectURL(file));
+            setRemoveProfilePicture(false);
+        }
+    };
+
+    const handleRemovePicture = () => {
+        setImageFile(null);
+        setImagePreview(null);
+        setRemoveProfilePicture(true);
     };
 
     const handlePasswordSubmit = async (e) => {
@@ -87,10 +114,7 @@ const ProfilePage = () => {
                 reason: primeData.reason 
             });
             
-            // Show detailed success message
             alert(res.message);
-            
-            // Refresh profile to update stats
             const updatedProfile = await getProfile();
             updateUser(updatedProfile);
             setPrimeData({ amount: '', reason: '' });
@@ -122,7 +146,6 @@ const ProfilePage = () => {
             <p className="text-gray-500 dark:text-gray-400 mb-8">{t('managePersonalInfo')}</p>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Personal Info */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
                         <div className="flex justify-between items-start mb-8">
@@ -138,12 +161,27 @@ const ProfilePage = () => {
 
                         <div className="flex flex-col sm:flex-row gap-8 items-start mb-8 pb-8 border-b border-gray-100 dark:border-gray-800">
                             {/* Profile Picture */}
-                            <div className="relative group cursor-pointer">
-                                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-4xl font-bold text-white shadow-lg shadow-blue-500/20">
-                                    {user?.username?.charAt(0).toUpperCase()}
+                            <div className="relative group cursor-pointer" onClick={handleImageClick}>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                />
+                                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-4xl font-bold text-white shadow-lg shadow-blue-500/20 overflow-hidden">
+                                    {(imagePreview || user?.profilePicture) && !removeProfilePicture ? (
+                                        <img 
+                                            src={imagePreview || user.profilePicture} 
+                                            alt="Profile" 
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        user?.username?.charAt(0).toUpperCase()
+                                    )}
                                 </div>
                                 <div className="absolute inset-0 bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                    <FiEdit2 className="text-white text-xl" />
+                                    <FiCamera className="text-white text-xl" />
                                 </div>
                             </div>
 
@@ -209,7 +247,7 @@ const ProfilePage = () => {
                         </div>
                     </div>
 
-                    {/* New Card: Work & Performance */}
+                    
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
                         <div className="flex justify-between items-center mb-8">
                             <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -408,7 +446,7 @@ const ProfilePage = () => {
                     </div>
                 </div>
 
-                {/* Right Column: Security */}
+            
                 <div className="space-y-6">
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-6">
@@ -448,7 +486,7 @@ const ProfilePage = () => {
                 </div>
             </div>
 
-            {/* Edit Profile Modal */}
+        
             <AnimatePresence>
                 {isEditModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
@@ -467,6 +505,23 @@ const ProfilePage = () => {
                                 </button>
                             </div>
                             <form onSubmit={handleEditSubmit} className="p-6 space-y-5">
+                                {(user?.profilePicture || imagePreview) && !removeProfilePicture && (
+                                    <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-500/10 rounded-2xl border border-red-100 dark:border-red-500/20">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden">
+                                                <img src={imagePreview || user.profilePicture} alt="" className="w-full h-full object-cover" />
+                                            </div>
+                                            <span className="text-xs font-bold text-red-600 dark:text-red-400">{t('deletePictureConfirm', 'Supprimer la photo ?')}</span>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={handleRemovePicture}
+                                            className="px-3 py-1.5 bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-red-700 transition-all"
+                                        >
+                                            {t('delete', 'Supprimer')}
+                                        </button>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-400 mb-1">{t('fullName')}</label>
                                     <input
@@ -519,7 +574,7 @@ const ProfilePage = () => {
                 )}
             </AnimatePresence>
 
-            {/* Change Password Modal */}
+        
             <AnimatePresence>
                 {isPasswordModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">

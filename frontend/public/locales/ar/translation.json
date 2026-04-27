@@ -1,4 +1,5 @@
 {
+
   "welcome": "مرحبًا بكم في نظام تسجيل النقد",
   "settings": "الإعدادات",
   "language": "اللغة",
@@ -494,5 +495,31 @@
   "periodWeek": "الأسبوع",
   "periodMonth": "الشهر",
   "uptrend": "ارتفاع",
-  "stockCount": "المخزون: {{count}} وحدات"
+  "stockCount": "المخزون: {{count}} وحدات",
+  "timeline": "الجدول الزمني",
+  "giveaways": "الجوائز",
+  "participants": "المشاركين",
+  "participate": "شارك الآن",
+  "draw": "اسحب الفائزين",
+  "endOfContest": "نهاية المسابقة",
+  "participationClosed": "المشاركة مغلقة",
+  "youAreParticipating": "أنت تشارك",
+  "previousWinner": "الفائز السابق",
+  "prize": "الجائزة",
+  "noWinnersYet": "لا يوجد فائزين بعد",
+  "winBig": "اربح جوائز رائعة!",
+  "joinGiveaway": "انضم إلى السحب",
+  "nameLetterOnly": "يجب أن يتكون الاسم من أحرف فقط.",
+  "surnameLetterOnly": "يجب أن يتكون اللقب من أحرف فقط.",
+  "phoneDigitsOnly": "يجب أن يتكون رقم الهاتف من أرقام فقط.",
+  "invalidTunisianPhone": "يجب أن يحتوي رقم الهاتف التونسي على 8 أرقام فقط بعد +216.",
+  "invalidLocalPhone": "يجب أن يحتوي رقم الهاتف التونسي المحلي على 8 أرقام فقط.",
+  "ended": "انتهى",
+  "searchByName": "ابحث بالاسم",
+  "scanBarcodeToCart": "امسح الباركود للإضافة إلى السلة أو البحث",
+  "TVA": "الضريبة على القيمة المضافة",
+  "createFirstGiveaway": "تفاعل مع جمهورك، كافئ الولاء، وزِد المبيعات عبر إطلاق أول مسابقة سحب لك اليوم",
+  "storeCurrency": "عملة المتجر",
+  "selectCurrency": "اختر العملة الأساسية"
+  
 }

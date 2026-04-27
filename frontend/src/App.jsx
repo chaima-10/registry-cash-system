@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
-import EmailVerification from './pages/EmailVerification';
+
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -31,9 +31,9 @@ function AppRoutes() {
     return (
         <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/verify-email" element={<EmailVerification />} />
 
-            {/* Admin Only Routes */}
+
+            
             <Route element={<ProtectedRoute allowedRoles={['admin']}><Layout /></ProtectedRoute>}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/users" element={<Users />} />
@@ -42,7 +42,7 @@ function AppRoutes() {
                 <Route path="/products" element={<Products />} />
             </Route>
 
-            {/* Shared Routes (Admin + Cashier) */}
+        
             <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="/pos" element={<POS />} />
                 <Route path="/giveaways" element={<Giveaways />} />
@@ -64,4 +64,3 @@ function App() {
 }
 
 export default App;
-// aaa

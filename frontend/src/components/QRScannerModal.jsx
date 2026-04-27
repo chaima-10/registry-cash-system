@@ -14,8 +14,8 @@ const QRScannerModal = ({ isOpen, onClose, onScan }) => {
 
         const requestCameraPermission = async () => {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
                 });
                 stream.getTracks().forEach(track => track.stop());
                 setHasPermission(true);
@@ -30,33 +30,30 @@ const QRScannerModal = ({ isOpen, onClose, onScan }) => {
             if (!hasPermission && hasPermission !== null) return;
 
             setIsScanning(true);
-            
-            // Configuration for QR scanner
+
+
             const config = {
                 fps: 10,
                 qrbox: { width: 250, height: 250 },
                 aspectRatio: 1.0,
-                supportedScanTypes: [0] // 0 for QR_CODE
+                supportedScanTypes: [0]
             };
 
             const scanner = new Html5QrcodeScanner(
                 "qr-scanner-container",
                 config,
-                false // verbose flag
+                false
             );
 
             scanner.render(
                 (decodedText) => {
-                    scanner.clear(); // Stop scanning once a QR code is detected
+                    scanner.clear();
                     onScan(decodedText);
                     onClose();
                 },
-                (errorMessage) => {
-                    // Background scan errors are frequent and safe to ignore
-                }
+                (errorMessage) => { }
             );
 
-            // Cleanup on unmount or when modal closes
             return () => {
                 if (scanner) {
                     scanner.clear().catch(error => console.error("Failed to clear scanner", error));
@@ -90,7 +87,7 @@ const QRScannerModal = ({ isOpen, onClose, onScan }) => {
                                 <FiX size={20} />
                             </button>
                         </div>
-                        
+
                         <div className="p-4 bg-gray-50 dark:bg-gray-950 min-h-[300px] flex items-center justify-center">
                             {hasPermission === false ? (
                                 <div className="text-center space-y-4">
@@ -120,13 +117,13 @@ const QRScannerModal = ({ isOpen, onClose, onScan }) => {
                             ) : (
                                 <div className="w-full">
                                     {/* The HTML5 QR Code Scanner mounts here */}
-                                    <div 
-                                        id="qr-scanner-container" 
-                                        className="w-full rounded-xl overflow-hidden bg-black" 
-                                        style={{ 
+                                    <div
+                                        id="qr-scanner-container"
+                                        className="w-full rounded-xl overflow-hidden bg-black"
+                                        style={{
                                             border: 'none',
                                             minHeight: '250px'
-                                        }} 
+                                        }}
                                     />
                                 </div>
                             )}

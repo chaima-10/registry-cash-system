@@ -214,7 +214,7 @@ exports.deleteProduct = async (req, res) => {
         }
 
         // 1. Remove from all active carts
-        await prisma.cartItem.deleteMany({ where: { productId } });
+        await prisma.cartitem.deleteMany({ where: { productId } });
 
         // 2. Soft delete: Keep sale history intact, just mark as deleted and change barcode to free it up
         await prisma.product.update({

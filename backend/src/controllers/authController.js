@@ -2,7 +2,18 @@ const prisma = require('../config/prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const emailService = require('../services/emailService');
+const cloudinary = require('../config/cloudinary');
+
+// Helper to upload buffer to Cloudinary
+const uploadToCloudinary = async (file) => {
+    if (!file) return null;
+    const fileBase64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const uploadResponse = await cloudinary.uploader.upload(fileBase64, {
+        folder: 'profiles',
+    });
+    return uploadResponse.secure_url;
+};
+
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -87,85 +98,7 @@ exports.login = async (req, res) => {
     }
 };
 
-// Verify Email
-exports.verifyEmail = async (req, res) => {
-    try {
-        const { token } = req.query;
 
-        if (!token) {
-            return res.status(400).json({ message: 'Token manquant' });
-        }
-
-        const user = await prisma.user.findFirst({
-            where: { emailVerificationToken: token }
-        });
-
-        if (!user) {
-            return res.status(400).json({ message: 'Lien de vérification invalide ou expiré' });
-        }
-
-        await prisma.user.update({
-            where: { id: user.id },
-            data: {
-                email: user.pendingEmail,
-                pendingEmail: null,
-                emailVerificationToken: null,
-                isEmailVerified: true
-            }
-        });
-
-        res.json({ message: 'E-mail vérifié avec succès ! Vous pouvez maintenant utiliser cette adresse pour vous connecter.' });
-    } catch (error) {
-        res.status(500).json({ message: 'Server error', error: error.message });
-    }
-};
-
-// Resend Verification Email
-exports.resendVerification = async (req, res) => {
-    try {
-        const { email } = req.body;
-        if (!email) return res.status(400).json({ message: 'E-mail requis' });
-
-        const user = await prisma.user.findFirst({
-            where: {
-                OR: [
-                    { email: email },
-                    { pendingEmail: email }
-                ]
-            }
-        });
-
-        if (!user) {
-            return res.status(404).json({ message: 'Utilisateur non trouvé' });
-        }
-
-        if (user.email === email && user.isEmailVerified) {
-            return res.status(400).json({ message: 'Cet e-mail est déjà vérifié' });
-        }
-
-        const token = crypto.randomBytes(32).toString('hex');
-        const targetEmail = user.pendingEmail || user.email;
-
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { 
-                emailVerificationToken: token,
-                pendingEmail: targetEmail // Ensure it's in pending if it wasn't
-            }
-        });
-
-        try {
-            await emailService.sendVerificationEmail(targetEmail, token);
-            res.json({ message: 'Lien de vérification envoyé ! Veuillez consulter votre boîte mail.' });
-        } catch (emailErr) {
-            console.error('Email send failed:', emailErr.message);
-            res.status(500).json({ message: `L'e-mail n'a pas pu être envoyé: ${emailErr.message}` });
-        }
-    } catch (error) {
-        console.error('Resend Verification Error:', error);
-        res.status(500).json({ message: 'Erreur serveur', error: error.message });
-    }
-};
 
 // Logout user (Client-side clear, but valid endpoint for testing)
 exports.logout = async (req, res) => {
@@ -200,7 +133,14 @@ exports.updateProfile = async (req, res) => {
         const user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        let emailUpdateMsg = "";
+        const updateData = {
+            fullName: fullName !== undefined ? fullName : user.fullName,
+            phone: phone !== undefined ? phone : user.phone,
+            age: (age !== undefined && age !== '') ? parseInt(age) : (age === '' ? null : user.age),
+            username: username !== undefined ? username : user.username,
+            theme: theme !== undefined ? theme : user.theme
+        };
+
         // Directly update email without verification flow
         if (email && email !== user.email) {
             // Check if email already taken
@@ -217,6 +157,12 @@ exports.updateProfile = async (req, res) => {
             updateData.isEmailVerified = true; // Auto-verify since feature is disabled
         }
 
+        if (req.body.removeProfilePicture === 'true') {
+            updateData.profilePicture = null;
+        } else if (req.file) {
+            updateData.profilePicture = await uploadToCloudinary(req.file);
+        }
+
         const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: updateData,
@@ -224,7 +170,7 @@ exports.updateProfile = async (req, res) => {
 
         const { password, ...userWithoutPassword } = updatedUser;
         res.json({ 
-            message: 'Profil mis à jour avec succès.' + emailUpdateMsg, 
+            message: 'Profil mis à jour avec succès.', 
             user: userWithoutPassword 
         });
     } catch (error) {

@@ -114,10 +114,17 @@ const POS = () => {
         setShowPaymentModal(true);
     };
 
-    const handlePaymentConfirm = async (paymentMethod) => {
+    const handlePaymentConfirm = async (method, paymentData) => {
         try {
             const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
-            const response = await processCheckout(paymentMethod, currency, rate);
+            const response = await processCheckout({
+                paymentMethod: method,
+                currency,
+                exchangeRate: rate,
+                amountTendered: paymentData.cashTendered,
+                changeAmount: paymentData.change,
+                voucherQR: paymentData.voucherQR
+            });
             setShowPaymentModal(false);
             setCompletedSale(response.sale);
             alert(t('paymentSuccessful'));
@@ -141,7 +148,7 @@ const POS = () => {
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white overflow-hidden transition-colors duration-300">
-            {/* LEFT SIDE: PRODUCT GRID */}
+            
             <div className="w-2/3 p-6 flex flex-col border-r border-gray-200 dark:border-gray-800 transition-colors">
                 <div className="flex flex-col mb-6 space-y-4">
                     <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -152,12 +159,12 @@ const POS = () => {
                         {/* 1. Barcode Scanner Input */}
                         <div className="flex flex-1 gap-2">
                             <form onSubmit={handleBarcodeSubmit} className="relative flex-1">
-                                <FiBox className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-500" />
+                                <FiBox className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-500" />
                                 <input
                                     ref={barcodeInputRef}
                                     type="text"
                                     placeholder={t('scanBarcodeToCart', 'Scan Barcode (Auto-Add)')}
-                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border-2 border-green-100 dark:border-green-800 focus:border-green-500 dark:focus:border-green-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white font-mono shadow-sm"
+                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border-2 border-purple-100 dark:border-purple-800 focus:border-purple-500 dark:focus:border-purple-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white shadow-sm"
                                     value={barcodeInput}
                                     onChange={e => setBarcodeInput(e.target.value)}
                                     autoFocus
@@ -165,20 +172,20 @@ const POS = () => {
                             </form>
                             <button
                                 onClick={() => setIsCameraScannerOpen(true)}
-                                className="p-3 bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-300 rounded-xl transition-all shadow-sm border border-green-200 dark:border-green-700 flex items-center justify-center transform active:scale-95"
+                                className="p-3 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-xl transition-all shadow-sm border border-purple-200 dark:border-purple-700 flex items-center justify-center transform active:scale-95"
                                 title={t('scanWithCamera', 'Scan with Camera')}
                             >
                                 <FiCamera size={22} />
                             </button>
                         </div>
 
-                        {/* 2. Manual Search Input */}
+                        
                         <div className="relative flex-1">
                             <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder={t('searchByName', 'Search by product name...')}
-                                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-gray-900 dark:text-white shadow-sm"
+                                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 transition-all text-gray-900 dark:text-white shadow-sm"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
@@ -196,9 +203,9 @@ const POS = () => {
                             <div
                                 key={product.id}
                                 onClick={() => handleAddToCart(product)}
-                                className="bg-white dark:bg-gray-800 p-4 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 group shadow-sm hover:shadow-md"
+                                className="bg-white dark:bg-gray-800 p-4 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all border border-gray-200 dark:border-gray-700 hover:border-purple-500 dark:hover:border-purple-400 group shadow-sm hover:shadow-md"
                             >
-                                {/* Image / Placeholder */}
+                                
                                 <div className="h-24 bg-gray-100 dark:bg-gray-900 rounded-lg mb-3 flex items-center justify-center relative transition-colors overflow-hidden">
                                     {product.imageUrl ? (
                                         <img
@@ -249,7 +256,7 @@ const POS = () => {
 
             </div>
 
-            {/* RIGHT SIDE: CART */}
+            
             <div className="w-1/3 bg-white dark:bg-gray-900 flex flex-col shadow-2xl z-10 border-l border-gray-200 dark:border-gray-800 transition-colors">
                 <div className="p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 backdrop-blur transition-colors">
                     <h2 className="text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
@@ -258,11 +265,11 @@ const POS = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{cart.items?.length || 0} {t('items')}</p>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
                     {cart.items?.map(item => (
-                        <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl flex justify-between items-center border border-gray-100 dark:border-gray-700 transition-colors gap-3">
-                            {/* Product thumbnail */}
-                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0">
+                        <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded-xl flex justify-between items-center border border-gray-100 dark:border-gray-700 transition-colors gap-2">
+                            
+                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0">
                                 {item.product.imageUrl ? (
                                     <img
                                         src={item.product.imageUrl.startsWith('http') ? item.product.imageUrl : `${API_URL}${item.product.imageUrl}`}
@@ -274,37 +281,43 @@ const POS = () => {
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h4 className="font-bold flex items-center gap-1 flex-wrap text-gray-900 dark:text-white text-sm">
+                                <h4 className="font-bold flex items-center gap-1 flex-wrap text-gray-900 dark:text-white text-xs">
                                     <span className="truncate">{item.product.name}</span>
                                     {item.product.remise > 0 && (
-                                        <span className="bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[10px] px-1.5 py-0.5 rounded-md font-bold shrink-0">
+                                        <span className="bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 text-[9px] px-1 py-0.5 rounded-md font-bold shrink-0">
                                             -{item.product.remise}%
                                         </span>
                                     )}
-                                    {item.tvaRate > 0 && (
-                                        <span className="bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 text-[10px] px-1.5 py-0.5 rounded-md font-bold shrink-0">
-                                            TVA {item.tvaRate}%
-                                        </span>
-                                    )}
                                 </h4>
-                                <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                                <p className="text-blue-600 dark:text-blue-400 text-xs font-medium">
                                     {formatCurrency(((item.product.price * (1 - (item.product.remise || 0) / 100)) * (1 + (item.tvaRate || 0) / 100)))}
                                 </p>
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-1 border border-gray-200 dark:border-gray-700">
+                                    <button
+                                        onClick={() => item.quantity > 1 ? handleUpdateQuantity(item.id, item.quantity - 1) : handleRemoveItem(item.id)}
+                                        className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded-md text-gray-500 dark:text-gray-400 transition-all"
+                                        title={t('decrease')}
+                                    >
+                                        <FiMinus size={14} />
+                                    </button>
+                                    <span className="font-mono w-8 text-center text-gray-900 dark:text-white text-xs font-black">{item.quantity}</span>
+                                    <button
+                                        onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                        className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded-md text-gray-500 dark:text-gray-400 transition-all"
+                                        title={t('increase')}
+                                    >
+                                        <FiPlus size={14} />
+                                    </button>
+                                </div>
                                 <button
-                                    onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                                    onClick={() => handleRemoveItem(item.id)}
+                                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all group/del"
+                                    title={t('remove')}
                                 >
-                                    {item.quantity === 1 ? <FiTrash2 size={14} /> : <FiMinus size={14} />}
-                                </button>
-                                <span className="font-mono w-6 text-center text-gray-900 dark:text-white">{item.quantity}</span>
-                                <button
-                                    onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                                    className="p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/20 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                                >
-                                    <FiPlus size={14} />
+                                    <FiTrash2 size={16} className="group-hover/del:scale-110" />
                                 </button>
                             </div>
                         </div>
@@ -321,15 +334,15 @@ const POS = () => {
                 <div className="p-6 bg-gray-50 dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 transition-colors">
                     <div className="flex justify-between items-center mb-2 text-gray-500 dark:text-gray-400 font-medium text-sm">
                         <span>{t('subtotal')} (HT)</span>
-                        <span>{formatCurrency(Number(cart.subtotalHT || 0))}</span>
+                        <span>{formatCurrency(cart.items?.length > 0 ? Number(cart.subtotalHT || 0) : 0)}</span>
                     </div>
                     <div className="flex justify-between items-center mb-4 text-gray-500 dark:text-gray-400 font-medium text-sm">
-                        <span>TVA</span>
-                        <span>{formatCurrency(Number(cart.tvaAmount || 0))}</span>
+                        <span>{t('TVA')}</span>
+                        <span>{formatCurrency(cart.items?.length > 0 ? Number(cart.tvaAmount || 0) : 0)}</span>
                     </div>
                     <div className="flex justify-between items-center mb-6 text-2xl font-bold text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-800 pt-4">
                         <span>{t('total')}</span>
-                        <span>{formatCurrency(Number(cart.totalAmount || 0))}</span>
+                        <span>{formatCurrency(cart.items?.length > 0 ? Number(cart.totalAmount || 0) : 0)}</span>
                     </div>
 
                     <div className="space-y-3">
@@ -340,7 +353,7 @@ const POS = () => {
                             >
                                 {t('clear')}
                             </button>
-                            <button className="py-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-lg shadow-blue-500/30 transition-all font-sans" onClick={handleCheckout}>
+                            <button className="py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all font-sans" onClick={handleCheckout}>
                                 {t('payNow')}
                             </button>
                         </div>
@@ -365,10 +378,10 @@ const POS = () => {
                 onConfirm={handlePaymentConfirm}
             />
 
-            {/* Hidden Receipt for Printing */}
+            
             <Receipt sale={completedSale} />
 
-            {/* Camera Scanner Modal */}
+            
             <CameraScannerModal
                 isOpen={isCameraScannerOpen}
                 onClose={() => setIsCameraScannerOpen(false)}

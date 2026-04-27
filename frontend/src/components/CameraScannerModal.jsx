@@ -1,63 +1,152 @@
 import { useEffect, useState, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
-import { FiX, FiCamera, FiRefreshCw } from 'react-icons/fi';
+import { 
+    BrowserMultiFormatReader, 
+    BarcodeFormat, 
+    DecodeHintType, 
+    NotFoundException 
+} from '@zxing/library';
+import { FiX, FiCamera, FiUpload, FiRefreshCw, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
     const { t } = useTranslation();
+    const [mode, setMode] = useState('camera'); // 'camera' or 'upload'
     const [isScannerStarted, setIsScannerStarted] = useState(false);
     const [error, setError] = useState(null);
-    const scannerRef = useRef(null);
-    const containerId = "camera-scanner-viewport";
+    const [success, setSuccess] = useState(null);
+    const [isScanningFile, setIsScanningFile] = useState(false);
+    
+    const videoRef = useRef(null);
+    const codeReaderRef = useRef(null);
+
+    const hints = new Map();
+    const formats = [
+        BarcodeFormat.EAN_13, 
+        BarcodeFormat.EAN_8, 
+        BarcodeFormat.UPC_A, 
+        BarcodeFormat.UPC_E,
+        BarcodeFormat.CODE_128,
+        BarcodeFormat.CODE_39,
+        BarcodeFormat.ITF,
+        BarcodeFormat.QR_CODE
+    ];
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, formats);
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    hints.set(DecodeHintType.ASSUME_GS1, true);
+
+    const isValidBarcode = (code) => {
+        if (!code) return false;
+        const clean = code.trim();
+        // Allow EAN-13, UPC-A (12), EAN-8 and some others
+        return /^\d{8,14}$/.test(clean);
+    };
 
     const startScanner = async () => {
         try {
             setError(null);
-            const html5QrCode = new Html5Qrcode(containerId);
-            scannerRef.current = html5QrCode;
+            setSuccess(null);
+            
+            if (!codeReaderRef.current) {
+                codeReaderRef.current = new BrowserMultiFormatReader(hints);
+            }
 
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
+            const constraints = {
+                video: {
+                    facingMode: "environment",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    focusMode: "continuous"
+                }
             };
 
-            // Start scanning with the back camera (environment)
-            await html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText) => {
-                    stopScanner().then(() => {
-                        onScan(decodedText);
-                    });
-                },
-                (errorMessage) => {
-                    // Ignore background errors
+            await codeReaderRef.current.decodeFromConstraints(
+                constraints,
+                videoRef.current,
+                (result, err) => {
+                    if (result) {
+                        const text = result.getText();
+                        if (isValidBarcode(text)) {
+                            handleSuccess(text);
+                        }
+                    }
+                    if (err && !(err instanceof NotFoundException)) {
+                        // Only log real errors, not "not found"
+                    }
                 }
             );
+            
             setIsScannerStarted(true);
         } catch (err) {
             console.error("Camera start failed", err);
-            setError(t('cameraAccessError', 'Could not access camera. Please check permissions.'));
+            setError(t('cameraAccessError', 'Could not access camera. Please check permissions and device connectivity.'));
             setIsScannerStarted(false);
         }
     };
 
-    const stopScanner = async () => {
-        if (scannerRef.current && scannerRef.current.isScanning) {
-            try {
-                await scannerRef.current.stop();
-                scannerRef.current = null;
-                setIsScannerStarted(false);
-            } catch (err) {
-                console.error("Stop failed", err);
+    const stopScanner = () => {
+        if (codeReaderRef.current) {
+            codeReaderRef.current.reset();
+            setIsScannerStarted(false);
+        }
+    };
+
+    const handleSuccess = (text) => {
+        setSuccess(text);
+        if (navigator.vibrate) {
+            navigator.vibrate(100);
+        }
+        // Visual feedback
+        setTimeout(() => {
+            onScan(text);
+            onClose();
+        }, 800);
+    };
+
+    const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setIsScanningFile(true);
+        setError(null);
+        setSuccess(null);
+
+        try {
+            if (!codeReaderRef.current) {
+                codeReaderRef.current = new BrowserMultiFormatReader(hints);
             }
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const img = new Image();
+                img.onload = async () => {
+                    try {
+                        const result = await codeReaderRef.current.decodeFromImageElement(img);
+                        const text = result.getText();
+                        if (isValidBarcode(text)) {
+                            handleSuccess(text);
+                        } else {
+                            setError(t('invalidBarcodeFormat', 'Invalid barcode format detected.'));
+                        }
+                    } catch (err) {
+                        console.error("Decode failed", err);
+                        setError(t('barcodeNotFoundInImage', 'No valid barcode found in this image. Please try a clearer picture.'));
+                    } finally {
+                        setIsScanningFile(false);
+                    }
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        } catch (err) {
+            console.error("File upload failed", err);
+            setError(t('fileProcessError', 'Error processing image file.'));
+            setIsScanningFile(false);
         }
     };
 
     useEffect(() => {
-        if (isOpen) {
-            // Give a moment for the modal animation to finish and container to mount
+        if (isOpen && mode === 'camera') {
             const timer = setTimeout(() => {
                 startScanner();
             }, 500);
@@ -68,75 +157,169 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
         } else {
             stopScanner();
         }
-    }, [isOpen]);
+    }, [isOpen, mode]);
 
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
                     <motion.div
                         initial={{ opacity: 0, scale: 0.9, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10"
+                        className="bg-white dark:bg-gray-950 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white/10"
                     >
-                        <div className="p-5 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
-                                    <FiCamera size={20} />
+                        {/* Header */}
+                        <div className="p-6 flex justify-between items-center border-b border-gray-100 dark:border-white/5">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500">
+                                    {mode === 'camera' ? <FiCamera size={24} /> : <FiUpload size={24} />}
                                 </div>
-                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                                    {t('scanBarcode', 'Scan Barcode')}
-                                </h3>
+                                <div>
+                                    <h3 className="text-xl font-black text-gray-900 dark:text-white leading-tight">
+                                        {mode === 'camera' ? t('cameraScanner', 'Scanner Caméra') : t('imageScanner', 'Scanner Image')}
+                                    </h3>
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                                        {mode === 'camera' ? t('liveScan', 'DIRECT') : t('fileScan', 'FICHIER')}
+                                    </p>
+                                </div>
                             </div>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors p-2 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-800">
-                                <FiX size={24} />
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-all p-3 rounded-2xl hover:bg-gray-100 dark:hover:bg-white/5">
+                                <FiX size={28} />
+                            </button>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex p-2 bg-gray-50 dark:bg-white/5 m-6 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <button 
+                                onClick={() => setMode('camera')}
+                                className={`flex-1 flex items-center justify-center gap-3 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'camera' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <FiCamera size={18} /> {t('tabCamera', 'Caméra')}
+                            </button>
+                            <button 
+                                onClick={() => setMode('upload')}
+                                className={`flex-1 flex items-center justify-center gap-3 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${mode === 'upload' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
+                            >
+                                <FiUpload size={18} /> {t('tabUpload', 'Téléverser')}
                             </button>
                         </div>
                         
-                        <div className="relative aspect-square bg-black flex items-center justify-center overflow-hidden">
-                            <div id={containerId} className="w-full h-full" />
-                            
-                            {!isScannerStarted && !error && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-4 bg-gray-900">
-                                    <FiRefreshCw className="animate-spin" size={40} />
-                                    <p className="text-sm font-medium opacity-70">{t('initializingCamera', 'Initializing Camera...')}</p>
-                                </div>
-                            )}
+                        {/* Content area */}
+                        <div className="relative aspect-video bg-black mx-6 mb-6 rounded-[2rem] overflow-hidden border border-white/10 group">
+                            {mode === 'camera' ? (
+                                <>
+                                    <video 
+                                        ref={videoRef} 
+                                        className="w-full h-full object-cover" 
+                                        autoPlay 
+                                        playsInline 
+                                        muted 
+                                    />
+                                    
+                                    {!isScannerStarted && !error && (
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-white gap-4 bg-gray-900/80 backdrop-blur-md">
+                                            <FiRefreshCw className="animate-spin text-blue-500" size={48} />
+                                            <p className="text-sm font-black uppercase tracking-[0.2em] opacity-60">{t('initializing', 'Chargement...')}</p>
+                                        </div>
+                                    )}
 
-                            {error && (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-gray-900 text-white gap-6">
-                                    <div className="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center">
-                                        <FiCamera size={32} />
-                                    </div>
-                                    <p className="text-sm font-bold text-red-400">{error}</p>
-                                    <button 
-                                        onClick={startScanner}
-                                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-500/30"
+                                    {isScannerStarted && (
+                                        <div className="absolute inset-0 pointer-events-none">
+                                            {/* Scanning Line */}
+                                            <div className="absolute top-0 left-0 w-full h-1 bg-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan" />
+                                            
+                                            {/* Viewport Overlay */}
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="w-[80%] h-[60%] border-2 border-blue-500/30 rounded-3xl relative">
+                                                    {/* Corners */}
+                                                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-xl" />
+                                                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-xl" />
+                                                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-xl" />
+                                                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-xl" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-white/5 p-8 text-center transition-colors hover:bg-gray-100 dark:hover:bg-white/10">
+                                    <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        id="scanner-upload" 
+                                        className="hidden" 
+                                        onChange={handleFileUpload}
+                                        disabled={isScanningFile}
+                                    />
+                                    <label 
+                                        htmlFor="scanner-upload"
+                                        className="cursor-pointer group flex flex-col items-center gap-6"
                                     >
-                                        {t('tryAgain', 'Try Again')}
-                                    </button>
+                                        <div className="w-24 h-24 rounded-[2rem] bg-blue-500/10 text-blue-500 flex items-center justify-center group-hover:scale-110 group-active:scale-95 transition-all shadow-xl shadow-blue-500/5">
+                                            {isScanningFile ? <FiRefreshCw className="animate-spin" size={40} /> : <FiUpload size={40} />}
+                                        </div>
+                                        <div>
+                                            <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                                {isScanningFile ? t('scanningFile', 'Analyse en cours...') : t('clickToUpload', 'Cliquer pour choisir')}
+                                            </p>
+                                            <p className="text-xs font-bold text-gray-400 mt-2">
+                                                JPG, PNG (EAN/UPC/QR)
+                                            </p>
+                                        </div>
+                                    </label>
                                 </div>
                             )}
 
-                            {/* Scanner Overlay */}
-                            {isScannerStarted && (
-                                <div className="absolute inset-0 pointer-events-none">
-                                    <div className="absolute inset-0 border-[40px] border-black/40" />
-                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] border-2 border-blue-500 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
-                                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-blue-500 rounded-tl-lg" />
-                                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-blue-500 rounded-tr-lg" />
-                                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-blue-500 rounded-bl-lg" />
-                                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-blue-500 rounded-br-lg" />
-                                        <div className="absolute top-0 left-0 w-full h-1 bg-blue-500/50 animate-scan" />
-                                    </div>
-                                </div>
-                            )}
+                            {/* Overlays (Error/Success) */}
+                            <AnimatePresence>
+                                {error && (
+                                    <motion.div 
+                                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                        className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-red-600/90 backdrop-blur-md text-white gap-6"
+                                    >
+                                        <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center shadow-2xl">
+                                            <FiAlertCircle size={40} />
+                                        </div>
+                                        <div>
+                                            <p className="text-lg font-black uppercase tracking-tight">{t('error', 'Erreur')}</p>
+                                            <p className="text-sm font-medium mt-2 opacity-90 max-w-[250px] mx-auto">{error}</p>
+                                        </div>
+                                        <button 
+                                            onClick={mode === 'camera' ? startScanner : () => setError(null)}
+                                            className="px-8 py-3 bg-white text-red-600 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl shadow-black/20"
+                                        >
+                                            {t('retry', 'RÉESSAYER')}
+                                        </button>
+                                    </motion.div>
+                                )}
+
+                                {success && (
+                                    <motion.div 
+                                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                        className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-blue-600/90 backdrop-blur-md text-white gap-6"
+                                    >
+                                        <div className="w-24 h-24 bg-white rounded-[2rem] text-blue-600 flex items-center justify-center shadow-2xl animate-bounce">
+                                            <FiCheckCircle size={56} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <p className="text-xs font-black uppercase tracking-[0.3em] opacity-80">{t('detected', 'DÉTECTÉ')}</p>
+                                            <p className="text-4xl font-black tracking-tighter">{success}</p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
-                        <div className="p-6 bg-gray-50 dark:bg-gray-800/50 text-center">
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                {t('scannerInstructions', 'Place the barcode inside the square to scan it automatically.')}
+                        {/* Footer / Instructions */}
+                        <div className="p-8 bg-gray-50 dark:bg-white/5 border-t border-gray-100 dark:border-white/5 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                                <FiAlertCircle size={20} />
+                            </div>
+                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 leading-relaxed">
+                                {mode === 'camera' 
+                                    ? t('scannerInstructions', 'Placez le code-barres au centre pour une détection rapide. Assurez-vous d\'avoir un bon éclairage.')
+                                    : t('uploadInstructions', 'Choisissez une image nette où le code-barres est bien visible et plat.')}
                             </p>
                         </div>
                     </motion.div>
@@ -148,12 +331,7 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                     100% { top: 100%; }
                 }
                 .animate-scan {
-                    animation: scan 2s linear infinite;
-                }
-                #camera-scanner-viewport video {
-                    object-fit: cover !important;
-                    width: 100% !important;
-                    height: 100% !important;
+                    animation: scan 2.5s ease-in-out infinite;
                 }
             `}</style>
         </AnimatePresence>

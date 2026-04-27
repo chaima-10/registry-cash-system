@@ -12,8 +12,6 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 
-// Tabs will be defined inside to support translation
-
 const AIAnalytics = () => {
     const { t } = useTranslation();
     const { formatCurrency } = useAuth();
@@ -32,10 +30,8 @@ const AIAnalytics = () => {
     const [selectedPoster, setSelectedPoster] = useState(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    // AI states
     const [isGeneratingMarketing, setIsGeneratingMarketing] = useState(false);
 
-    // Initial Data Fetch
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
@@ -59,13 +55,11 @@ const AIAnalytics = () => {
         fetchDashboardData();
     }, []);
 
-    // Derived Date Helpers
     const isToday = (dateStr) => {
         const d = new Date(dateStr);
         const today = new Date();
         return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
     };
-
     const isYesterday = (dateStr) => {
         const d = new Date(dateStr);
         const yesterday = new Date();
@@ -73,7 +67,6 @@ const AIAnalytics = () => {
         return d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
     };
 
-    // Calculate advanced derived data
     const getDailySummary = () => {
         let todayRevenue = 0;
         let yesterdayRevenue = 0;
@@ -104,7 +97,6 @@ const AIAnalytics = () => {
         sales.forEach(sale => {
             if (sale.items) {
                 sale.items.forEach(item => {
-                    // Strictly match the getAllProducts filter: must be Active and not deleted
                     if (!item.product || item.product.isDeleted || item.product.status !== 'Active') return;
 
                     if (!map[item.productId]) {
@@ -246,16 +238,53 @@ const AIAnalytics = () => {
         return alerts.sort((a,b) => a.days - b.days).slice(0, 8);
     };
 
+    const getAIPerformanceMetrics = () => {
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+        
+        let thisMonthRev = 0;
+        let lastMonthRev = 0;
+        
+        sales.forEach(s => {
+            const d = new Date(s.createdAt);
+            if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) {
+                thisMonthRev += parseFloat(s.totalAmount || 0);
+            } else if (d.getFullYear() === (thisMonth === 0 ? thisYear - 1 : thisYear) && d.getMonth() === (thisMonth === 0 ? 11 : thisMonth - 1)) {
+                lastMonthRev += parseFloat(s.totalAmount || 0);
+            }
+        });
+        
+        const growth = lastMonthRev > 0 ? ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100 : 12.5;
+        const lowStockCount = products.filter(p => p.stockQuantity <= 10).length;
+        // Urgency is high if many products are low stock (max 95%)
+        const supplyUrgency = products.length > 0 ? (lowStockCount / products.length) * 100 : 0;
+        const trend = growth > 2 ? t('uptrend', 'HAUSSE') : growth < -2 ? t('downtrend', 'BAISSE') : t('stable', 'STABLE');
+        
+        return {
+            growth: growth.toFixed(1),
+            supplyUrgency: Math.max(15, Math.min(95, (supplyUrgency * 10) + 15)).toFixed(0), // Scale for visual impact
+            trend
+        };
+    };
+
     const getForecastData = () => {
-        const monthlyAvg = sales.length > 0 ? sales.reduce((sum, s) => sum + parseFloat(s.totalAmount), 0) / Math.max(1, sales.length * 0.1) : 5000;
+        const now = new Date();
+        const currentMonthSales = sales.filter(s => new Date(s.createdAt).getMonth() === now.getMonth());
+        const monthlyAvg = currentMonthSales.length > 0 
+            ? currentMonthSales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0) 
+            : (sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0) / Math.max(1, sales.length / 30) || 5000);
+            
         const months = ['M+1', 'M+2', 'M+3', 'M+4', 'M+5', 'M+6'];
+        const growthRate = 0.05; // 5% projected growth
+
         return months.map((m, i) => {
-            const pred = monthlyAvg * (1 + (i * 0.03)); // 3% growth linear
+            const pred = monthlyAvg * Math.pow(1 + growthRate, i + 1);
             return {
                 name: m,
-                Prédiction: pred,
-                Historique: monthlyAvg,
-                Approvisionnement: pred * 0.6
+                Prédiction: Math.round(pred),
+                Historique: Math.round(monthlyAvg),
+                Approvisionnement: Math.round(pred * 0.7)
             };
         });
     };
@@ -361,23 +390,24 @@ const AIAnalytics = () => {
                     </div>
                 );
             case 'forecasts':
+                const aiMetrics = getAIPerformanceMetrics();
                 return (
                     <div className="space-y-8">
                         {/* Forecast Summary Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-2">{t('estimatedGrowth', 'Croissance Estimée')}</div>
-                                <div className="text-3xl font-black text-slate-800 dark:text-white">+12.5%</div>
+                                <div className="text-3xl font-black text-slate-800 dark:text-white">{aiMetrics.growth > 0 ? '+' : ''}{aiMetrics.growth}%</div>
                                 <div className="text-xs text-slate-400 mt-1 font-bold">{t('projectionQ2', 'Projection Q2 2026')}</div>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-indigo-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('supplyUrgency', 'Urgence Approvisionnement')}</div>
-                                <div className="text-3xl font-black text-indigo-600">85%</div>
+                                <div className="text-3xl font-black text-indigo-600">{aiMetrics.supplyUrgency}%</div>
                                 <div className="text-xs text-slate-400 mt-1 font-bold">{t('optimalStockCapacity', 'Capacité de stockage optimale')}</div>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-teal-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('marketTrend', 'Tendance Marché')}</div>
-                                <div className="text-3xl font-black text-teal-600">{t('uptrend', 'HAUSSE')}</div>
+                                <div className="text-3xl font-black text-teal-600">{aiMetrics.trend}</div>
                                 <div className="text-xs text-slate-400 mt-1 font-bold">{t('favorableSeasonality', 'Saisonnalité favorable')}</div>
                             </div>
                         </div>
@@ -454,7 +484,7 @@ const AIAnalytics = () => {
                             </div>
 
                             <div className="bg-white dark:bg-gray-800 p-7 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
-                                <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('repeatBuyers', 'Panier Moyen')}</div>
+                                <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('averageBasket', 'Panier Moyen')}</div>
                                 <div className="text-3xl font-black text-slate-800 dark:text-white">{formatCurrency(behavior.panierMoyen)}</div>
                                 <div className="text-xs text-slate-400 mt-1 font-bold">{t('avgSpendPerClient', 'Dépense moyenne par client')}</div>
                             </div>

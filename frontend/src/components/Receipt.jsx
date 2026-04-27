@@ -74,12 +74,26 @@ const Receipt = ({ sale }) => {
                         <span className="total-label">TVA:</span>
                         <span className="total-amount">{formatCurrency(Number(sale.tvaAmount || 0), sale.currency)}</span>
                     </div>
-                    <div className="total-row" style={{ marginTop: '8px' }}>
+                    <div className="total-row" style={{ marginTop: '8px', borderTop: '1px dashed #000', paddingTop: '8px' }}>
                         <span className="total-label">TOTAL TTC:</span>
                         <span className="total-amount">{formatCurrency(Number(sale.totalAmount), sale.currency)}</span>
                     </div>
-                    <div className="payment-method">
-                        <span>Payment: {sale.paymentMethod}</span>
+                    
+                    {sale.amountTendered > 0 && (
+                        <div className="sub-row" style={{ marginTop: '4px' }}>
+                            <span className="total-label">MONTANT PAYÉ:</span>
+                            <span className="total-amount">{formatCurrency(Number(sale.amountTendered), sale.currency)}</span>
+                        </div>
+                    )}
+                    {sale.changeAmount > 0 && (
+                        <div className="sub-row">
+                            <span className="total-label">MONNAIE RENDUE:</span>
+                            <span className="total-amount">{formatCurrency(Number(sale.changeAmount), sale.currency)}</span>
+                        </div>
+                    )}
+
+                    <div className="payment-method" style={{ marginTop: '10px', fontStyle: 'italic' }}>
+                        <span>Mode de paiement: {sale.paymentMethod}</span>
                     </div>
                 </div>
 
@@ -87,8 +101,8 @@ const Receipt = ({ sale }) => {
 
                 {/* Footer */}
                 <div className="receipt-footer">
-                    <p>Thank you for your purchase!</p>
-                    <p>Please come again</p>
+                    <p>Merci pour votre achat !</p>
+                    <p>À bientôt</p>
                 </div>
             </div>
 
