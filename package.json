@@ -17,5 +17,9 @@
         "concurrently": "^8.2.2",
         "electron": "^31.0.0",
         "wait-on": "^7.2.0"
+    },
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "quagga": "^0.12.1"
     }
 }
