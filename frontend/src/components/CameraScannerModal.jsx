@@ -13,15 +13,33 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
     const [success, setSuccess] = useState(null);
     const [isScanningFile, setIsScanningFile] = useState(false);
     const [engineUsed, setEngineUsed] = useState('');
+    const [pendingCode, setPendingCode] = useState(null);
     
     const videoRef = useRef(null);
     const codeReaderRef = useRef(null); // For Uploads only
     const isScanningRef = useRef(false);
+    const lastCodeRef = useRef(null);
+    const codeCountRef = useRef(0);
+
+    // EAN-13/UPC-A checksum validation
+    const isValidEAN = (code) => {
+        if (!/^\d{8,13}$/.test(code)) return false;
+        const digits = code.split('').map(Number);
+        let sum = 0;
+        for (let i = 0; i < digits.length - 1; i++) {
+            sum += digits[i] * (i % 2 === 0 ? 1 : 3);
+        }
+        const checksum = (10 - (sum % 10)) % 10;
+        return checksum === digits[digits.length - 1];
+    };
 
     const isValidBarcode = (code) => {
         if (!code) return false;
         const clean = code.trim();
-        return /^\d{13}$/.test(clean); 
+        // Only accept numeric codes 8-13 digits (EAN-8, EAN-13, UPC-A, UPC-E)
+        if (!/^\d{8,13}$/.test(clean)) return false;
+        // Validate checksum for EAN/UPC
+        return isValidEAN(clean);
     };
 
     const handleSuccess = (text) => {
@@ -29,16 +47,28 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
         isScanningRef.current = false;
         
         setSuccess(text);
+        setPendingCode(text);
         stopScanner(); 
         
         if (navigator.vibrate) {
             navigator.vibrate(100);
         }
-        
-        setTimeout(() => {
-            onScan(text);
+    };
+
+    const confirmScan = () => {
+        if (pendingCode) {
+            onScan(pendingCode);
             onClose();
-        }, 800);
+        }
+    };
+
+    const retryScan = () => {
+        setPendingCode(null);
+        setSuccess(null);
+        setError(null);
+        lastCodeRef.current = null;
+        codeCountRef.current = 0;
+        startScanner();
     };
 
     const startScanner = async () => {
@@ -62,7 +92,8 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                     await videoRef.current.play();
                     setIsScannerStarted(true);
                     
-                    const barcodeDetector = new window.BarcodeDetector({ formats: ['ean_13', 'upc_a'] });
+                    // Only retail barcode formats for product scanning (EAN-13, EAN-8, UPC-A, UPC-E)
+                    const barcodeDetector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] });
                     
                     const scanFrame = async () => {
                         if (!isScanningRef.current || !videoRef.current) return;
@@ -71,10 +102,21 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                             const barcodes = await barcodeDetector.detect(videoRef.current);
                             if (barcodes.length > 0) {
                                 const code = barcodes[0].rawValue;
+                                // Only accept EAN-13, EAN-8, UPC-A formats
+                                if (!/^\d{8,13}$/.test(code.trim())) return;
+                                
                                 const standardText = code.trim().length === 12 ? '0' + code.trim() : code.trim();
-                                if (isValidBarcode(standardText)) {
-                                    handleSuccess(standardText);
-                                    return;
+                                
+                                // Require 2 consecutive identical reads
+                                if (lastCodeRef.current === standardText) {
+                                    codeCountRef.current++;
+                                    if (codeCountRef.current >= 2 && isValidBarcode(standardText)) {
+                                        handleSuccess(standardText);
+                                        return;
+                                    }
+                                } else {
+                                    lastCodeRef.current = standardText;
+                                    codeCountRef.current = 1;
                                 }
                             }
                         } catch (e) {
@@ -108,7 +150,8 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                     }
                 },
                 decoder: {
-                    readers: ["ean_reader", "upc_reader", "upc_e_reader"]
+                    // Only retail barcode readers for product scanning
+                    readers: ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"]
                 },
                 locate: true // Turns on localization to find the barcode in the frame
             }, function(err) {
@@ -124,11 +167,20 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
             Quagga.onDetected((data) => {
                 if (!isScanningRef.current) return;
                 const code = data.codeResult.code;
+                // Only accept EAN-13, EAN-8, UPC-A formats
+                if (!/^\d{8,13}$/.test(code.trim())) return;
+                
                 const standardText = code.trim().length === 12 ? '0' + code.trim() : code.trim();
-                if (isValidBarcode(standardText)) {
-                    handleSuccess(standardText);
+                
+                // Require 2 consecutive identical reads
+                if (lastCodeRef.current === standardText) {
+                    codeCountRef.current++;
+                    if (codeCountRef.current >= 2 && isValidBarcode(standardText)) {
+                        handleSuccess(standardText);
+                    }
                 } else {
-                    console.warn("Quagga detected invalid length:", standardText);
+                    lastCodeRef.current = standardText;
+                    codeCountRef.current = 1;
                 }
             });
 
@@ -161,6 +213,10 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
     const retryScanner = async () => {
         stopScanner();
         setError(null);
+        setPendingCode(null);
+        setSuccess(null);
+        lastCodeRef.current = null;
+        codeCountRef.current = 0;
         await new Promise(resolve => setTimeout(resolve, 500));
         await startScanner();
     };
@@ -177,7 +233,11 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
         try {
             if (!codeReaderRef.current) {
                 const hints = new Map();
-                hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13]);
+                // Only retail barcode formats for product scanning
+                hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+                    BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, 
+                    BarcodeFormat.UPC_A, BarcodeFormat.UPC_E
+                ]);
                 hints.set(DecodeHintType.TRY_HARDER, true);
                 codeReaderRef.current = new BrowserMultiFormatReader(hints);
             }
@@ -194,10 +254,10 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                         if (isValidBarcode(standardText)) {
                             handleSuccess(standardText);
                         } else {
-                            setError(t('invalidBarcodeFormat', `Invalid barcode. Expected 13 digits, got ${standardText.length}.`));
+                            setError(t('invalidBarcodeFormat', `Invalid barcode format. Got ${standardText.length} characters.`));
                         }
                     } catch (err) {
-                        setError(t('barcodeNotFoundInImage', 'No 13-digit barcode found in this image.'));
+                        setError(t('barcodeNotFoundInImage', 'No valid barcode found in this image.'));
                     } finally {
                         setIsScanningFile(false);
                     }
@@ -357,18 +417,32 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                                     </motion.div>
                                 )}
 
-                                {success && (
+                                {success && pendingCode && (
                                     <motion.div 
                                         key="success-overlay"
                                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                        className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-blue-600/90 backdrop-blur-md text-white gap-6"
+                                        className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-blue-600/95 backdrop-blur-md text-white gap-6"
                                     >
-                                        <div className="w-24 h-24 bg-white rounded-[2rem] text-blue-600 flex items-center justify-center shadow-2xl animate-bounce">
-                                            <FiCheckCircle size={56} />
+                                        <div className="w-20 h-20 bg-white rounded-[2rem] text-blue-600 flex items-center justify-center shadow-2xl">
+                                            <FiCheckCircle size={48} />
                                         </div>
                                         <div className="space-y-2">
                                             <p className="text-xs font-black uppercase tracking-[0.3em] opacity-80">{t('detected', 'DÉTECTÉ')}</p>
-                                            <p className="text-4xl font-black tracking-tighter">{success}</p>
+                                            <p className="text-3xl font-black tracking-tighter break-all px-4">{success}</p>
+                                        </div>
+                                        <div className="flex gap-3 w-full max-w-xs pt-4">
+                                            <button 
+                                                onClick={retryScan}
+                                                className="flex-1 py-3 bg-white/20 hover:bg-white/30 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all"
+                                            >
+                                                {t('retry', 'RÉESSAYER')}
+                                            </button>
+                                            <button 
+                                                onClick={confirmScan}
+                                                className="flex-1 py-3 bg-white text-blue-600 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
+                                            >
+                                                {t('confirm', 'CONFIRMER')}
+                                            </button>
                                         </div>
                                     </motion.div>
                                 )}

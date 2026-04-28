@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     FiTrendingUp, FiBox, FiCalendar, FiAlertCircle, FiPieChart, 
-    FiSend, FiMessageCircle, FiRefreshCw, FiActivity, FiArrowUpRight, FiArrowDownRight, FiArrowRight, FiShoppingBag, FiTrash2 
+    FiSend, FiMessageCircle, FiRefreshCw, FiActivity, FiArrowUpRight, FiArrowDownRight, FiArrowRight, FiShoppingBag, FiTrash2, FiZap
 } from 'react-icons/fi';
 import { 
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -31,6 +31,18 @@ const AIAnalytics = () => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     const [isGeneratingMarketing, setIsGeneratingMarketing] = useState(false);
+    const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
+    const [aiForecastData, setAiForecastData] = useState(null);
+    const [aiInsights, setAiInsights] = useState(null);
+    const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+    
+    // AI Chat State
+    const [chatMessages, setChatMessages] = useState([
+        { role: 'ai', content: 'Hello! I am your Analytics AI Assistant. I can help you analyze your sales, inventory, and customer behavior. Ask me anything!' }
+    ]);
+    const [chatInput, setChatInput] = useState('');
+    const [isAiTyping, setIsAiTyping] = useState(false);
+    const chatEndRef = useRef(null);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -46,6 +58,9 @@ const AIAnalytics = () => {
                 setSales(Array.isArray(salesRes.data) ? salesRes.data : salesRes.data?.sales || []);
                 setUsers(Array.isArray(usersRes.data) ? usersRes.data : usersRes.data?.users || []);
                 setCategories(Array.isArray(catRes.data) ? catRes.data : catRes.data?.categories || []);
+                
+                generateAiForecast();
+                generateAiInsights();
             } catch (error) {
                 console.error("Erreur de chargement des données", error);
             } finally {
@@ -268,7 +283,104 @@ const AIAnalytics = () => {
         };
     };
 
+    const generateAiForecast = async () => {
+        setIsGeneratingForecast(true);
+        try {
+            const salesData = sales.slice(-50).map(s => ({
+                date: s.createdAt,
+                amount: parseFloat(s.totalAmount || 0),
+                items: s.items?.length || 0
+            }));
+            
+            const productData = products.slice(0, 20).map(p => ({
+                name: p.name,
+                stock: p.stockQuantity,
+                price: p.price,
+                category: p.categoryId
+            }));
+
+            const prompt = `Analyze this retail sales data and provide 6-month sales forecast. Return ONLY JSON format: [{"month": "M+1", "prediction": number, "confidence": "high/medium/low", "insight": "brief reason"}]. Sales data: ${JSON.stringify(salesData)}. Products: ${JSON.stringify(productData)}. Current month revenue: ${salesData.reduce((sum, s) => sum + s.amount, 0)}.`;
+
+            const response = await api.post('/ai/chat', {
+                messages: [{ role: 'user', content: prompt }],
+                systemContext: 'Retail Analytics Expert. JSON only. No markdown. Provide realistic forecasts based on historical data.'
+            });
+
+            const text = response.data.reply;
+            const jsonMatch = text.match(/\[.*\]/s);
+            if (jsonMatch) {
+                const forecastData = JSON.parse(jsonMatch[0]);
+                setAiForecastData(forecastData);
+            } else {
+                throw new Error('Invalid AI response');
+            }
+        } catch (error) {
+            console.error('AI Forecast error:', error);
+            // Fallback to simple calculation
+            setAiForecastData(null);
+        } finally {
+            setIsGeneratingForecast(false);
+        }
+    };
+
+    // Generate AI inventory insights
+    const generateAiInsights = async () => {
+        setIsGeneratingInsights(true);
+        try {
+            const inventoryData = products.map(p => ({
+                name: p.name,
+                stock: p.stockQuantity,
+                price: p.price,
+                purchasePrice: p.purchasePrice,
+                category: p.categoryId
+            }));
+
+            const salesByProduct = {};
+            sales.forEach(s => {
+                s.items?.forEach(item => {
+                    const productId = item.product?.id;
+                    if (productId) {
+                        salesByProduct[productId] = (salesByProduct[productId] || 0) + (item.quantity || 1);
+                    }
+                });
+            });
+
+            const prompt = `Analyze this retail inventory and sales data. Provide 3-5 actionable insights for inventory management. Return ONLY JSON format: [{"type": "restock/alert/discount/promotion", "product": "name", "reason": "why", "action": "what to do", "priority": "high/medium/low"}]. Inventory: ${JSON.stringify(inventoryData)}. Sales by product: ${JSON.stringify(salesByProduct)}.`;
+
+            const response = await api.post('/ai/chat', {
+                messages: [{ role: 'user', content: prompt }],
+                systemContext: 'Inventory Management Expert. JSON only. No markdown. Provide actionable insights.'
+            });
+
+            const text = response.data.reply;
+            const jsonMatch = text.match(/\[.*\]/s);
+            if (jsonMatch) {
+                const insightsData = JSON.parse(jsonMatch[0]);
+                setAiInsights(insightsData);
+            } else {
+                throw new Error('Invalid AI response');
+            }
+        } catch (error) {
+            console.error('AI Insights error:', error);
+            setAiInsights(null);
+        } finally {
+            setIsGeneratingInsights(false);
+        }
+    };
+
     const getForecastData = () => {
+        
+        if (aiForecastData && aiForecastData.length > 0) {
+            return aiForecastData.map(f => ({
+                name: f.month,
+                Prédiction: f.prediction,
+                Historique: sales.length > 0 ? Math.round(sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0) / Math.max(1, sales.length / 30)) : 0,
+                Approvisionnement: Math.round(f.prediction * 0.7),
+                confidence: f.confidence,
+                insight: f.insight
+            }));
+        }
+
         const now = new Date();
         const currentMonthSales = sales.filter(s => new Date(s.createdAt).getMonth() === now.getMonth());
         const monthlyAvg = currentMonthSales.length > 0 
@@ -284,14 +396,14 @@ const AIAnalytics = () => {
                 name: m,
                 Prédiction: Math.round(pred),
                 Historique: Math.round(monthlyAvg),
-                Approvisionnement: Math.round(pred * 0.7)
+                Approvisionnement: Math.round(pred * 0.7),
+                confidence: 'medium',
+                insight: 'Projected based on historical data'
             };
         });
     };
 
-    // Apply promo to a product via API
     const handleApplyPromotion = async (product) => {
-        // La remise suggérée est comme '-30%', nous avons besoin d'un nombre positif 0-100
         const discountNum = Math.abs(parseInt(product.suggestedDiscount));
         
         try {
@@ -300,43 +412,89 @@ const AIAnalytics = () => {
             formData.append('name', product.name);
             formData.append('price', product.price);
             formData.append('stockQuantity', product.stockQuantity);
-            // Preserve category & subcategory so they are NOT wiped by the update
+    
             if (product.categoryId) formData.append('categoryId', product.categoryId);
             if (product.subcategoryId) formData.append('subcategoryId', product.subcategoryId);
             if (product.tva !== undefined && product.tva !== null) formData.append('tva', product.tva);
             if (product.purchasePrice !== undefined && product.purchasePrice !== null) formData.append('purchasePrice', product.purchasePrice);
             
-            // Ne pas envoyer le barcode pour éviter les conflits de validation (déjà existant ou format invalide)
             await api.put(`/products/${product.id}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             
             setPromoSuccess(prev => ({ ...prev, [product.id]: true }));
-            // Re-fetch products immediately so the suggestion list updates and hides this product
-            const res = await api.get('/products');
-            setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
             setTimeout(() => setPromoSuccess(prev => ({ ...prev, [product.id]: false })), 3000);
+            // Re-fetch products after success tick is shown
+            setTimeout(async () => {
+                const res = await api.get('/products');
+                setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
+            }, 3500);
         } catch (err) {
             console.error('Failed to apply promo', err);
             alert("Erreur lors de l'application de la promotion.");
         }
     };
 
-    // "Commander" button - shows a reorder alert
+    
     const handleOrderProduct = (product) => {
         setOrderSuccess(prev => ({ ...prev, [product.id]: true }));
         setTimeout(() => setOrderSuccess(prev => ({ ...prev, [product.id]: false })), 4000);
     };
 
-    // Generate a visual poster for a marketing idea
+
     const handleGeneratePoster = (ideaId) => {
         setGeneratingPoster(prev => ({ ...prev, [ideaId]: true }));
-        // Simulate generation delay
+    
         setTimeout(() => {
             setGeneratingPoster(prev => ({ ...prev, [ideaId]: false }));
             setPosterGenerated(prev => ({ ...prev, [ideaId]: true }));
         }, 2500);
     };
+
+    // AI Chat functionality
+    const handleChatSubmit = async (e) => {
+        e.preventDefault();
+        if (!chatInput.trim()) return;
+
+        const userMessage = chatInput;
+        setChatInput('');
+        setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+        setIsAiTyping(true);
+
+        try {
+            // Prepare context data for AI
+            const contextData = {
+                totalSales: sales.length,
+                totalRevenue: sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0),
+                totalProducts: products.length,
+                lowStockCount: products.filter(p => p.stockQuantity <= 10).length,
+                topSellingProduct: products.length > 0 ? products[0].name : 'N/A'
+            };
+
+            const systemContext = `You are a Retail Analytics Expert. Answer questions about sales, inventory, and business performance. Use this data: ${JSON.stringify(contextData)}. Be concise and actionable.`;
+            const apiMessages = chatMessages
+                .concat({ role: 'user', content: userMessage })
+                .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
+
+            const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
+            setChatMessages(prev => [...prev, { role: 'ai', content: response.data.reply }]);
+        } catch (error) {
+            setChatMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error. Please try again.' }]);
+        } finally {
+            setIsAiTyping(false);
+        }
+    };
+
+    const clearChatHistory = () => {
+        setChatMessages([
+            { role: 'ai', content: 'Hello! I am your Analytics AI Assistant. I can help you analyze your sales, inventory, and customer behavior. Ask me anything!' }
+        ]);
+    };
+
+    // Auto-scroll chat to bottom
+    useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatMessages, isAiTyping]);
 
     const renderTabContent = () => {
         if (loadingData) {
@@ -349,6 +507,44 @@ const AIAnalytics = () => {
                 const slowProds = getSlowProductsWithPromos();
                 return (
                     <div className="space-y-6">
+                    
+                        {aiInsights && aiInsights.length > 0 && (
+                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-2xl shadow-xl text-white">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold flex items-center gap-2"><FiZap /> {t('aiInsights', 'Insights IA')}</h3>
+                                    <button 
+                                        onClick={generateAiInsights}
+                                        disabled={isGeneratingInsights}
+                                        className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+                                    >
+                                        {isGeneratingInsights ? <FiRefreshCw className="animate-spin" /> : t('refresh', 'Actualiser')}
+                                    </button>
+                                </div>
+                                <div className="grid gap-3">
+                                    {aiInsights.map((insight, i) => (
+                                        <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                                            <div className="flex items-start gap-3">
+                                                <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
+                                                    insight.priority === 'high' ? 'bg-red-400' : 
+                                                    insight.priority === 'medium' ? 'bg-yellow-400' : 'bg-green-400'
+                                                }`} />
+                                                <div className="flex-1">
+                                                    <div className="font-bold text-sm mb-1">{insight.product}</div>
+                                                    <div className="text-xs opacity-90 mb-2">{insight.reason}</div>
+                                                    <div className="text-xs font-medium bg-white/20 inline-block px-2 py-1 rounded-md">
+                                                        {insight.action}
+                                                    </div>
+                                                </div>
+                                                <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+                                                    {insight.type}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                             <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><FiActivity className="text-orange-500" /> {t('adaptedPromotions', 'Promotions Adaptées')}</h3>
                             <p className="text-sm text-gray-500 mb-6">{t('analyticsPromoDesc', 'Suggestions IA pour écouler les stocks dormants et maximiser la rotation.')}</p>
@@ -534,8 +730,88 @@ const AIAnalytics = () => {
                         </div>
                     </div>
                 );
+            case 'chat':
+                return (
+                    <div className="flex flex-col h-full bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                        {/* Chat Header */}
+                        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white">
+                                    <FiZap size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black tracking-tighter">AI Analytics Assistant</h3>
+                                    <p className="text-xs text-gray-500 font-medium">Ask questions about your sales, inventory, and performance</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={clearChatHistory}
+                                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2"
+                            >
+                                <FiTrash2 size={16} />
+                                {t('clearHistory', 'Clear')}
+                            </button>
+                        </div>
 
+                        {/* Chat Messages */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                            {chatMessages.map((msg, i) => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                    <div className={`max-w-[80%] rounded-2xl px-5 py-3 ${
+                                        msg.role === 'user' 
+                                        ? 'bg-blue-600 text-white rounded-br-md' 
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-md'
+                                    }`}>
+                                        <p className="text-sm font-medium whitespace-pre-wrap">{msg.content}</p>
+                                    </div>
+                                </motion.div>
+                            ))}
+                            {isAiTyping && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="flex justify-start"
+                                >
+                                    <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-bl-md px-5 py-3">
+                                        <div className="flex gap-1">
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+                            <div ref={chatEndRef} />
+                        </div>
 
+                        {/* Chat Input */}
+                        <form onSubmit={handleChatSubmit} className="p-6 border-t border-gray-100 dark:border-gray-700">
+                            <div className="flex gap-3">
+                                <input
+                                    type="text"
+                                    value={chatInput}
+                                    onChange={(e) => setChatInput(e.target.value)}
+                                    placeholder={t('askAiPlaceholder', 'Ask about your analytics...')}
+                                    className="flex-1 px-5 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-gray-200 placeholder-gray-400"
+                                    disabled={isAiTyping}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={isAiTyping || !chatInput.trim()}
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-xl font-bold transition-colors flex items-center gap-2"
+                                >
+                                    <FiSend size={18} />
+                                    {t('send', 'Send')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                );
             default:
                 return null;
         }
@@ -551,7 +827,8 @@ const AIAnalytics = () => {
                     {[
                         { id: 'products', label: t('tabProductsPromos', 'Produits & Promos'), icon: FiBox },
                         { id: 'forecasts', label: t('tabForecasts', 'Prévisions'), icon: FiTrendingUp },
-                        { id: 'behavior', label: t('tabBehavior', 'Comportement'), icon: FiCalendar }
+                        { id: 'behavior', label: t('tabBehavior', 'Comportement'), icon: FiCalendar },
+                        { id: 'chat', label: t('tabChat', 'AI Chat'), icon: FiMessageCircle }
                     ].map(tab => (
                         <button
                             key={tab.id}
