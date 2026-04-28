@@ -30,14 +30,15 @@ const updateProfileSchema = Joi.object({
     }),
     phone: Joi.string()
         .pattern(/^\d{8,15}$/)
-        .required()
+        .optional()
+        .allow('', null)
         .messages({
             'string.pattern.base': 'Phone number must contain only digits and be between 8 and 15 characters.',
-            'any.required': 'Phone number is required.',
         }),
     username: Joi.string().min(3).max(50).optional(),
     age: Joi.number().integer().min(1).max(120).optional().allow(null, ''),
     theme: Joi.string().valid('light', 'dark').optional(),
+    shiftSchedule: Joi.string().max(100).optional().allow('', null),
     removeProfilePicture: Joi.any().optional(),
 });
 

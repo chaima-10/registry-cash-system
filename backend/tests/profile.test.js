@@ -30,10 +30,9 @@ describe('Profile Update Validation', () => {
         expect(error.message).toMatch(/email/i);
     });
 
-    test('fails when phone is missing', () => {
+    test('passes when phone is missing', () => {
         const { error } = updateProfileSchema.validate({ email: 'user@example.com' });
-        expect(error).toBeDefined();
-        expect(error.message).toMatch(/phone/i);
+        expect(error).toBeUndefined();
     });
 
     test('fails when phone contains letters', () => {

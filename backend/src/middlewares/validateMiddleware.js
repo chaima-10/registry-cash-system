@@ -8,9 +8,9 @@
  * @returns {Function} Express middleware function.
  */
 const validate = (schema) => (req, res, next) => {
-    const { error } = schema.validate(req.body, {
+    const { error, value } = schema.validate(req.body, {
         abortEarly: false, // Collect ALL errors at once, not just the first one
-        stripUnknown: false, // Allow extra fields to pass through (handled individually)
+        stripUnknown: true, // Allow extra fields to pass through without causing errors (they will be removed from req.body)
     });
 
     if (error) {
@@ -18,11 +18,12 @@ const validate = (schema) => (req, res, next) => {
         const messages = error.details.map((detail) => detail.message);
         return res.status(400).json({
             status: 'error',
-            message: 'Validation failed',
+            message: `Validation failed: ${messages.join(', ')}`,
             errors: messages,
         });
     }
 
+    req.body = value; // Update req.body with validated/stripped data
     next();
 };
 

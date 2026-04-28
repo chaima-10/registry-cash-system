@@ -1,6 +1,5 @@
 const authService = require('../services/authService');
-const userRepository = require('../repositories/userRepository');
-const uploadService = require('../services/uploadService');
+const userService = require('../services/userService');
 
 // Register a new user
 exports.register = async (req, res) => {
@@ -34,58 +33,36 @@ exports.logout = async (req, res) => {
     res.json({ message: 'Logged out successfully' });
 };
 
-// Get current user profile (authController version)
+// Get current user profile (using userService for richness/stats)
 exports.getProfile = async (req, res) => {
     try {
-        const user = await userRepository.findUserById(req.user.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-
-        const { password, ...userWithoutPassword } = user;
-        res.json(userWithoutPassword);
+        const profile = await userService.getProfileWithStats(req.user.id);
+        res.json(profile);
     } catch (error) {
+        console.error("getProfile Error:", error);
+        if (error.message === 'User not found') {
+            return res.status(404).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 
-// Update user profile (authController version)
+// Update user profile (using userService for consistency)
 exports.updateProfile = async (req, res) => {
     try {
-        const { fullName, email, phone, age, username, theme } = req.body;
-        const userId = req.user.id;
-
-        const user = await userRepository.findUserById(userId);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-
-        const updateData = {
-            fullName: fullName !== undefined ? fullName : user.fullName,
-            phone: phone !== undefined ? phone : user.phone,
-            age: (age !== undefined && age !== '') ? parseInt(age) : (age === '' ? null : user.age),
-            username: username !== undefined ? username : user.username,
-            theme: theme !== undefined ? theme : user.theme
-        };
-
-        if (email && email !== user.email) {
-            const existingEmailUser = await userRepository.findUserByEmailNotId(email, userId);
-            if (existingEmailUser) {
-                return res.status(400).json({ message: 'Email already in use' });
-            }
-            updateData.email = email;
-            updateData.isEmailVerified = true;
-        }
-
-        if (req.body.removeProfilePicture === 'true') {
-            updateData.profilePicture = null;
-        } else if (req.file) {
-            updateData.profilePicture = await uploadService.uploadImage(req.file, 'profiles');
-        }
-
-        const updatedUser = await userRepository.updateUser(userId, updateData);
-        const { password, ...userWithoutPassword } = updatedUser;
+        const updatedUser = await userService.updateProfile(req.user.id, req.body, req.file);
         res.json({ 
             message: 'Profil mis à jour avec succès.', 
-            user: userWithoutPassword 
+            user: updatedUser 
         });
     } catch (error) {
+        console.error("Update Profile Error:", error);
+        if (error.message === 'User not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        if (error.message === 'Username already taken' || error.message === 'Email already in use') {
+            return res.status(400).json({ message: error.message });
+        }
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
