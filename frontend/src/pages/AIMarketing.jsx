@@ -79,20 +79,6 @@ const AIMarketing = () => {
         localStorage.setItem('marketing_chat_history', JSON.stringify(chatMessages));
     }, [chatMessages, isAiTyping]);
 
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const prodRes = await api.get('/products');
-            const data = prodRes.data || [];
-            setProducts(data);
-            generateAiPromotions(data, t('general'));
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [t, generateAiPromotions]);
-
     const generateAiPromotions = useCallback(async (prods, eventName) => {
         setIsGeneratingPromos(true);
         setGenerationTimeout(false);
@@ -157,6 +143,20 @@ const AIMarketing = () => {
             setGenerationTimeout(false);
         }
     }, [t]);
+
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const prodRes = await api.get('/products');
+            const data = prodRes.data || [];
+            setProducts(data);
+            generateAiPromotions(data, t('general'));
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [t, generateAiPromotions]);
 
     const handleRetry = () => {
         generateAiPromotions(products, activeEventName);
