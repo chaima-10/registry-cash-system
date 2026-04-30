@@ -123,7 +123,7 @@ const Dashboard = () => {
             // Use the product data already embedded in the sale items if available
             if (s.items && s.items.length > 0) {
                 s.items.forEach(item => {
-                    // Try to find product info in item, then in lookup
+                    
                     const prod = item.product || productLookup[item.productId || item.id];
                     if (prod) {
                         const tvaRate = parseFloat(prod.tva || 0);
@@ -136,7 +136,7 @@ const Dashboard = () => {
                     }
                 });
             } else {
-                cost = rev * 0.7; // Global fallback estimate
+                cost = rev * 0.7; 
             }
 
             if (checkPeriod(saleDate)) {

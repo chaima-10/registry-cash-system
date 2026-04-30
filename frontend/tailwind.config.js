@@ -11,7 +11,7 @@ export default {
                 primary: '#C4B4FF',
                 secondary: '#A38AFF',
                 surface: '#EBE6FF',
-                dark: '#1a1b2e', // Deep nice dark background
+                dark: '#1a1b2e', 
                 darker: '#161625',
                 panel: '#1f2035'
             },

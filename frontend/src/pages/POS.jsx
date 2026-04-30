@@ -23,6 +23,8 @@ const POS = () => {
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [completedSale, setCompletedSale] = useState(null);
     const [isCameraScannerOpen, setIsCameraScannerOpen] = useState(false);
+    const [editingQuantityItemId, setEditingQuantityItemId] = useState(null);
+    const [editingQuantityValue, setEditingQuantityValue] = useState('');
 
     useEffect(() => {
         fetchData();
@@ -84,6 +86,13 @@ const POS = () => {
         } catch (error) {
             alert(error.response?.data?.message || t('failedUpdateQuantity'));
         }
+    };
+
+    const handleQuantityEditCommit = async (itemId) => {
+        const parsed = parseInt(editingQuantityValue, 10);
+        setEditingQuantityItemId(null);
+        if (!parsed || parsed < 1) return;
+        await handleUpdateQuantity(itemId, parsed);
     };
 
     const handleRemoveItem = async (itemId) => {
@@ -303,7 +312,26 @@ const POS = () => {
                                     >
                                         <FiMinus size={14} />
                                     </button>
-                                    <span className="font-mono w-8 text-center text-gray-900 dark:text-white text-xs font-black">{item.quantity}</span>
+                                    {editingQuantityItemId === item.id ? (
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            className="font-mono w-10 text-center text-gray-900 dark:text-white text-xs font-black bg-white dark:bg-gray-700 border border-blue-400 rounded-md outline-none py-0.5"
+                                            value={editingQuantityValue}
+                                            onChange={e => setEditingQuantityValue(e.target.value)}
+                                            onBlur={() => handleQuantityEditCommit(item.id)}
+                                            onKeyDown={e => { if (e.key === 'Enter') handleQuantityEditCommit(item.id); }}
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <span
+                                            className="font-mono w-8 text-center text-gray-900 dark:text-white text-xs font-black cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-md py-0.5 transition-colors"
+                                            onClick={() => { setEditingQuantityItemId(item.id); setEditingQuantityValue(String(item.quantity)); }}
+                                            title={t('clickToEditQuantity', 'Click to edit quantity')}
+                                        >
+                                            {item.quantity}
+                                        </span>
+                                    )}
                                     <button
                                         onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                                         className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded-md text-gray-500 dark:text-gray-400 transition-all"
