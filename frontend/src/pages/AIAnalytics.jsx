@@ -10,11 +10,10 @@ import {
 } from 'recharts';
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
-import i18n from 'i18next';
 import { useAuth } from '../context/AuthContext';
 
 const AIAnalytics = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { formatCurrency } = useAuth();
     const [activeTab, setActiveTab] = useState('products');
     

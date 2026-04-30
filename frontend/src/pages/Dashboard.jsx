@@ -82,7 +82,10 @@ const Dashboard = () => {
         return isThisMonth(d);
     };
 
-    const productLookup = products.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+    const productLookup = products.reduce((acc, p) => {
+        acc[p.id] = p;
+        return acc;
+    }, {});
     
     const getDashboardData = () => {
         const now = new Date();
