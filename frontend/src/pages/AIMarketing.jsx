@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
@@ -59,6 +59,8 @@ const AIMarketing = () => {
     const timeoutRef = useRef(null);
     const [selectedPoster, setSelectedPoster] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadError, setDownloadError] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
     
     // Selected Custom Event
     const [customEvent, setCustomEvent] = useState('');
@@ -69,7 +71,7 @@ const AIMarketing = () => {
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Scroll to bottom and save history
     useEffect(() => {
@@ -77,7 +79,7 @@ const AIMarketing = () => {
         localStorage.setItem('marketing_chat_history', JSON.stringify(chatMessages));
     }, [chatMessages, isAiTyping]);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const prodRes = await api.get('/products');
@@ -89,9 +91,9 @@ const AIMarketing = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [t, generateAiPromotions]);
 
-    const generateAiPromotions = async (prods, eventName) => {
+    const generateAiPromotions = useCallback(async (prods, eventName) => {
         setIsGeneratingPromos(true);
         setGenerationTimeout(false);
         const eventLabel = eventName || t('general');
@@ -116,12 +118,30 @@ const AIMarketing = () => {
             // Clear timeout on success
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             
+            // FIX: Robust JSON parsing with fallback to regex
             let text = response.data.reply;
-            const jsonMatch = text.match(/\[.*\]/s);
-            if (jsonMatch) {
-                const validData = JSON.parse(jsonMatch[0]).filter(p => p.title && p.description);
-                if (validData.length > 0) {
-                    setPromotions(validData);
+            let validData = null;
+            try {
+                // Try direct JSON parse first
+                const cleanedText = text.trim();
+                validData = JSON.parse(cleanedText);
+            } catch (e) {
+                // Fallback to regex extraction
+                const jsonMatch = text.match(/\[.*\]/s);
+                if (jsonMatch) {
+                    try {
+                        validData = JSON.parse(jsonMatch[0]);
+                    } catch (parseError) {
+                        throw new Error("Invalid AI data");
+                    }
+                } else {
+                    throw new Error("Invalid AI data");
+                }
+            }
+            if (validData) {
+                const filteredData = validData.filter(p => p.title && p.description);
+                if (filteredData.length > 0) {
+                    setPromotions(filteredData);
                     return;
                 }
             }
@@ -136,7 +156,7 @@ const AIMarketing = () => {
             setIsGeneratingPromos(false);
             setGenerationTimeout(false);
         }
-    };
+    }, [t]);
 
     const handleRetry = () => {
         generateAiPromotions(products, activeEventName);
@@ -153,7 +173,9 @@ const AIMarketing = () => {
 
         try {
             const systemContext = "Expert Copywriter. No explanations. Social media focus.";
+            // FIX: Limit API messages to last 20 to avoid context overflow
             const apiMessages = chatMessages.concat({ role: 'user', content: message })
+                .slice(-20)
                 .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
 
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
@@ -184,7 +206,9 @@ const AIMarketing = () => {
             link.click();
         } catch (error) {
             console.error("Download failed:", error);
-            alert(t('downloadError'));
+            // FIX: Replace alert with inline error state
+            setDownloadError(true);
+            setTimeout(() => setDownloadError(false), 3000);
         } finally {
             setIsDownloading(false);
         }
@@ -201,10 +225,18 @@ const AIMarketing = () => {
     };
 
     const clearChatHistory = () => {
-        if (window.confirm(t('clearChatConfirm'))) {
-            setChatMessages([{ role: 'ai', content: t('marketingWelcomeAi') }]);
-            localStorage.removeItem('marketing_chat_history');
-        }
+        // FIX: Replace window.confirm with modal state
+        setShowClearConfirm(true);
+    };
+
+    const confirmClearHistory = () => {
+        setChatMessages([{ role: 'ai', content: t('marketingWelcomeAi') }]);
+        localStorage.removeItem('marketing_chat_history');
+        setShowClearConfirm(false);
+    };
+
+    const cancelClearHistory = () => {
+        setShowClearConfirm(false);
     };
 
     const getProductByName = (name) => products.find(p => p.name === name);
@@ -235,6 +267,8 @@ const AIMarketing = () => {
                                     onClick={handleBackToSuggestions}
                                     className="flex items-center justify-center w-12 h-12 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     title={t('back')}
+                                    // FIX: Add aria-label for icon-only button
+                                    aria-label={t('back')}
                                 >
                                     <FiArrowLeft size={28} />
                                 </motion.button>
@@ -253,9 +287,18 @@ const AIMarketing = () => {
                             onChange={(e) => setCustomEvent(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && generateAiPromotions(products, customEvent)}
                             placeholder={t('specialEvent')}
-                            className="bg-transparent border-none outline-none pl-4 flex-1 text-sm font-semibold"
+                            disabled={isGeneratingPromos}
+                            // FIX: Disable input during generation to avoid concurrent API calls
+                            className="bg-transparent border-none outline-none pl-4 flex-1 text-sm font-semibold disabled:opacity-50"
                         />
-                        <button onClick={() => generateAiPromotions(products, customEvent)} className="px-6 py-3 bg-blue-600 text-white font-black text-[10px] rounded-3xl uppercase tracking-wider">{t('generate')}</button>
+                        <button 
+                            onClick={() => generateAiPromotions(products, customEvent)} 
+                            disabled={isGeneratingPromos}
+                            // FIX: Disable button during generation to avoid concurrent API calls
+                            className="px-6 py-3 bg-blue-600 text-white font-black text-[10px] rounded-3xl uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isGeneratingPromos ? t('generating') : t('generate')}
+                        </button>
                     </div>
                 </div>
 
@@ -320,7 +363,7 @@ const AIMarketing = () => {
                         <h2 className="font-black text-xl uppercase tracking-tighter">{t('marketingCopilot')}</h2>
                         <span className="text-[10px] uppercase opacity-70">{t('aiStrategyMode')}</span>
                     </div>
-                    <button onClick={clearChatHistory} className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors" title={t('clearHistory')}><FiTrash2 size={18} /></button>
+                    <button onClick={clearChatHistory} className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors" title={t('clearHistory')} aria-label={t('clearHistory')}><FiTrash2 size={18} /></button>
                 </div>
                 <div className="flex-1 p-8 overflow-y-auto space-y-6 bg-slate-50 dark:bg-slate-900/50">
                     {chatMessages.map((msg, i) => (
@@ -370,7 +413,7 @@ const AIMarketing = () => {
                                 type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
                                 placeholder={t('marketingWelcomeChat')} className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-[1.5rem] pl-6 pr-14 py-4 text-sm font-semibold"
                             />
-                            <button type="submit" className="absolute right-2 top-2 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"><FiSend size={18} /></button>
+                            <button type="submit" className="absolute right-2 top-2 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95" aria-label={t('send')}><FiSend size={18} /></button>
                         </div>
                     </form>
                 </div>
@@ -384,12 +427,13 @@ const AIMarketing = () => {
                             <button 
                                 onClick={handleBackToSuggestions}
                                 className="absolute top-4 left-4 md:top-8 md:left-8 z-50 flex items-center gap-2 px-4 py-2 md:px-6 md:py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white font-semibold text-sm transition-all hover:scale-105"
+                                aria-label={t('back')}
                             >
                                 <FiArrowLeft size={18} />
                                 <span className="hidden sm:inline">{t('back')}</span>
                             </button>
                             
-                            <button onClick={() => setSelectedPoster(null)} className="absolute top-4 right-4 md:top-12 md:right-12 z-50 w-10 h-10 md:w-16 md:h-16 bg-white/10 hover:bg-red-500/20 rounded-full flex items-center justify-center text-white transition-colors"><FiTrash2 size={20} /></button>
+                            <button onClick={() => setSelectedPoster(null)} className="absolute top-4 right-4 md:top-12 md:right-12 z-50 w-10 h-10 md:w-16 md:h-16 bg-white/10 hover:bg-red-500/20 rounded-full flex items-center justify-center text-white transition-colors" aria-label={t('close')}><FiTrash2 size={20} /></button>
                             
                             <div ref={posterRef} className="w-full md:w-[55%] p-8 md:p-20 flex flex-col justify-between text-white overflow-y-auto" style={{ backgroundColor: selectedPoster.theme || '#2563eb' }}>
                                 <div>
@@ -444,10 +488,16 @@ const AIMarketing = () => {
                                         })}
                                     </div>
                                 </div>
-                                <div className="mt-6 md:mt-8 pt-4 md:pt-8 border-t border-slate-100 dark:border-slate-800 flex gap-3 md:gap-4">
-                                    <button onClick={handleDownloadPoster} disabled={isDownloading} className="flex-1 py-4 md:py-7 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors">
+                                <div className="mt-6 md:mt-8 pt-4 md:pt-8 border-t border-slate-100 dark:border-slate-800 flex gap-3 md:gap-4 relative">
+                                    <button onClick={handleDownloadPoster} disabled={isDownloading} className="flex-1 py-4 md:py-7 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors" aria-label={t('download')}>
                                         {isDownloading ? t('downloading') : t('download')}
                                     </button>
+                                    {/* FIX: Inline error message for download failure */}
+                                    {downloadError && (
+                                        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded-lg whitespace-nowrap">
+                                            {t('downloadError')}
+                                        </div>
+                                    )}
                                     <button onClick={handlePublishNow} className="flex-[2] py-4 md:py-7 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors">
                                         {t('publishNow')}
                                     </button>
@@ -455,6 +505,41 @@ const AIMarketing = () => {
                             </div>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* FIX: Confirmation modal for clearing chat history */}
+            <AnimatePresence>
+                {showClearConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-3xl"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                        >
+                            <h3 className="text-xl font-black mb-4 text-slate-800 dark:text-white">{t('clearChatConfirm')}</h3>
+                            <div className="flex gap-4 mt-6">
+                                <button
+                                    onClick={cancelClearHistory}
+                                    className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black uppercase text-xs transition-colors"
+                                >
+                                    {t('cancel')}
+                                </button>
+                                <button
+                                    onClick={confirmClearHistory}
+                                    className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black uppercase text-xs transition-colors"
+                                >
+                                    {t('confirm')}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>
