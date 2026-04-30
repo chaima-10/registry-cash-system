@@ -184,7 +184,14 @@ const AIMarketing = () => {
                 .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
 
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
-            setChatMessages(prev => [...prev, { role: 'ai', content: response.data.reply }]);
+            let reply = response.data.reply;
+            
+            // If backend returned a known error code, show localized friendly message
+            if (reply.includes('ERROR_AI:') || reply.includes('QUOTA_EXCEEDED')) {
+                reply = t('aiErrorQuota', 'Quota d\'intelligence artificielle épuisé pour aujourd\'hui. Veuillez réessayer demain.');
+            }
+            
+            setChatMessages(prev => [...prev, { role: 'ai', content: reply }]);
         } catch (error) {
             setChatMessages(prev => [...prev, { role: 'ai', content: t('aiErrorQuota') }]);
         } finally {

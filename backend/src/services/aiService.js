@@ -4,7 +4,8 @@
  */
 class AIService {
     async generateResponse(messages, systemContext) {
-        const models = ['gemini-flash-latest', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-pro-latest'];
+        // Using 1.5 Flash as primary for higher free-tier quotas. 
+        const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'];
         
         const callGemini = async (model, retryCount = 0) => {
             try {
@@ -32,7 +33,9 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                             lastAddedRole = geminiRole;
                         } else {
                             // Append to the existing part if same role consecutively
-                            normalizedMessages[normalizedMessages.length - 1].parts[0].text += "\n" + (msg.content || "...");
+                            if (normalizedMessages.length > 0) {
+                                normalizedMessages[normalizedMessages.length - 1].parts[0].text += "\n" + (msg.content || "...");
+                            }
                         }
                     }
                 }
@@ -48,7 +51,7 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
 
                 const apiKey = process.env.GEMINI_API_KEY || '';
                 if (!apiKey || apiKey.length < 10) {
-                    throw new Error("Clé API Gemini (GEMINI_API_KEY) manquante ou invalide dans le fichier .env.");
+                    throw new Error("Clé API Gemini (GEMINI_API_KEY) manquante ou invalide.");
                 }
 
                 // Make real API calls using the Gemini endpoint
@@ -62,21 +65,33 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                         systemInstruction: {
                             parts: [{ text: systemPrompt }]
                         },
-                        contents: normalizedMessages, // Full conversation history for context
+                        contents: normalizedMessages, 
                         generationConfig: {
-                            maxOutputTokens: 1500
+                            maxOutputTokens: 1500,
+                            temperature: 0.7
                         }
                     })
                 });
 
                 if (!response.ok) {
                     const errBody = await response.text();
-                    // Retry logic for 429 or 5xx errors
-                    if ((response.status === 429 || response.status >= 500) && retryCount < 2) {
+                    
+                    // Handle Quota Exhaustion specifically
+                    if (response.status === 429) {
+                        const currentIndex = models.indexOf(model);
+                        if (currentIndex < models.length - 1) {
+                            console.warn(`Quota exhausted for ${model}, falling back to ${models[currentIndex + 1]}`);
+                            return callGemini(models[currentIndex + 1], 0);
+                        }
+                        throw new Error("QUOTA_EXCEEDED: Vous avez épuisé votre quota gratuit quotidien. Veuillez réessayer plus tard.");
+                    }
+
+                    // Retry logic for 5xx errors
+                    if (response.status >= 500 && retryCount < 2) {
                         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
                         return callGemini(model, retryCount + 1);
                     }
-                    throw new Error(`API Gemini a renvoyé l'erreur ${response.status}: ${errBody}`);
+                    throw new Error(`API Gemini Error ${response.status}`);
                 }
 
                 const data = await response.json();
@@ -84,13 +99,15 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                     return data.candidates[0].content.parts[0].text;
                 }
 
-                throw new Error("Format de réponse inattendu de l'API Gemini.");
+                throw new Error("Format de réponse inattendu.");
 
             } catch (err) {
-                const currentIndex = models.indexOf(model);
-                if (currentIndex !== -1 && currentIndex < models.length - 1 && retryCount >= 1) {
-                    console.warn(`Falling back to ${models[currentIndex + 1]} due to exhaustion of ${model}`);
-                    return callGemini(models[currentIndex + 1], 0);
+                // If it's not a quota error we already handled, try fallback
+                if (!err.message.includes("QUOTA_EXCEEDED")) {
+                    const currentIndex = models.indexOf(model);
+                    if (currentIndex !== -1 && currentIndex < models.length - 1) {
+                        return callGemini(models[currentIndex + 1], 0);
+                    }
                 }
                 throw err;
             }
@@ -100,7 +117,7 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
             return await callGemini(models[0]);
         } catch (err) {
             console.error("AI Service Error:", err.message);
-            return `[Erreur API Marketing Copilot] : ${err.message}`;
+            return `ERROR_AI: ${err.message}`;
         }
     }
 }
