@@ -550,5 +550,6 @@
   "createFirstGiveaway": "Engagez votre audience, récompensez la fidélité et boostez vos ventes en lançant votre premier concours dès aujourd'hui !",
   "storeCurrency": "Devise du Magasin",
   "selectCurrency": "Sélectionner la devise",
-  "AIIntro" : "Posez des questions sur vos ventes, vos stocks et vos performances"
+  "AIIntro" : "Posez des questions sur vos ventes, vos stocks et vos performances",
+  
 }

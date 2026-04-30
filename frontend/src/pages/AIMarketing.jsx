@@ -33,12 +33,16 @@ const AIMarketing = () => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     
     // Marketing Chat State with LocalStorage Persistence
+    // FIX 1: localStorage with expiration (7 days)
     const [chatMessages, setChatMessages] = useState(() => {
         const saved = localStorage.getItem('marketing_chat_history');
         if (saved) {
             try {
-                const history = JSON.parse(saved);
-                return history.filter(m => m.content !== t('historyCleared'));
+                const { data, timestamp } = JSON.parse(saved);
+                const isExpired = Date.now() - timestamp > 7 * 24 * 60 * 60 * 1000;
+                if (!isExpired && Array.isArray(data)) {
+                    return data.filter(m => m.content !== t('historyCleared'));
+                }
             } catch (e) {
                 console.error("Failed to parse chat history", e);
             }
@@ -76,7 +80,8 @@ const AIMarketing = () => {
     // Scroll to bottom and save history
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        localStorage.setItem('marketing_chat_history', JSON.stringify(chatMessages));
+        // FIX 1: localStorage with expiration (7 days)
+        localStorage.setItem('marketing_chat_history', JSON.stringify({ data: chatMessages, timestamp: Date.now() }));
     }, [chatMessages, isAiTyping]);
 
     const generateAiPromotions = useCallback(async (prods, eventName) => {
@@ -295,9 +300,10 @@ const AIMarketing = () => {
                             onClick={() => generateAiPromotions(products, customEvent)} 
                             disabled={isGeneratingPromos}
                             // FIX: Disable button during generation to avoid concurrent API calls
+                            // FIX 2: Missing i18n keys with fallbacks
                             className="px-6 py-3 bg-blue-600 text-white font-black text-[10px] rounded-3xl uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isGeneratingPromos ? t('generating') : t('generate')}
+                            {isGeneratingPromos ? (t('generating') || 'Generating...') : t('generate')}
                         </button>
                     </div>
                 </div>
@@ -313,7 +319,8 @@ const AIMarketing = () => {
                         ) : (
                             promotions.map((promo, idx) => (
                                 <motion.div 
-                                    key={idx} 
+                                    // FIX 3: Replace key={idx} on promotions
+                                    key={promo.title || idx} 
                                     layout 
                                     initial={{ opacity: 0, y: 20 }} 
                                     animate={{ opacity: 1, y: 0 }}
@@ -433,7 +440,8 @@ const AIMarketing = () => {
                                 <span className="hidden sm:inline">{t('back')}</span>
                             </button>
                             
-                            <button onClick={() => setSelectedPoster(null)} className="absolute top-4 right-4 md:top-12 md:right-12 z-50 w-10 h-10 md:w-16 md:h-16 bg-white/10 hover:bg-red-500/20 rounded-full flex items-center justify-center text-white transition-colors" aria-label={t('close')}><FiTrash2 size={20} /></button>
+                            {/* FIX 2: Missing i18n keys with fallbacks */}
+                            <button onClick={() => setSelectedPoster(null)} className="absolute top-4 right-4 md:top-12 md:right-12 z-50 w-10 h-10 md:w-16 md:h-16 bg-white/10 hover:bg-red-500/20 rounded-full flex items-center justify-center text-white transition-colors" aria-label={t('close') || 'Close'}><FiTrash2 size={20} /></button>
                             
                             <div ref={posterRef} className="w-full md:w-[55%] p-8 md:p-20 flex flex-col justify-between text-white overflow-y-auto" style={{ backgroundColor: selectedPoster.theme || '#2563eb' }}>
                                 <div>
@@ -526,16 +534,18 @@ const AIMarketing = () => {
                             <h3 className="text-xl font-black mb-4 text-slate-800 dark:text-white">{t('clearChatConfirm')}</h3>
                             <div className="flex gap-4 mt-6">
                                 <button
+                                    // FIX 2: Missing i18n keys with fallbacks
                                     onClick={cancelClearHistory}
                                     className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black uppercase text-xs transition-colors"
                                 >
-                                    {t('cancel')}
+                                    {t('cancel') || 'Cancel'}
                                 </button>
                                 <button
+                                    // FIX 2: Missing i18n keys with fallbacks
                                     onClick={confirmClearHistory}
                                     className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black uppercase text-xs transition-colors"
                                 >
-                                    {t('confirm')}
+                                    {t('confirm') || 'Confirm'}
                                 </button>
                             </div>
                         </motion.div>
