@@ -501,6 +501,19 @@
   "analyticsPromoDesc" : "Discover your best-selling products and optimize your inventory with AI-driven insights.",
   "analyticsPromoTitle": "Optimize Your Inventory with AI Analytics",
   "stockReasonCritical": "Critical stock ({{stock}} units) with sales velocity of {{velocity}}/month - order immediately",
-  "AIIntro": "Ask questions about your sales, inventory, and performance"
-  
+  "AIIntro": "Ask questions about your sales, inventory, and performance",
+  "tabChat": "AI Chat",
+  "downtrend": "DOWNTREND",
+  "flowStable": "Stable",
+  "send": "Send",
+  "generating": "Generating...",
+  "marketingCopilot": "Marketing Copilot",
+  "cashiers": "Cashiers",
+  "admins": "Administrators",
+  "scanWithCamera": "Scan with Camera",
+  "predictionArea": "Growth Zone",
+  "monthlyPrediction": "Monthly Prediction",
+  "trendLine": "Trend Line",
+  "aiModelActive": "Gemini 2.0 Active",
+  "prediction": "Prediction"
 }

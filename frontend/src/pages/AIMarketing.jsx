@@ -264,11 +264,11 @@ const AIMarketing = () => {
     );
 
     return (
-        <div className={`flex h-full gap-6 ${isRtl ? 'flex-row-reverse text-right' : ''}`}>
+        <div className={`flex flex-col xl:flex-row h-full gap-4 lg:gap-6 ${isRtl ? 'xl:flex-row-reverse text-right' : ''}`}>
             
-            <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-                <div className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center gap-6">
-                    <div className="flex items-center gap-4">
+            <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                <div className="p-4 md:p-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 lg:gap-6">
+                    <div className="flex items-center gap-3 lg:gap-4">
                         {/* Back Arrow - Only visible when poster is selected */}
                         <AnimatePresence>
                             {selectedPoster && (
@@ -277,22 +277,21 @@ const AIMarketing = () => {
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
                                     onClick={handleBackToSuggestions}
-                                    className="flex items-center justify-center w-12 h-12 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                    className="flex items-center justify-center w-10 h-10 lg:w-12 lg:h-12 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     title={t('back')}
-                                    // FIX: Add aria-label for icon-only button
                                     aria-label={t('back')}
                                 >
-                                    <FiArrowLeft size={28} />
+                                    <FiArrowLeft size={24} />
                                 </motion.button>
                             )}
                         </AnimatePresence>
-                        <div className="w-14 h-14 bg-blue-600 rounded-[1.25rem] flex items-center justify-center text-white"><FiZap size={28} /></div>
+                        <div className="w-12 h-12 lg:w-14 lg:h-14 bg-blue-600 rounded-xl lg:rounded-[1.25rem] flex items-center justify-center text-white shrink-0"><FiZap size={24} /></div>
                         <div>
-                            <h2 className="font-black text-2xl uppercase tracking-tighter">{t('aiSuggestions')}</h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('marketingStudioDesc')}</p>
+                            <h2 className="font-black text-xl lg:text-2xl uppercase tracking-tighter">{t('aiSuggestions')}</h2>
+                            <p className="text-[10px] lg:text-xs text-slate-500 dark:text-slate-400">{t('marketingStudioDesc')}</p>
                         </div>
                     </div>
-                    <div className="flex bg-slate-50 dark:bg-slate-950 p-2 rounded-[2rem] border border-slate-200 dark:border-slate-700 w-96">
+                    <div className="flex bg-slate-50 dark:bg-slate-950 p-1.5 rounded-full border border-slate-200 dark:border-slate-700 w-full lg:w-96">
                         <input
                             type="text"
                             value={customEvent}
@@ -300,50 +299,46 @@ const AIMarketing = () => {
                             onKeyDown={(e) => e.key === 'Enter' && generateAiPromotions(products, customEvent)}
                             placeholder={t('specialEvent')}
                             disabled={isGeneratingPromos}
-                            // FIX: Disable input during generation to avoid concurrent API calls
-                            className="bg-transparent border-none outline-none pl-4 flex-1 text-sm font-semibold disabled:opacity-50"
+                            className="bg-transparent border-none outline-none pl-4 flex-1 text-xs lg:text-sm font-semibold disabled:opacity-50"
                         />
                         <button 
                             onClick={() => generateAiPromotions(products, customEvent)} 
                             disabled={isGeneratingPromos}
-                            // FIX: Disable button during generation to avoid concurrent API calls
-                            // FIX 2: Missing i18n keys with fallbacks
-                            className="px-6 py-3 bg-blue-600 text-white font-black text-[10px] rounded-3xl uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 lg:px-6 py-2 lg:py-3 bg-blue-600 text-white font-black text-[9px] lg:text-[10px] rounded-full uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isGeneratingPromos ? (t('generating') || 'Generating...') : t('generate')}
+                            {isGeneratingPromos ? (t('generating') || '...') : t('generate')}
                         </button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 xl:grid-cols-2 gap-10">
+                <div className="flex-1 overflow-y-auto p-4 md:p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2 gap-6 lg:gap-10">
                     <AnimatePresence>
                         {isGeneratingPromos ? (
                             <>
-                                {[1, 2, 3, 4].map((i) => (
+                                {[1, 2].map((i) => (
                                     <SuggestionSkeleton key={i} />
                                 ))}
                             </>
                         ) : (
                             promotions.map((promo, idx) => (
                                 <motion.div 
-                                    // FIX 3: Replace key={idx} on promotions
                                     key={promo.title || idx} 
                                     layout 
                                     initial={{ opacity: 0, y: 20 }} 
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: idx * 0.1 }}
-                                    className="group relative bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 hover:border-blue-500/50 cursor-pointer shadow-xl flex flex-col hover:shadow-2xl transition-all duration-300"
+                                    className="group relative bg-white dark:bg-slate-900 rounded-[1.5rem] md:rounded-[3rem] p-4 md:p-10 border border-slate-100 dark:border-slate-800 hover:border-blue-500/50 cursor-pointer shadow-xl flex flex-col hover:shadow-2xl transition-all duration-300"
                                     onClick={() => setSelectedPoster(promo)}
                                 >
-                                    <div className="flex justify-between items-start mb-8">
-                                        <span className="px-5 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 text-[10px] font-black uppercase rounded-full">{promo.timing}</span>
-                                        <div className="text-4xl">{promo.emoji}</div>
+                                    <div className="flex justify-between items-start mb-6 lg:mb-8">
+                                        <span className="px-4 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 text-[9px] lg:text-[10px] font-black uppercase rounded-full">{promo.timing}</span>
+                                        <div className="text-3xl lg:text-4xl">{promo.emoji}</div>
                                     </div>
-                                    <h4 className="text-3xl font-black mb-4 tracking-tighter">{promo.title}</h4>
-                                    <p className="text-slate-500 mb-10">{promo.description}</p>
+                                    <h4 className="text-2xl lg:text-3xl font-black mb-3 lg:mb-4 tracking-tighter">{promo.title}</h4>
+                                    <p className="text-sm lg:text-base text-slate-500 mb-6 lg:mb-10 line-clamp-3">{promo.description}</p>
                                     <div className="mt-auto flex justify-between items-center">
-                                        <span className="text-2xl font-black text-blue-600">-{promo.discountPercent}%</span>
-                                        <div className="p-4 bg-blue-600 text-white rounded-2xl group-hover:scale-110 transition-transform"><FiArrowRight size={20} /></div>
+                                        <span className="text-xl lg:text-2xl font-black text-blue-600">-{promo.discountPercent}%</span>
+                                        <div className="p-3 lg:p-4 bg-blue-600 text-white rounded-xl lg:rounded-2xl group-hover:scale-110 transition-transform"><FiArrowRight size={18} /></div>
                                     </div>
                                 </motion.div>
                             ))
@@ -371,13 +366,13 @@ const AIMarketing = () => {
                 </div>
             </div>
 
-            <div className="w-[450px] flex flex-col bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl overflow-hidden">
-                <div className="bg-blue-800 p-10 text-white flex justify-between items-start">
+            <div className="w-full xl:w-[450px] min-h-[400px] h-[50vh] xl:h-full flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl overflow-hidden shrink-0">
+                <div className="bg-blue-800 p-4 md:p-10 text-white flex justify-between items-start shrink-0">
                     <div>
-                        <h2 className="font-black text-xl uppercase tracking-tighter">{t('marketingCopilot')}</h2>
-                        <span className="text-[10px] uppercase opacity-70">{t('aiStrategyMode')}</span>
+                        <h2 className="font-black text-lg lg:text-xl uppercase tracking-tighter">{t('marketingCopilot')}</h2>
+                        <span className="text-[9px] lg:text-[10px] uppercase opacity-70">{t('aiStrategyMode')}</span>
                     </div>
-                    <button onClick={clearChatHistory} className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors" title={t('clearHistory')} aria-label={t('clearHistory')}><FiTrash2 size={18} /></button>
+                    <button onClick={clearChatHistory} className="p-2 lg:p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors" title={t('clearHistory')} aria-label={t('clearHistory')}><FiTrash2 size={18} /></button>
                 </div>
                 <div className="flex-1 p-8 overflow-y-auto space-y-6 bg-slate-50 dark:bg-slate-900/50">
                     {chatMessages.map((msg, i) => (

@@ -273,14 +273,14 @@ const Giveaways = () => {
         <div className="p-6 md:p-8 max-w-7xl mx-auto min-h-screen">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                <div>
-                    <h1 className="text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3 tracking-tight">
-                        <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-2xl text-purple-600">
-                            <FiGift size={28} />
+                <div className="flex-1">
+                    <h1 className="text-2xl lg:text-3xl font-black text-gray-900 dark:text-white flex items-center gap-3 tracking-tight">
+                        <div className="p-2.5 lg:p-3 bg-purple-100 dark:bg-purple-900/30 rounded-2xl text-purple-600">
+                            <FiGift size={24} />
                         </div>
                         {t('giveaways')}
                     </h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium ml-1">
+                    <p className="text-xs lg:text-sm text-gray-500 dark:text-gray-400 mt-2 font-medium">
                         {t('giveawaysDesc', 'Manage promotional contests and engage your participants')}
                     </p>
                 </div>
@@ -296,7 +296,7 @@ const Giveaways = () => {
             </div>
 
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-10">
                 {[
                     { title: 'totalGiveaways', value: stats.total, icon: FiGift, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-900/30' },
                     { title: 'activeGiveaways', value: stats.active, icon: FiTrendingUp, color: 'text-green-500', bg: 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30' },
@@ -304,13 +304,13 @@ const Giveaways = () => {
                     { title: 'giveawayEnded', value: stats.ended, icon: FiClock, color: 'text-gray-500', bg: 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800' }
                 ].map((stat, i) => (
                     <motion.div key={i} initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{delay: i*0.1}} 
-                        className="bg-white dark:bg-gray-800 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-5">
-                        <div className={`w-14 h-14 rounded-2xl ${stat.bg} ${stat.color} border flex items-center justify-center shrink-0`}>
-                            <stat.icon size={24} />
+                        className="bg-white dark:bg-gray-800 p-5 lg:p-6 rounded-3xl lg:rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm flex items-center gap-4 lg:gap-5">
+                        <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-2xl ${stat.bg} ${stat.color} border flex items-center justify-center shrink-0`}>
+                            <stat.icon size={20} className="lg:w-6 lg:h-6" />
                         </div>
                         <div>
-                            <div className="text-3xl font-black text-gray-900 dark:text-white leading-none mb-1">{stat.value}</div>
-                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t(stat.title, stat.title)}</div>
+                            <div className="text-2xl lg:text-3xl font-black text-gray-900 dark:text-white leading-none mb-1">{stat.value}</div>
+                            <div className="text-[9px] lg:text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t(stat.title, stat.title)}</div>
                         </div>
                     </motion.div>
                 ))}
@@ -386,7 +386,7 @@ const Giveaways = () => {
                                 {/* Colored Top Strip */}
                                 <div className={`h-2.5 w-full ${active ? (isEndingSoon ? 'bg-green-500' : 'bg-purple-600') : 'bg-gray-400'}`} />
                                 
-                                <div className="p-8 flex-1 flex flex-col">
+                                <div className="p-6 lg:p-8 flex-1 flex flex-col">
                                     {/* Header Badges */}
                                     <div className="flex justify-between items-start mb-6">
                                         <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${active ? (isEndingSoon ? 'bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-800 dark:text-green-400' : 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/30 dark:border-purple-800 dark:text-purple-400') : 'bg-gray-50 border-gray-200 text-gray-500 dark:bg-gray-900/50 dark:border-gray-700 dark:text-gray-400'}`}>
@@ -400,11 +400,11 @@ const Giveaways = () => {
                                     </div>
 
                                     {/* Prize Name & Icon */}
-                                    <div className="flex items-start gap-4 mb-3">
-                                        <div className={`w-14 h-14 rounded-[1.25rem] flex items-center justify-center text-white shadow-lg shrink-0 ${active ? 'bg-gradient-to-br from-purple-500 to-indigo-600 shadow-purple-500/30' : 'bg-gradient-to-br from-gray-400 to-gray-600 shadow-gray-500/20'}`}>
-                                            <FiGift size={28} />
+                                    <div className="flex items-start gap-3 lg:gap-4 mb-3">
+                                        <div className={`w-12 h-12 lg:w-14 lg:h-14 rounded-xl lg:rounded-[1.25rem] flex items-center justify-center text-white shadow-lg shrink-0 ${active ? 'bg-gradient-to-br from-purple-500 to-indigo-600 shadow-purple-500/30' : 'bg-gradient-to-br from-gray-400 to-gray-600 shadow-gray-500/20'}`}>
+                                            <FiGift size={24} className="lg:w-7 lg:h-7" />
                                         </div>
-                                        <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight line-clamp-2 pt-1 tracking-tight">
+                                        <h3 className="text-xl lg:text-2xl font-black text-gray-900 dark:text-white leading-tight line-clamp-2 pt-1 tracking-tight">
                                             {giveaway.title}
                                         </h3>
                                     </div>

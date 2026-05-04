@@ -99,8 +99,9 @@ router.get('/profile', authMiddleware.protect, authController.getProfile);
  *         description: Logged out successfully
  */
 router.post('/logout', authController.logout);
-
-
+router.get('/verify-email', authController.verifyEmail);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
 
 /**
  * @swagger

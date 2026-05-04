@@ -141,20 +141,22 @@ const ProfilePage = () => {
     };
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto pb-12">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('profile') || 'My Profile'}</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">{t('managePersonalInfo')}</p>
+        <div className="space-y-6 lg:space-y-8 max-w-5xl mx-auto pb-12 px-4 sm:px-6 lg:px-8">
+            <div className="pt-4">
+                <h2 className="text-2xl lg:text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{t('profile') || 'My Profile'}</h2>
+                <p className="text-xs lg:text-sm text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-widest font-bold">{t('managePersonalInfo')}</p>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
-                        <div className="flex justify-between items-start mb-8">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] lg:rounded-3xl p-6 lg:p-8 shadow-sm transition-colors">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 uppercase tracking-tighter">
                                 <FiUser className="text-blue-500" /> {t('personalInformation')}
                             </h3>
                             <button
                                 onClick={handleOpenEdit}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-colors text-sm font-medium">
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-lg shadow-blue-500/20 text-xs font-black uppercase tracking-widest">
                                 <FiEdit2 /> {t('editProfile')}
                             </button>
                         </div>
@@ -208,14 +210,24 @@ const ProfilePage = () => {
                             </div>
                             <div>
                                 <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('emailAddress')}</label>
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
-                                        <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
-                                            <FiMail />
+                                <div className="flex flex-col">
+                                        <div className="flex items-center gap-2 text-gray-900 dark:text-white font-medium">
+                                            <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                                <FiMail />
+                                            </div>
+                                            <span>{user?.email || 'N/A'}</span>
+                                            {user?.email && (
+                                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${user.isEmailVerified ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400' : 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400'}`}>
+                                                    {user.isEmailVerified ? t('verified', 'Vérifié') : t('pending', 'En attente')}
+                                                </span>
+                                            )}
                                         </div>
-                                        <span>{user?.email || 'N/A'}</span>
+                                        {!user?.isEmailVerified && user?.email && (
+                                            <p className="text-[10px] text-orange-600 dark:text-orange-400 font-bold mt-1 ml-11 uppercase tracking-tighter">
+                                                {t('checkEmailToVerify', 'Vérifiez votre boîte mail pour confirmer')}
+                                            </p>
+                                        )}
                                     </div>
-                                </div>
                             </div>
                             <div>
                                 <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('phoneNumber')}</label>
@@ -260,7 +272,7 @@ const ProfilePage = () => {
                             <div>
                                 {user?.role === 'cashier' ? (
                                     <>
-                                        <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 block mb-2">
                                             {t('netSalaryThisMonth', 'Net Salary This Month')}
                                         </label>
                                         {(() => {
@@ -271,28 +283,31 @@ const ProfilePage = () => {
                                                 user?.stats?.workedDays
                                             );
                                             return (
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center text-green-600">
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex items-center gap-3 bg-green-50 dark:bg-green-500/10 p-4 rounded-2xl border border-green-100 dark:border-green-500/20">
+                                                        <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center text-white text-xl shadow-lg shadow-green-500/20">
                                                             💰
                                                         </div>
-                                                        <span className="text-gray-900 dark:text-white font-black text-lg">
-                                                            {formatCurrency(salaryData.netSalary, null, false)}
-                                                        </span>
-                                                        <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                                        <div className="flex-1">
+                                                            <div className="text-gray-900 dark:text-white font-black text-2xl leading-none">
+                                                                {formatCurrency(salaryData.netSalary, null, false)}
+                                                            </div>
+                                                            <div className="text-[9px] font-bold text-green-600 uppercase tracking-widest mt-1">Calculated Net</div>
+                                                        </div>
+                                                        <FiLock className="text-gray-400" size={14} title="Auto-calculated" />
                                                     </div>
-                                                    <div className="pl-11 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
-                                                        <div className="flex justify-between gap-4">
-                                                            <span>{t('expectedMonthlySalary', 'Expected Monthly')}:</span>
-                                                            <span className="font-medium text-gray-400 line-through">{formatCurrency(salaryData.expectedMonthlySalary, null, false)}</span>
+                                                    <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 space-y-2 px-1">
+                                                        <div className="flex justify-between border-b border-gray-50 dark:border-gray-800/50 pb-1.5">
+                                                            <span>{t('expectedMonthlySalary', 'Base Salary')}:</span>
+                                                            <span className="text-gray-400 line-through">{formatCurrency(salaryData.expectedMonthlySalary, null, false)}</span>
                                                         </div>
-                                                        <div className="flex justify-between gap-4">
-                                                            <span>{t('dailySalary', 'Daily Salary')}:</span>
-                                                            <span className="font-medium">{formatCurrency(salaryData.dailySalary, null, false)}</span>
+                                                        <div className="flex justify-between border-b border-gray-50 dark:border-gray-800/50 pb-1.5">
+                                                            <span>{t('dailySalary', 'Rate Per Day')}:</span>
+                                                            <span className="text-gray-700 dark:text-gray-200">{formatCurrency(salaryData.dailySalary, null, false)}</span>
                                                         </div>
-                                                        <div className="flex justify-between gap-4">
+                                                        <div className="flex justify-between">
                                                             <span>{t('workedDays')}:</span>
-                                                            <span className="font-medium">{user?.stats?.workedDays || 0} {t('days')}</span>
+                                                            <span className="text-blue-600 dark:text-blue-400">{user?.stats?.workedDays || 0} {t('days')}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -301,12 +316,14 @@ const ProfilePage = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('monthlySalary')}</label>
-                                        <div className="flex items-center gap-3 text-gray-900 dark:text-white font-black text-lg">
-                                            <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 block mb-2">{t('monthlySalary')}</label>
+                                        <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                            <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white text-xl">
                                                 💰
                                             </div>
-                                            {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
+                                            <span className="text-gray-900 dark:text-white font-black text-2xl">
+                                                {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
+                                            </span>
                                         </div>
                                     </>
                                 )}

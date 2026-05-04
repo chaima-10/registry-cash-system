@@ -4,8 +4,8 @@
  */
 class AIService {
     async generateResponse(messages, systemContext) {
-        // Using 1.5 Flash as primary for higher free-tier quotas. 
-        const models = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'];
+        // Generic model pointers for long-term stability
+        const models = ['gemini-flash-latest', 'gemini-pro-latest', 'gemini-2.5-flash-lite'];
         
         const callGemini = async (model, retryCount = 0) => {
             try {
@@ -49,49 +49,55 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                     return "Comment puis-je vous aider en tant que Marketing Copilot ?";
                 }
 
-                const apiKey = process.env.GEMINI_API_KEY || '';
+                // Clean API Key: remove quotes and whitespace
+                const apiKey = (process.env.GEMINI_API_KEY || '').replace(/["']/g, '').trim();
                 if (!apiKey || apiKey.length < 10) {
                     throw new Error("Clé API Gemini (GEMINI_API_KEY) manquante ou invalide.");
                 }
 
                 // Make real API calls using the Gemini endpoint
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                const requestBody = {
+                    contents: normalizedMessages, 
+                    generationConfig: {
+                        maxOutputTokens: 2000,
+                        temperature: 0.7
+                    }
+                };
+
+                // systemInstruction is supported on all modern flash/pro models
+                if (model.includes('flash') || model.includes('pro')) {
+                    requestBody.systemInstruction = {
+                        parts: [{ text: systemPrompt }]
+                    };
+                } else {
+                    // For 1.0 models, prepend system prompt to the first user message
+                    if (normalizedMessages.length > 0 && normalizedMessages[0].role === 'user') {
+                        normalizedMessages[0].parts[0].text = `Instructions: ${systemPrompt}\n\nContext: ${normalizedMessages[0].parts[0].text}`;
+                    }
+                }
+
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        systemInstruction: {
-                            parts: [{ text: systemPrompt }]
-                        },
-                        contents: normalizedMessages, 
-                        generationConfig: {
-                            maxOutputTokens: 1500,
-                            temperature: 0.7
-                        }
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
                     const errBody = await response.text();
+                    console.error(`Gemini API Error Body (${model}):`, errBody);
                     
                     // Handle Quota Exhaustion specifically
                     if (response.status === 429) {
                         const currentIndex = models.indexOf(model);
                         if (currentIndex < models.length - 1) {
-                            console.warn(`Quota exhausted for ${model}, falling back to ${models[currentIndex + 1]}`);
                             return callGemini(models[currentIndex + 1], 0);
                         }
-                        throw new Error("QUOTA_EXCEEDED: Vous avez épuisé votre quota gratuit quotidien. Veuillez réessayer plus tard.");
+                        throw new Error("QUOTA_EXCEEDED");
                     }
 
-                    // Retry logic for 5xx errors
-                    if (response.status >= 500 && retryCount < 2) {
-                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-                        return callGemini(model, retryCount + 1);
-                    }
-                    throw new Error(`API Gemini Error ${response.status}`);
+                    throw new Error(`API Gemini Error ${response.status}: ${errBody.substring(0, 100)}`);
                 }
 
                 const data = await response.json();
@@ -102,10 +108,12 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                 throw new Error("Format de réponse inattendu.");
 
             } catch (err) {
-                // If it's not a quota error we already handled, try fallback
-                if (!err.message.includes("QUOTA_EXCEEDED")) {
+                // If it's a quota error or 400/404, try fallback
+                const isRetryable = err.message.includes("429") || err.message.includes("400") || err.message.includes("404");
+                if (isRetryable) {
                     const currentIndex = models.indexOf(model);
                     if (currentIndex !== -1 && currentIndex < models.length - 1) {
+                        console.warn(`Falling back from ${model} due to error: ${err.message}`);
                         return callGemini(models[currentIndex + 1], 0);
                     }
                 }

@@ -13,6 +13,19 @@ class UserRepository {
         return await prisma.user.findUnique({ where: { id } });
     }
 
+    async findUserByVerificationToken(token) {
+        return await prisma.user.findFirst({ where: { emailVerificationToken: token } });
+    }
+
+    async findUserByResetToken(token) {
+        return await prisma.user.findFirst({
+            where: {
+                resetPasswordToken: token,
+                resetPasswordExpires: { gte: new Date() }
+            }
+        });
+    }
+
     async findUserByIdWithSelectedFields(id, selectFields) {
         return await prisma.user.findUnique({ where: { id }, select: selectFields });
     }

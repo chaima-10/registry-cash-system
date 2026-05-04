@@ -13,11 +13,11 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }) => (
         whileHover={{ y: -5, scale: 1.02 }}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-7 rounded-[2rem] shadow-xl shadow-slate-200/40 dark:shadow-none transition-all group"
+        className="relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-4 md:p-7 rounded-xl md:rounded-[2rem] shadow-xl shadow-slate-200/40 dark:shadow-none transition-all group"
     >
         <div className={`absolute top-0 right-0 w-32 h-32 opacity-10 blur-3xl -mr-16 -mt-16 rounded-full ${color.replace('bg-', 'bg-')}`}></div>
-        <div className="flex items-start justify-between mb-6 relative z-10">
-            <div className={`p-4 rounded-2xl ${color} bg-opacity-10 text-xl ${color.replace('bg-', 'text-')}`}>
+        <div className="flex items-start justify-between mb-4 lg:mb-6 relative z-10">
+            <div className={`p-3 lg:p-4 rounded-xl lg:rounded-2xl ${color} bg-opacity-10 text-lg lg:text-xl ${color.replace('bg-', 'text-')}`}>
                 <Icon />
             </div>
             {trend && (
@@ -29,8 +29,8 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }) => (
         </div>
         <div className="relative z-10">
             <h3 className="text-slate-400 dark:text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">{title}</h3>
-            <p className="text-3xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{value}</p>
-            {subtitle && <p className="text-[10px] font-bold text-slate-400 mt-3 flex items-center gap-2">
+            <p className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{value}</p>
+            {subtitle && <p className="text-[10px] font-bold text-slate-400 mt-2 lg:mt-3 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-200"></span> {subtitle}
             </p>}
         </div>
@@ -251,22 +251,22 @@ const Dashboard = () => {
             </div>
 
             {/* Premium Banner */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden text-white border border-white/5 group">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-950 p-5 md:p-10 rounded-xl md:rounded-[2.5rem] shadow-2xl relative overflow-hidden text-white border border-white/5 group">
                 <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/10 blur-[100px] rounded-full group-hover:bg-blue-500/20 transition-all duration-1000"></div>
-                <div className="relative z-10 flex flex-col md:flex-row justify-between gap-8">
+                <div className="relative z-10 flex flex-col lg:flex-row justify-between gap-6 lg:gap-8">
                     <div className="max-w-2xl">
-                        <span className="px-4 py-1.5 bg-blue-500/20 backdrop-blur-xl rounded-full text-[11px] font-black tracking-[0.2em] uppercase border border-white/10 text-blue-300">{t('financialMonitor', 'MONITEUR FINANCIER')}</span>
-                        <h3 className="text-4xl font-black mt-6 mb-4 leading-[1.1] tracking-tight">{t('performanceOf', { period: period === 'day' ? t('ofDay', 'du Jour') : period === 'week' ? t('ofWeek', 'de la Semaine') : t('ofMonth', 'du Mois') })}</h3>
-                        <p className="text-slate-300 text-lg opacity-90 leading-relaxed">{t('financialMonitorDesc', { rev: formatCurrency(summary.rev), count: summary.count })}</p>
+                        <span className="px-3 py-1 bg-blue-500/20 backdrop-blur-xl rounded-full text-[9px] lg:text-[11px] font-black tracking-[0.2em] uppercase border border-white/10 text-blue-300">{t('financialMonitor', 'MONITEUR FINANCIER')}</span>
+                        <h3 className="text-2xl lg:text-4xl font-black mt-4 lg:mt-6 mb-2 lg:mb-4 leading-tight tracking-tight">{t('performanceOf', { period: period === 'day' ? t('ofDay', 'du Jour') : period === 'week' ? t('ofWeek', 'de la Semaine') : t('ofMonth', 'du Mois') })}</h3>
+                        <p className="text-slate-300 text-sm lg:text-lg opacity-90 leading-relaxed">{t('financialMonitorDesc', { rev: formatCurrency(summary.rev), count: summary.count })}</p>
                     </div>
-                    <div className="flex gap-4 shrink-0">
-                        <div className="bg-white/5 backdrop-blur-2xl p-6 rounded-3xl border border-white/10 w-32 md:w-40 flex flex-col justify-center">
-                            <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{t('sales', 'Ventes')}</div>
-                            <div className="text-3xl font-black text-white">{summary.count}</div>
+                    <div className="flex gap-3 lg:gap-4 shrink-0">
+                        <div className="bg-white/5 backdrop-blur-2xl p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-white/10 flex-1 xl:w-40 flex flex-col justify-center">
+                            <div className="text-slate-400 text-[9px] lg:text-[10px] font-black uppercase tracking-widest mb-1">{t('sales', 'Ventes')}</div>
+                            <div className="text-2xl lg:text-3xl font-black text-white">{summary.count}</div>
                         </div>
-                        <div className="bg-white/5 backdrop-blur-2xl p-6 rounded-3xl border border-white/10 w-32 md:w-40 flex flex-col justify-center">
-                            <div className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">{t('tabAlerts', 'Alertes')}</div>
-                            <div className="text-3xl font-black text-orange-400">{alerts.length}</div>
+                        <div className="bg-white/5 backdrop-blur-2xl p-4 lg:p-6 rounded-2xl lg:rounded-3xl border border-white/10 flex-1 xl:w-40 flex flex-col justify-center">
+                            <div className="text-slate-400 text-[9px] lg:text-[10px] font-black uppercase tracking-widest mb-1">{t('tabAlerts', 'Alertes')}</div>
+                            <div className="text-2xl lg:text-3xl font-black text-orange-400">{alerts.length}</div>
                         </div>
                     </div>
                 </div>
@@ -281,24 +281,24 @@ const Dashboard = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Recent Transactions (Old) */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/40 dark:shadow-none flex flex-col h-[500px]">
-                    <div className="flex justify-between items-center mb-8 shrink-0">
-                        <h3 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-3 tracking-tighter uppercase">
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl md:rounded-[2.5rem] p-4 md:p-8 shadow-xl shadow-slate-200/40 dark:shadow-none flex flex-col h-[400px] md:h-[500px]">
+                    <div className="flex justify-between items-center mb-6 lg:mb-8 shrink-0">
+                        <h3 className="text-lg lg:text-xl font-black text-slate-800 dark:text-white flex items-center gap-3 tracking-tighter uppercase">
                             <FiClock className="text-blue-600" /> {t('recentTransactions', 'Dernières Transactions')}
                         </h3>
-                        <div className="text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full uppercase tracking-widest">
+                        <div className="text-[9px] lg:text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full uppercase tracking-widest">
                             {sales.length} {t('total')}
                         </div>
                     </div>
-                    <div className="space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
+                    <div className="space-y-3 lg:space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
                         <AnimatePresence mode="popLayout">
                             {sales.map((tx, i) => (
-                                <motion.div layout key={tx.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center justify-between p-5 bg-slate-50/50 dark:bg-slate-800/40 rounded-3xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-lg shadow-sm group-hover:scale-105 transition-transform">{tx.user?.username?.charAt(0).toUpperCase() || 'U'}</div>
-                                        <div><p className="text-slate-800 dark:text-white font-black uppercase text-xs tracking-tight">{t('ticketNumber', { id: tx.id })}</p><p className="text-[10px] text-slate-400 font-bold mt-0.5">{tx.user?.username || t('admin', 'Admin')} • {timeAgo(tx.createdAt)}</p></div>
+                                <motion.div layout key={tx.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center justify-between p-4 lg:p-5 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl lg:rounded-3xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
+                                    <div className="flex items-center gap-3 lg:gap-4">
+                                        <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-base lg:text-lg shadow-sm group-hover:scale-105 transition-transform">{tx.user?.username?.charAt(0).toUpperCase() || 'U'}</div>
+                                        <div><p className="text-slate-800 dark:text-white font-black uppercase text-[10px] lg:text-xs tracking-tight">{t('ticketNumber', { id: tx.id })}</p><p className="text-[9px] lg:text-[10px] text-slate-400 font-bold mt-0.5">{tx.user?.username || t('admin', 'Admin')} • {timeAgo(tx.createdAt)}</p></div>
                                     </div>
-                                    <div className="text-right"><div className="text-lg font-black text-slate-800 dark:text-white">{formatCurrency(tx.totalAmount)}</div><div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest leading-none mt-1">{t('paid', 'Payé')}</div></div>
+                                    <div className="text-right"><div className="text-base lg:text-lg font-black text-slate-800 dark:text-white">{formatCurrency(tx.totalAmount)}</div><div className="text-[8px] lg:text-[9px] font-black text-emerald-500 uppercase tracking-widest leading-none mt-1">{t('paid', 'Payé')}</div></div>
                                 </motion.div>
                             ))}
                         </AnimatePresence>
@@ -306,36 +306,36 @@ const Dashboard = () => {
                 </div>
 
                 {/* Top Selling (New) */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-xl">
-                    <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-xl font-black flex items-center gap-3 tracking-tighter uppercase">
+                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl md:rounded-[2.5rem] p-4 md:p-8 shadow-xl">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 lg:mb-8">
+                        <h3 className="text-lg lg:text-xl font-black flex items-center gap-3 tracking-tighter uppercase">
                             <FiTrendingUp className="text-blue-600" /> {t('topSelling', 'Top de Vente')}
                         </h3>
-                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl lg:rounded-2xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto">
                             <button 
                                 onClick={() => setTopProductsSortBy('revenue')} 
-                                className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'revenue' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-400'}`}
+                                className={`flex-1 sm:px-4 py-1.5 rounded-lg lg:rounded-xl text-[9px] lg:text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'revenue' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-400'}`}
                             >
                                 {t('revenueLabel')}
                             </button>
                             <button 
                                 onClick={() => setTopProductsSortBy('quantity')} 
-                                className={`px-4 py-1.5 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'quantity' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-400'}`}
+                                className={`flex-1 sm:px-4 py-1.5 rounded-lg lg:rounded-xl text-[9px] lg:text-[10px] font-black transition-all uppercase tracking-widest ${topProductsSortBy === 'quantity' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-400'}`}
                             >
                                 {t('quantityLabel')}
                             </button>
                         </div>
                     </div>
-                    <div className="space-y-4">
+                    <div className="space-y-3 lg:space-y-4">
                         {topProducts.map((p, i) => (
-                            <div key={i} className="flex justify-between items-center p-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform">
-                                        {p.imageUrl ? <img src={getImageUrl(p.imageUrl)} className="w-full h-full object-contain" /> : <span className="text-xs font-black text-slate-400">{p.name.substring(0,2).toUpperCase()}</span>}
+                            <div key={i} className="flex justify-between items-center p-3 lg:p-4 bg-slate-50/50 dark:bg-slate-800/40 rounded-xl lg:rounded-2xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
+                                <div className="flex items-center gap-3 lg:gap-4">
+                                    <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-lg lg:rounded-xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-110 transition-transform">
+                                        {p.imageUrl ? <img src={getImageUrl(p.imageUrl)} className="w-full h-full object-contain" /> : <span className="text-[10px] font-black text-slate-400">{p.name.substring(0,2).toUpperCase()}</span>}
                                     </div>
-                                    <div><div className="font-black text-slate-800 dark:text-white truncate max-w-[150px]">{p.name}</div><div className="text-xs text-slate-400 font-bold">{t('unitsSold', { count: p.qty })}</div></div>
+                                    <div className="min-w-0"><div className="font-black text-slate-800 dark:text-white truncate max-w-[100px] sm:max-w-[150px] text-sm lg:text-base">{p.name}</div><div className="text-[10px] lg:text-xs text-slate-400 font-bold">{t('unitsSold', { count: p.qty })}</div></div>
                                 </div>
-                                <div className="text-lg font-black text-blue-600 dark:text-blue-400">{formatCurrency(p.revenue)}</div>
+                                <div className="text-base lg:text-lg font-black text-blue-600 dark:text-blue-400">{formatCurrency(p.revenue)}</div>
                             </div>
                         ))}
                     </div>

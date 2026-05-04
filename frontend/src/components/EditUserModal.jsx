@@ -33,15 +33,15 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl w-full max-w-md p-8 shadow-2xl transform transition-all animate-in zoom-in-95 duration-300">
-                <div className="flex justify-between items-center mb-8">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-gray-900 border-t sm:border border-gray-200 dark:border-gray-800 rounded-t-[2.5rem] sm:rounded-3xl w-full max-w-md p-8 lg:p-10 shadow-2xl transform transition-all animate-in slide-in-from-bottom-10 sm:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-8 lg:mb-10">
                     <div className="flex flex-col">
-                        <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{t('editUser')}</h3>
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1 opacity-70">{t('personalInformation')}</p>
+                        <h3 className="text-xl lg:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{t('editUser')}</h3>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1 opacity-70">{t('personalInformation')}</p>
                     </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-all p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95">
-                        <FiX size={20} />
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-all p-3 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 active:scale-95">
+                        <FiX size={24} />
                     </button>
                 </div>
 

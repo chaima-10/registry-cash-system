@@ -74,94 +74,93 @@ const Users = () => {
     };
 
     return (
-        <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white px-2">{t('userManagement')}</h2>
+        <div className="space-y-6 px-2 sm:px-4">
+            <h2 className="text-xl lg:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{t('userManagement')}</h2>
 
             <div className="grid grid-cols-12 gap-8 items-start">
                 
-                <div className="col-span-12 lg:col-span-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm dark:shadow-xl h-fit transition-colors sticky top-6">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400"><FiUserCheck size={24} /></div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{t('registerNewUser')}</h3>
+                <div className="col-span-12 lg:col-span-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl lg:rounded-[2.5rem] p-6 lg:p-8 shadow-sm transition-colors lg:sticky lg:top-6 h-fit order-2 lg:order-1">
+                    <div className="flex items-center gap-3 mb-6 lg:mb-8">
+                        <div className="p-3 bg-blue-500/10 rounded-xl text-blue-600 dark:text-blue-400"><FiUserCheck size={24} /></div>
+                        <h3 className="text-lg lg:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{t('registerNewUser')}</h3>
                     </div>
 
                     {message && (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className={`mb-4 p-3 rounded-lg text-sm font-medium ${message.type === 'success' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-500/20' : 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-500/20'}`}
+                            className={`mb-6 p-4 rounded-xl text-xs font-bold uppercase tracking-widest ${message.type === 'success' ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-500/20' : 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-500/20'}`}
                         >
                             {message.text}
                         </motion.div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-1">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('fullName')}</label>
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 ml-1">{t('fullName')}</label>
                             <div className="relative">
-                                <FiUser className="absolute left-3 top-3 text-gray-400" />
-                                <input required type="text" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
+                                <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input required type="text" className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-bold text-sm"
                                     value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('username')}</label>
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 ml-1">{t('username')}</label>
                             <div className="relative">
-                                <FiUser className="absolute left-3 top-3 text-gray-400" />
-                                <input required type="text" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
+                                <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input required type="text" className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-bold text-sm"
                                     value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} />
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('password')}</label>
-                            <input required type="password" className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 ml-1">{t('password')}</label>
+                            <input required type="password" className="w-full px-4 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-bold text-sm"
                                 value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} />
                         </div>
 
-                        <div className="space-y-1">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('dailySalary', 'Daily Salary')}</label>
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 ml-1">{t('dailySalary', 'Daily Salary')}</label>
                             <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-blue-500 font-bold text-xs">TND</span>
-                                <input required type="number" step="0.001" className="w-full pl-10 pr-4 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-medium"
-                                
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 font-black text-[10px]">TND</span>
+                                <input required type="number" step="0.001" className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-black text-sm"
                                     value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} />
                             </div>
                         </div>
 
-                        {/* Working Days removed - now automatic */}
-
-                        <div className="space-y-1">
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-400 mb-2">{t('role')}</label>
-                            <div className="flex gap-6">
-                                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer font-medium group">
-                                    <input type="radio" name="role" value="cashier" checked={formData.role === 'cashier'} onChange={e => setFormData({ ...formData, role: 'cashier' })} className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300" />
-                                    {t('cashier')}
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 ml-1 mb-2">{t('role')}</label>
+                            <div className="flex gap-4">
+                                <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer font-bold text-xs group transition-all has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/50 dark:has-[:checked]:bg-blue-500/10">
+                                    <input type="radio" name="role" value="cashier" checked={formData.role === 'cashier'} onChange={e => setFormData({ ...formData, role: 'cashier' })} className="hidden" />
+                                    <FiUser size={14} className="text-gray-400 group-has-[:checked]:text-blue-500" />
+                                    <span className="text-gray-500 group-has-[:checked]:text-blue-600 dark:group-has-[:checked]:text-blue-400">{t('cashier')}</span>
                                 </label>
-                                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer font-medium group">
-                                    <input type="radio" name="role" value="admin" checked={formData.role === 'admin'} onChange={e => setFormData({ ...formData, role: 'admin' })} className="w-4 h-4 text-purple-600 focus:ring-purple-500 border-gray-300" />
-                                    <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400"><FiShield size={14} /> {t('admin')}</span>
+                                <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer font-bold text-xs group transition-all has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50/50 dark:has-[:checked]:bg-purple-500/10">
+                                    <input type="radio" name="role" value="admin" checked={formData.role === 'admin'} onChange={e => setFormData({ ...formData, role: 'admin' })} className="hidden" />
+                                    <FiShield size={14} className="text-gray-400 group-has-[:checked]:text-purple-500" />
+                                    <span className="text-gray-500 group-has-[:checked]:text-purple-600 dark:group-has-[:checked]:text-purple-400">{t('admin')}</span>
                                 </label>
                             </div>
                         </div>
 
-                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/30 active:scale-95 mt-4">
+                        <button type="submit" className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-2xl transition-all shadow-xl shadow-blue-500/20 active:scale-[0.98] mt-6 uppercase tracking-widest text-xs">
                             {t('createAccount')}
                         </button>
                     </form>
                 </div>
 
                 
-                <div className="col-span-12 lg:col-span-8 space-y-6">
+                <div className="col-span-12 lg:col-span-8 space-y-8 order-1 lg:order-2">
                     <UserTable 
-                        title={`${t('userManagement')} - ${t('cashiers', 'Cashiers')}`}
+                        title={`${t('cashiers', 'Cashiers')}`}
                         users={users.filter(u => u.role === 'cashier')} 
                         onEdit={handleEdit} 
                         onDelete={handleDelete} 
                     />
                     <UserTable 
-                        title={`${t('userManagement')} - ${t('admins', 'Administrators')}`}
+                        title={`${t('admins', 'Administrators')}`}
                         users={users.filter(u => u.role === 'admin')} 
                         onEdit={handleEdit} 
                         onDelete={handleDelete} 

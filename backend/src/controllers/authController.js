@@ -33,6 +33,37 @@ exports.logout = async (req, res) => {
     res.json({ message: 'Logged out successfully' });
 };
 
+// Verify email
+exports.verifyEmail = async (req, res) => {
+    try {
+        const result = await authService.verifyEmail(req.query.token);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+// Forgot password
+exports.forgotPassword = async (req, res) => {
+    try {
+        const result = await authService.forgotPassword(req.body.email);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+// Reset password
+exports.resetPassword = async (req, res) => {
+    try {
+        const { email, code, newPassword } = req.body;
+        const result = await authService.resetPassword(email, code, newPassword);
+        res.json(result);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
 // Get current user profile (using userService for richness/stats)
 exports.getProfile = async (req, res) => {
     try {

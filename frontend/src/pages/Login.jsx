@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiUser, FiLock, FiLogIn } from 'react-icons/fi';
 
@@ -40,7 +40,7 @@ const Login = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="relative z-10 w-full max-w-md p-8 bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl shadow-2xl"
+                className="relative z-10 w-full max-w-md mx-4 p-6 sm:p-10 bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl shadow-2xl"
             >
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">{t('welcomeBack')}</h1>
@@ -89,6 +89,14 @@ const Login = () => {
                                 placeholder="••••••••"
                                 required
                             />
+                        </div>
+                        <div className="flex justify-end">
+                            <Link 
+                                to="/forgot-password" 
+                                className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                            >
+                                Mot de passe oublié ?
+                            </Link>
                         </div>
                     </div>
 

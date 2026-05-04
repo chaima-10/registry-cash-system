@@ -224,8 +224,16 @@ class UserService {
         };
         
         if (email && email !== user.email) {
+            const verificationToken = require('crypto').randomBytes(32).toString('hex');
             updateData.email = email;
-            updateData.isEmailVerified = true;
+            updateData.isEmailVerified = false;
+            updateData.emailVerificationToken = verificationToken;
+
+            // Send verification email to the new address
+            const emailService = require('./emailService');
+            emailService.sendVerificationEmail(email, verificationToken).catch(err => {
+                console.error("Failed to send verification email on update:", err);
+            });
         }
 
         if (data.removeProfilePicture === 'true') {
