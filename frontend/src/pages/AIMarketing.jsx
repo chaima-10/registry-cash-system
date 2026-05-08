@@ -203,13 +203,31 @@ const AIMarketing = () => {
         if (!posterRef.current) return;
         setIsDownloading(true);
         try {
+            // Preload all images before capturing
+            const images = posterRef.current.querySelectorAll('img');
+            const imagePromises = Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Continue even if image fails
+                    setTimeout(resolve, 3000); // Timeout after 3s
+                });
+            });
+            await Promise.all(imagePromises);
+
             const canvas = await html2canvas(posterRef.current, {
                 useCORS: true,
-                allowTaint: false,
+                allowTaint: true,
                 scale: 2,
-                logging: false,
-                backgroundColor: null,
-                imageTimeout: 15000,
+                logging: true,
+                backgroundColor: '#ffffff',
+                imageTimeout: 30000,
+                onclone: (clonedDoc) => {
+                    const clonedImages = clonedDoc.querySelectorAll('img');
+                    clonedImages.forEach(img => {
+                        img.crossOrigin = 'anonymous';
+                    });
+                }
             });
             const imgData = canvas.toDataURL('image/png');
             const link = document.createElement('a');
@@ -218,7 +236,6 @@ const AIMarketing = () => {
             link.click();
         } catch (error) {
             console.error("Download failed:", error);
-            // FIX: Replace alert with inline error state
             setDownloadError(true);
             setTimeout(() => setDownloadError(false), 3000);
         } finally {
@@ -484,7 +501,7 @@ const AIMarketing = () => {
                                                            <img 
                                                                 crossOrigin="anonymous" 
                                                                 src={prod.imageUrl.startsWith('http') 
-                                                                    ? `${API_URL}/api/proxy/image?url=${encodeURIComponent(prod.imageUrl)}` 
+                                                                    ? `${API_URL}/api/proxy/image?url=${encodeURIComponent(prod.imageUrl)}&cb=${Date.now()}` 
                                                                     : `${API_URL}${prod.imageUrl}`} 
                                                                 className="w-full h-full object-cover" 
                                                                 alt={pName}

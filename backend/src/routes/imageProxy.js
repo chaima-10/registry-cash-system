@@ -18,7 +18,7 @@ function fetchWithRedirects(url, redirectsLeft, callback) {
 
     const client = urlObj.protocol === 'https:' ? https : http;
 
-    const req = client.get(url, { timeout: 15000 }, (res) => {
+    const req = client.get(url, { timeout: 30000 }, (res) => {
         // Follow redirects (301, 302, 303, 307, 308)
         if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
             res.resume(); // discard body
@@ -37,6 +37,15 @@ function fetchWithRedirects(url, redirectsLeft, callback) {
 
     req.on('error', callback);
 }
+
+// Handle OPTIONS preflight request for CORS
+router.options('/image', (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', '*');
+    res.set('Access-Control-Max-Age', '86400');
+    res.status(204).end();
+});
 
 // Proxy external images with CORS headers for html2canvas
 router.get('/image', (req, res) => {
@@ -67,12 +76,14 @@ router.get('/image', (req, res) => {
         return res.status(403).json({ message: 'Domain not allowed' });
     }
 
+    console.log(`[Image Proxy] Fetching: ${url}`);
     fetchWithRedirects(url, 5, (err, imgRes) => {
         if (err) {
-            console.error('Image proxy error:', err.message);
+            console.error('[Image Proxy] Error:', err.message);
             return res.status(502).json({ message: 'Failed to fetch image: ' + err.message });
         }
 
+        console.log(`[Image Proxy] Origin status: ${imgRes.statusCode}`);
         if (imgRes.statusCode !== 200) {
             imgRes.resume();
             return res.status(imgRes.statusCode || 502).json({
@@ -80,13 +91,15 @@ router.get('/image', (req, res) => {
             });
         }
 
-        // CORS headers so html2canvas can draw the image on canvas
+        // CORS headers required for html2canvas with useCORS: true
         res.set('Access-Control-Allow-Origin', '*');
-        res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.set('Access-Control-Allow-Methods', 'GET');
+        res.set('Access-Control-Allow-Headers', '*');
         res.set('Cross-Origin-Resource-Policy', 'cross-origin');
         res.set('Content-Type', imgRes.headers['content-type'] || 'image/jpeg');
         res.set('Cache-Control', 'public, max-age=3600');
 
+        console.log(`[Image Proxy] Streaming image with CORS headers`);
         imgRes.pipe(res);
     });
 });

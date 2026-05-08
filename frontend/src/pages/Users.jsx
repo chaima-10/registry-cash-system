@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component } from 'react';
 import { FiPlus, FiUser, FiUserCheck, FiShield } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { register } from '../api/auth';
@@ -6,6 +6,38 @@ import { getUsers, updateUser, deleteUser } from '../api/users';
 import UserTable from '../components/UserTable';
 import EditUserModal from '../components/EditUserModal';
 import { useTranslation } from 'react-i18next';
+
+// Lazy load AttendanceTracker to isolate errors
+import React, { Suspense } from 'react';
+const AttendanceTracker = React.lazy(() => import('../components/AttendanceTracker'));
+
+// Error Boundary to catch runtime crashes in AttendanceTracker
+class AttendanceBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error, info) {
+        console.error('AttendanceTracker crashed:', error, info);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="mt-12 pt-12 border-t border-gray-200 dark:border-gray-800 p-8 text-center">
+                    <p className="text-red-500 font-bold text-sm">⚠️ Attendance section encountered an error</p>
+                    <p className="text-gray-400 text-xs mt-2">{this.state.error?.message}</p>
+                    <button onClick={() => this.setState({ hasError: false, error: null })} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold">
+                        Retry
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 const Users = () => {
     const { t } = useTranslation();
@@ -167,6 +199,13 @@ const Users = () => {
                     />
                 </div>
             </div>
+
+            <AttendanceBoundary>
+                <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="animate-spin text-4xl text-blue-500">⟳</div></div>}>
+                    <AttendanceTracker />
+                </Suspense>
+            </AttendanceBoundary>
+
 
             <EditUserModal
                 user={editingUser}

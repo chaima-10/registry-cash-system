@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const compression = require('compression');
 
 // Load env vars before anything else
 dotenv.config();
@@ -14,6 +15,7 @@ const productRoutes = require('./routes/productRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const saleRoutes = require('./routes/saleRoutes');
 const giveawayRoutes = require('./routes/giveawayRoutes');
+const attendanceService = require('./services/attendanceService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -21,6 +23,7 @@ const PORT = process.env.PORT || 5000;
 const path = require('path');
 
 // Middleware
+app.use(compression());
 app.use(cors({
     origin: function (origin, callback) {
         // Allow local development and any Vercel deployment
@@ -57,6 +60,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/sales', saleRoutes);
 app.use('/api/giveaways', giveawayRoutes);
+app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/ai', require('./routes/aiRoutes'));
 app.use('/api/proxy', require('./routes/imageProxy'));
 

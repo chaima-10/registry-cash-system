@@ -1,4 +1,5 @@
 const userRepository = require('../repositories/userRepository');
+const attendanceRepository = require('../repositories/attendanceRepository');
 const uploadService = require('../services/uploadService');
 const bcrypt = require('bcryptjs');
 
@@ -25,33 +26,31 @@ class UserService {
         const todayRevenueMap = {};
         todaySales.forEach(s => todayRevenueMap[s.userId] = Number(s._sum.totalAmount || 0));
 
-        // 2. Sales Activity (Worked Days for Cashiers)
-        const sales = await userRepository.getSalesSince(startOfMonth);
-        const salesActivityMap = {};
-        sales.forEach(sale => {
-            const dateStr = sale.createdAt.toISOString().split('T')[0];
-            if (!salesActivityMap[sale.userId]) salesActivityMap[sale.userId] = new Set();
-            salesActivityMap[sale.userId].add(dateStr);
-        });
+        // 2. Attendance Data
+        const attendanceRecords = await attendanceRepository.getAllAttendance(startOfMonth, now);
+        const workedDaysMap = {};
+        const totalHoursMap = {};
+        
+        // Create a user map for quick lookups
+        const userMap = {};
+        users.forEach(u => userMap[u.id] = u);
 
-        // 3. Login History (Worked Days for Admins)
-        const loginLogs = await userRepository.getLoginsSince(startOfMonth);
-        const loginActivityMap = {};
-        loginLogs.forEach(log => {
-            const dateStr = log.loginAt.toISOString().split('T')[0];
-            if (!loginActivityMap[log.userId]) loginActivityMap[log.userId] = new Set();
-            loginActivityMap[log.userId].add(dateStr);
+        attendanceRecords.forEach(record => {
+            if (record.status === 'PRESENT') {
+                const dateStr = record.date.toISOString().split('T')[0];
+                if (!workedDaysMap[record.userId]) workedDaysMap[record.userId] = new Set();
+                workedDaysMap[record.userId].add(dateStr);
+                
+                if (!totalHoursMap[record.userId]) totalHoursMap[record.userId] = 0;
+                totalHoursMap[record.userId] += Number(record.totalHours || 0);
+            }
         });
 
         return users.map(user => {
             const isCreatedThisMonth = user.createdAt >= startOfMonth;
             
-            let workedDays = 0;
-            if (user.role === 'admin') {
-                workedDays = (loginActivityMap[user.id] && loginActivityMap[user.id].size) || 0;
-            } else {
-                workedDays = (salesActivityMap[user.id] && salesActivityMap[user.id].size) || 0;
-            }
+            let workedDays = (workedDaysMap[user.id] && workedDaysMap[user.id].size) || 0;
+            let totalMonthHours = totalHoursMap[user.id] || 0;
 
             let effectiveDaysToCount = daysInMonthSoFar;
             if (isCreatedThisMonth) {
@@ -72,6 +71,7 @@ class UserService {
                 absences,
                 salary: user.salary,
                 monthlySalary: (Number(user.salary || 0) * workedDays).toFixed(2),
+                totalMonthHours: totalMonthHours.toFixed(2),
                 createdAt: user.createdAt
             };
         });
@@ -113,18 +113,10 @@ class UserService {
 
         const totalSalesMonth = monthlySales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
 
-        const saleDays = new Set(monthlySales.map(s => s.createdAt.toISOString().split('T')[0]));
-        
-        let workedDaysCount = 0;
-        if (user.role === 'admin') {
-            const loginLogs = await userRepository.getMonthlyLoginHistory(userId, startOfMonth);
-            const loginDays = new Set(loginLogs.map(l => l.loginAt.toISOString().split('T')[0]));
-            
-            const unionDays = new Set([...saleDays, ...loginDays]);
-            workedDaysCount = unionDays.size;
-        } else {
-            workedDaysCount = saleDays.size;
-        }
+        // Real Attendance Records
+        const attendanceRecords = await attendanceRepository.getAttendanceHistory(userId, startOfMonth, now);
+        const workedDaysCount = attendanceRecords.filter(r => r.status === 'PRESENT').length;
+        const totalMonthHours = attendanceRecords.reduce((sum, r) => sum + Number(r.totalHours || 0), 0);
 
         const isCreatedThisMonth = user.createdAt >= startOfMonth;
         let effectiveDaysToCount = daysInMonthSoFar;
@@ -151,6 +143,7 @@ class UserService {
                 monthlySalary: (Number(user.salary || 0) * workedDaysCount).toFixed(2),
                 workedDays: workedDaysCount,
                 absences,
+                totalMonthHours: totalMonthHours.toFixed(2),
                 dailyRevenue: todayRevenue.toFixed(2),
                 totalSalesMonth: totalSalesMonth.toFixed(2),
                 lastPrime: allPrimes[0] || null,
