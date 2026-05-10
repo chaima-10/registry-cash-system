@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiSend, FiCamera, FiPlay, FiSquare, FiCheckCircle } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiXCircle, FiSend, FiCamera, FiPlay, FiSquare, FiCheckCircle } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { updateProfile, changePassword, getProfile } from '../api/auth';
-import { distributePrimes } from '../api/users';
 import { calculateNetSalary } from '../utils/salaryCalculator';
 import api from '../api/axios';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
 const ProfilePage = () => {
     const { user, updateUser } = useAuth();
@@ -18,8 +18,6 @@ const ProfilePage = () => {
 
     const [editFormData, setEditFormData] = useState({ fullName: '', email: '', phone: '', age: '' });
     const [passwordFormData, setPasswordFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    const [primeData, setPrimeData] = useState({ amount: '', reason: '' });
-    const [isDistributing, setIsDistributing] = useState(false);
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [removeProfilePicture, setRemoveProfilePicture] = useState(false);
@@ -100,30 +98,6 @@ const ProfilePage = () => {
             alert(t('passwordChangedSuccess'));
         } catch (error) {
             alert(error.response?.data?.message || t('failedToChangePassword'));
-        }
-    };
-
-    const handleDistributePrime = async () => {
-        if (!primeData.amount || isNaN(primeData.amount) || parseFloat(primeData.amount) <= 0) {
-            return alert(t('pleaseEnterValidAmount', 'Veuillez saisir un montant valide.'));
-        }
-        setIsDistributing(true);
-        try {
-            const res = await distributePrimes({ 
-                amount: parseFloat(primeData.amount), 
-                reason: primeData.reason 
-            });
-            
-            alert(res.message);
-            const updatedProfile = await getProfile();
-            updateUser(updatedProfile);
-            setPrimeData({ amount: '', reason: '' });
-        } catch (error) {
-            const errorMsg = error.response?.data?.message || t('failedToDistributePrime', 'Échec de la distribution.');
-            alert(`Erreur: ${errorMsg}`);
-            console.error("Distribution Error:", error);
-        } finally {
-            setIsDistributing(false);
         }
     };
 
@@ -505,58 +479,13 @@ const ProfilePage = () => {
                             </div>
                         </div>
 
-                        {/* Primes Received Section */}
-                        <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6 flex items-center gap-2">
-                                <FiActivity size={14} /> {t('primesReceived')}
-                            </h4>
+                        {/* Primes Received Section (Cashiers Only) */}
+                        {user?.role === 'cashier' && (
+                            <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
+                                <h4 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6 flex items-center gap-2">
+                                    <FiActivity size={14} /> {t('primesReceived')}
+                                </h4>
 
-                            {user?.role === 'admin' ? (
-                                <div className="space-y-6">
-                                    <div className="flex flex-col sm:flex-row gap-4">
-                                        <div className="flex-1 space-y-1.5">
-                                            <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Montant Prime (TND)</label>
-                                            <input
-                                                type="number"
-                                                placeholder="0.00"
-                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500 font-bold"
-                                                value={primeData.amount}
-                                                onChange={e => setPrimeData({ ...primeData, amount: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="flex-1 space-y-1.5">
-                                            <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Raison / Occasion</label>
-                                            <input
-                                                type="text"
-                                                placeholder="ex: Eid Al-Fitr 2026"
-                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500 font-medium"
-                                                value={primeData.reason}
-                                                onChange={e => setPrimeData({ ...primeData, reason: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex flex-col gap-4">
-                                        <button
-                                            onClick={handleDistributePrime}
-                                            disabled={isDistributing}
-                                            className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black rounded-2xl shadow-lg shadow-orange-500/25 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-                                        >
-                                            {isDistributing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '🚀 Distribute to All'}
-                                        </button>
-                                        
-                                        <div className="p-4 bg-orange-50/50 dark:bg-orange-500/5 rounded-2xl border border-orange-100 dark:border-orange-500/10">
-                                            <p className="text-xs text-orange-600 dark:text-orange-400 font-bold flex items-center gap-2">
-                                                <FiActivity size={14} /> 
-                                                {user?.stats?.lastSystemDistribution 
-                                                    ? `Last distributed: ${formatCurrency(user?.stats?.lastSystemDistribution?.amount, null, false)} — ${user?.stats?.lastSystemDistribution?.reason} (${formatDate(user?.stats?.lastSystemDistribution?.distributedAt)})`
-                                                    : 'No prime distributed yet'
-                                                }
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Dernière Prime</label>
@@ -576,8 +505,77 @@ const ProfilePage = () => {
                                         </p>
                                     </div>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
+                        {/* Charts Section */}
+                        {user?.role === 'cashier' && user?.stats?.dailySalesTrend && (
+                            <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Daily Revenue Trend */}
+                                    <div>
+                                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">{t('dailyRevenueTrend', 'Tendance Revenu Quotidien')}</h4>
+                                        <div className="h-48 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={user.stats.dailySalesTrend}>
+                                                    <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                                                        {user.stats.dailySalesTrend.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.revenue > 100 ? '#6366f1' : '#a5b4fc'} />
+                                                        ))}
+                                                    </Bar>
+                                                    <Tooltip cursor={{fill: 'transparent'}} content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            return (
+                                                                <div className="bg-white dark:bg-gray-800 p-2 border border-gray-100 dark:border-gray-700 rounded-lg shadow-xl text-[10px] font-bold">
+                                                                    {formatCurrency(payload[0].value)}
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    {/* Attendance Session History */}
+                                    {user?.stats?.sessionHistory && (
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">{t('attendanceStatus', 'Statut Présence')}</h4>
+                                            <div className="space-y-2">
+                                                {user.stats.sessionHistory.map((day, i) => (
+                                                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                                                        <div className="flex items-center gap-3">
+                                                            <FiCalendar className="text-gray-400" size={14} />
+                                                            <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">
+                                                                {new Date(day.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' })}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-black text-gray-400">{day.hours.toFixed(1)}h</span>
+                                                            {day.status === 'PRESENT' ? (
+                                                                <span className="flex items-center gap-1 text-[10px] font-black text-green-500 uppercase">
+                                                                    <FiCheckCircle /> Present
+                                                                </span>
+                                                            ) : day.status === 'LATE' ? (
+                                                                <span className="flex items-center gap-1 text-[10px] font-black text-orange-500 uppercase">
+                                                                    <FiClock /> Late
+                                                                </span>
+                                                            ) : (
+                                                                <span className="flex items-center gap-1 text-[10px] font-black text-red-500 uppercase">
+                                                                    <FiXCircle /> Absent
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                     </div>
                 </div>
 
