@@ -179,4 +179,15 @@ router.delete('/:id', userController.deleteUser);
  */
 router.post('/distribute-prime', userController.distributePrime);
 
+/**
+ * @swagger
+ * /api/users/distribute-salary:
+ *   post:
+ *     summary: Distribute salary to all active users (Admin)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post('/distribute-salary', userController.distributeSalary);
+
 module.exports = router;

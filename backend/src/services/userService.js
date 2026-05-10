@@ -137,6 +137,41 @@ class UserService {
             lastSystemDistribution = await userRepository.getLastSystemDistribution();
         }
 
+        // --- Prepare Chart Data ---
+        // 1. Session History (Last 7 days attendance)
+        const sessionHistory = attendanceRecords
+            .sort((a, b) => b.date - a.date)
+            .slice(0, 7)
+            .map(r => ({
+                date: r.date.toISOString().split('T')[0],
+                hours: Number(r.totalHours || 0),
+                status: r.status
+            }));
+
+        // 2. Daily Sales Trend (Last 7 days revenue)
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const last7DaysSales = monthlySales.filter(s => s.createdAt >= weekAgo);
+        
+        const dailySalesMap = {};
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            dailySalesMap[d.toISOString().split('T')[0]] = 0;
+        }
+
+        last7DaysSales.forEach(s => {
+            const dateStr = s.createdAt.toISOString().split('T')[0];
+            if (dailySalesMap[dateStr] !== undefined) {
+                dailySalesMap[dateStr] += Number(s.totalAmount || 0);
+            }
+        });
+
+        const dailySalesTrend = Object.keys(dailySalesMap).map(dateStr => ({
+            name: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }),
+            revenue: dailySalesMap[dateStr]
+        }));
+
         return {
             ...user,
             stats: {
@@ -148,7 +183,9 @@ class UserService {
                 totalSalesMonth: totalSalesMonth.toFixed(2),
                 lastPrime: allPrimes[0] || null,
                 totalPrimesYear: totalPrimesYear.toFixed(2),
-                lastSystemDistribution: lastSystemDistribution
+                lastSystemDistribution: lastSystemDistribution,
+                sessionHistory,
+                dailySalesTrend
             }
         };
     }
@@ -183,6 +220,44 @@ class UserService {
         );
 
         return { message: `Prime de ${amount} TND distribuée avec succès à ${targetUsers.length} employés.` };
+    }
+
+    async distributeSalary(adminId, month) {
+        const requester = await userRepository.findUserById(adminId);
+        if (requester.role !== 'admin') {
+            throw new Error('Seul un administrateur peut distribuer les salaires.');
+        }
+
+        const targetUsers = await userRepository.getAllUsersWithSelectedFields({
+            id: true, username: true, salary: true
+        });
+
+        if (targetUsers.length === 0) {
+            return { message: "Aucun utilisateur trouvé dans la base de données." };
+        }
+
+        const monthStr = month || new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+        const payments = targetUsers
+            .filter(user => parseFloat(user.salary) > 0)
+            .map(user => ({
+                userId: user.id,
+                amount: user.salary.toString(),
+                month: monthStr
+            }));
+
+        if (payments.length === 0) {
+            return { message: "Aucun employé avec un salaire défini." };
+        }
+
+        await userRepository.createSalaryPayments(payments);
+
+        const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+        return { 
+            message: `Salaires distribués avec succès à ${payments.length} employés. Total: ${totalPaid.toFixed(2)} TND pour ${monthStr}.`,
+            totalPaid,
+            employeeCount: payments.length
+        };
     }
 
     async updateProfile(userId, data, file) {

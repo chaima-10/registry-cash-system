@@ -27,7 +27,7 @@ const Products = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [currentProductId, setCurrentProductId] = useState(null);
     const [formData, setFormData] = useState({
-        barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: ''
+        barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '', safetyStock: '0'
     });
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
@@ -123,12 +123,13 @@ const Products = () => {
                 categoryId: product.categoryId || '',
                 subcategoryId: product.subcategoryId || '',
                 remise: product.remise || '',
-                tva: product.tva || ''
+                tva: product.tva || '',
+                safetyStock: product.safetyStock || '0'
             });
         } else {
             setIsEditing(false);
             setCurrentProductId(null);
-            setFormData({ barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '' });
+            setFormData({ barcode: '', name: '', price: '', purchasePrice: '', stockQuantity: '', categoryId: '', subcategoryId: '', remise: '', tva: '', safetyStock: '0' });
         }
         setImageFile(null);
         setImagePreview(product?.imageUrl ? (product.imageUrl.startsWith('http') ? product.imageUrl : `${API_URL}${product.imageUrl}`) : null);
@@ -259,6 +260,7 @@ const Products = () => {
                                 <th className="p-4 font-black uppercase text-[10px] tracking-widest">{t('category')}</th>
                                 <th className="p-4 font-black uppercase text-[10px] tracking-widest">{t('subcategory') || 'Subcategory'}</th>
                                 <th className="p-4 font-black uppercase text-[10px] tracking-widest">{t('stock')}</th>
+                                <th className="p-4 font-black uppercase text-[10px] tracking-widest">{t('reorderLevel')}</th>
                                 <th className="p-4 font-black uppercase text-[10px] tracking-widest text-right">{t('purchasePrice', 'Purchase Price')}</th>
                                 <th className="p-4 font-black uppercase text-[10px] tracking-widest text-right">{t('totalPurchasePrice', 'Total Purchase')}</th>
                                 <th className="p-4 font-black uppercase text-[10px] tracking-widest text-center">{t('tvaPercent', 'Tax (%)')}</th>
@@ -304,8 +306,13 @@ const Products = () => {
                                             </span>
                                         </td>
                                         <td className="p-4">
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black ${product.stockQuantity < 10 ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400'}`}>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black ${product.stockQuantity <= Number(product.reorderLevel) ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400'}`}>
                                                 {product.stockQuantity}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className="px-2 py-1 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-bold border border-gray-100 dark:border-gray-700">
+                                                {Number(product.reorderLevel).toFixed(0)}
                                             </span>
                                         </td>
                                         <td className="p-4 text-right text-gray-600 dark:text-gray-400 font-bold">
@@ -368,8 +375,11 @@ const Products = () => {
                                         <span className="px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-[10px] font-black uppercase">
                                             {product.category?.name || '-'}
                                         </span>
-                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${product.stockQuantity < 10 ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400'}`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${product.stockQuantity <= Number(product.reorderLevel) ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-500/20 text-green-600 dark:text-green-400'}`}>
                                             Stock: {product.stockQuantity}
+                                        </span>
+                                        <span className="px-2 py-0.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-bold border border-gray-100 dark:border-gray-700">
+                                            {t('reorderLevel')}: {Number(product.reorderLevel).toFixed(0)}
                                         </span>
                                     </div>
                                 </div>
@@ -437,6 +447,11 @@ const Products = () => {
                                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('stock')}</label>
                                         <input required type="number" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
                                             value={formData.stockQuantity} onChange={e => setFormData({ ...formData, stockQuantity: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-400">{t('safetyStock')}</label>
+                                        <input type="number" className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:border-blue-500 dark:focus:border-blue-400 outline-none transition-all"
+                                            value={formData.safetyStock} onChange={e => setFormData({ ...formData, safetyStock: e.target.value })} />
                                     </div>
                                 </div>
 

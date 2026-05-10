@@ -70,6 +70,8 @@ model product {
   imageUrl      String?      @db.Text
   status        String       @default("Active")
   isDeleted     Boolean      @default(false)
+  reorderLevel  Decimal      @default(5.00) @db.Decimal(12, 4)
+  safetyStock   Int          @default(0)
   saleItems     saleitem[]
   cartItems     cartitem[]
 
@@ -159,6 +161,7 @@ model user {
   loginHistory           loginhistory[]
   primes                 prime[]
   attendance             attendance[]
+  salaryPayments         salarypayment[]
 
   @@map("User")
 }
@@ -184,6 +187,7 @@ model attendance {
 
 enum attendance_status {
   PRESENT
+  LATE
   ABSENT
 }
 
@@ -197,6 +201,18 @@ model prime {
 
   @@index([userId])
   @@map("Prime")
+}
+
+model salarypayment {
+  id         Int      @id @default(autoincrement())
+  amount     Decimal  @db.Decimal(12, 4)
+  month      String?
+  paidAt     DateTime @default(now())
+  userId     Int
+  user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("SalaryPayment")
 }
 
 model loginhistory {

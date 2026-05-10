@@ -78,7 +78,7 @@ class SaleRepository {
             });
 
             // Return sale with items
-            return await tx.sale.findUnique({
+            const finalSale = await tx.sale.findUnique({
                 where: { id: sale.id },
                 include: {
                     items: {
@@ -93,6 +93,17 @@ class SaleRepository {
                     }
                 }
             });
+
+            // Trigger reorder level updates after transaction
+            // We do this in the background to not block the response
+            const stockService = require('../services/stockService');
+            cart.items.forEach(item => {
+                stockService.updateProductReorderLevel(item.productId).catch(err => 
+                    console.error(`Background reorder level update failed for product ${item.productId}:`, err)
+                );
+            });
+
+            return finalSale;
         }, {
             maxWait: 5000,
             timeout: 15000

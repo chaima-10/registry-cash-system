@@ -248,7 +248,13 @@ const POS = () => {
                                             </span>
                                         )}
                                     </div>
-                                    <span className={`text-[9px] lg:text-[10px] px-1.5 py-0.5 rounded font-medium ${product.stockQuantity > 0 ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'}`}>
+                                    <span className={`text-[9px] lg:text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                        product.stockQuantity <= 0 
+                                            ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400' 
+                                            : product.stockQuantity <= Number(product.reorderLevel || 5)
+                                                ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400'
+                                                : 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
+                                    }`}>
                                         {product.stockQuantity > 0 ? `${product.stockQuantity}` : 'Out'}
                                     </span>
                                 </div>

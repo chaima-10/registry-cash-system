@@ -9,31 +9,31 @@ class AttendanceService {
     }
 
     initializeCronJobs() {
-        cron.schedule('1 0 * * *', async () => {
-            console.log('Running daily attendance check...');
-            await this.checkYesterdayAttendance();
+        // Schedule the job to run every day at 17:00 (5:00 PM) End of Shift
+        cron.schedule('0 17 * * *', async () => {
+            console.log('Running daily attendance check at 17:00...');
+            await this.checkTodayAttendance();
         });
     }
 
-    async checkYesterdayAttendance() {
+    async checkTodayAttendance() {
         try {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            yesterday.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0); // Start of today
 
             // Get all active users
             const users = await userRepository.getAllUsersSelectedFieldsOnly();
 
             for (const user of users) {
-                // Check if an attendance record already exists for yesterday
-                const record = await attendanceRepository.getAttendanceRecord(user.id, yesterday);
+                // Check if an attendance record already exists for today
+                const record = await attendanceRepository.getAttendanceRecord(user.id, today);
 
-                if (!record) {
-                    // No record found (didn't log in), mark as ABSENT
-                    await attendanceRepository.markAbsent(user.id, user.role, yesterday);
-                    console.log(`Marked User ${user.username} as ABSENT for ${yesterday.toDateString()}`);
+                // If no record exists by 17:00, or total hours are less than 8, mark as ABSENT
+                if (!record || (record.totalHours && record.totalHours < 8)) {
+                    await attendanceRepository.markAbsent(user.id, user.role, today);
+                    console.log(`Marked User ${user.username} as ABSENT for ${today.toDateString()} (Worked: ${record?.totalHours || 0}h)`);
                 } else {
-                    console.log(`User ${user.username} was already marked as ${record.status} for ${yesterday.toDateString()}`);
+                    console.log(`User ${user.username} was PRESENT for ${today.toDateString()} with ${record.totalHours}h`);
                 }
             }
             console.log('Daily attendance check completed.');
