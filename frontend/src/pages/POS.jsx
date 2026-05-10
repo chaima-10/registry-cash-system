@@ -147,7 +147,7 @@ const POS = () => {
     });
 
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white overflow-hidden transition-colors duration-300">
+        <div className="flex h-full bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white overflow-hidden transition-colors duration-300">
             
             <div className="w-2/3 p-6 flex flex-col border-r border-gray-200 dark:border-gray-800 transition-colors">
                 <div className="flex flex-col mb-6 space-y-4">

@@ -189,7 +189,7 @@ const Layout = () => {
                 </header>
 
                 {/* Page Content */}
-                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <div className={`flex-1 overflow-y-auto custom-scrollbar ${location.pathname === '/pos' ? 'p-0' : 'p-8'}`}>
                     <Outlet />
                 </div>
             </main>
