@@ -1,13 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
-import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiSend, FiCamera } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiXCircle, FiSend, FiCamera, FiPlay, FiSquare, FiCheckCircle } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { updateProfile, changePassword } from '../api/auth';
-import { distributePrimes } from '../api/users';
-import { getProfile } from '../api/auth';
+import { updateProfile, changePassword, getProfile } from '../api/auth';
 import { calculateNetSalary } from '../utils/salaryCalculator';
+import api from '../api/axios';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 
 const ProfilePage = () => {
     const { user, updateUser } = useAuth();
@@ -18,8 +18,6 @@ const ProfilePage = () => {
 
     const [editFormData, setEditFormData] = useState({ fullName: '', email: '', phone: '', age: '' });
     const [passwordFormData, setPasswordFormData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    const [primeData, setPrimeData] = useState({ amount: '', reason: '' });
-    const [isDistributing, setIsDistributing] = useState(false);
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [removeProfilePicture, setRemoveProfilePicture] = useState(false);
@@ -103,27 +101,56 @@ const ProfilePage = () => {
         }
     };
 
-    const handleDistributePrime = async () => {
-        if (!primeData.amount || isNaN(primeData.amount) || parseFloat(primeData.amount) <= 0) {
-            return alert(t('pleaseEnterValidAmount', 'Veuillez saisir un montant valide.'));
-        }
-        setIsDistributing(true);
+    const [todayAttendance, setTodayAttendance] = useState(null);
+    const [attendanceLoading, setAttendanceLoading] = useState(false);
+
+    const fetchTodayAttendance = async () => {
         try {
-            const res = await distributePrimes({ 
-                amount: parseFloat(primeData.amount), 
-                reason: primeData.reason 
-            });
-            
-            alert(res.message);
+            const response = await api.get('/attendance/my-history?days=1');
+            setTodayAttendance(response.data.today);
+        } catch (error) {
+            console.error("Error fetching today's attendance:", error);
+        }
+    };
+
+    const fetchProfile = async () => {
+        try {
             const updatedProfile = await getProfile();
             updateUser(updatedProfile);
-            setPrimeData({ amount: '', reason: '' });
         } catch (error) {
-            const errorMsg = error.response?.data?.message || t('failedToDistributePrime', 'Échec de la distribution.');
-            alert(`Erreur: ${errorMsg}`);
-            console.error("Distribution Error:", error);
+            console.error("Error fetching profile:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchProfile();
+        fetchTodayAttendance();
+    }, []);
+
+    const handleClockIn = async () => {
+        try {
+            setAttendanceLoading(true);
+            const response = await api.post('/attendance/clock-in');
+            setTodayAttendance(response.data);
+            alert(t('clockInSuccess', 'Pointage d\'entrée réussi !'));
+        } catch (error) {
+            alert(error.response?.data?.message || t('clockInError', 'Erreur lors du pointage d\'entrée.'));
         } finally {
-            setIsDistributing(false);
+            setAttendanceLoading(false);
+        }
+    };
+
+    const handleClockOut = async () => {
+        if (!window.confirm(t('confirmClockOut', 'Voulez-vous vraiment terminer votre session de travail ?'))) return;
+        try {
+            setAttendanceLoading(true);
+            const response = await api.post('/attendance/clock-out');
+            setTodayAttendance(response.data);
+            alert(t('clockOutSuccess', 'Pointage de sortie réussi !'));
+        } catch (error) {
+            alert(error.response?.data?.message || t('clockOutError', 'Erreur lors du pointage de sortie.'));
+        } finally {
+            setAttendanceLoading(false);
         }
     };
 
@@ -141,20 +168,22 @@ const ProfilePage = () => {
     };
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto pb-12">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('profile') || 'My Profile'}</h2>
-            <p className="text-gray-500 dark:text-gray-400 mb-8">{t('managePersonalInfo')}</p>
+        <div className="space-y-6 lg:space-y-8 max-w-5xl mx-auto pb-12 px-4 sm:px-6 lg:px-8">
+            <div className="pt-4">
+                <h2 className="text-2xl lg:text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">{t('profile') || 'My Profile'}</h2>
+                <p className="text-xs lg:text-sm text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-widest font-bold">{t('managePersonalInfo')}</p>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-8 shadow-sm dark:shadow-xl transition-colors">
-                        <div className="flex justify-between items-start mb-8">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] lg:rounded-3xl p-6 lg:p-8 shadow-sm transition-colors">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                            <h3 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2 uppercase tracking-tighter">
                                 <FiUser className="text-blue-500" /> {t('personalInformation')}
                             </h3>
                             <button
                                 onClick={handleOpenEdit}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl transition-colors text-sm font-medium">
+                                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-lg shadow-blue-500/20 text-xs font-black uppercase tracking-widest">
                                 <FiEdit2 /> {t('editProfile')}
                             </button>
                         </div>
@@ -172,7 +201,7 @@ const ProfilePage = () => {
                                 <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-4xl font-bold text-white shadow-lg shadow-blue-500/20 overflow-hidden">
                                     {(imagePreview || user?.profilePicture) && !removeProfilePicture ? (
                                         <img 
-                                            src={imagePreview || user.profilePicture} 
+                                            src={imagePreview || user?.profilePicture} 
                                             alt="Profile" 
                                             className="w-full h-full object-cover"
                                         />
@@ -208,14 +237,24 @@ const ProfilePage = () => {
                             </div>
                             <div>
                                 <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('emailAddress')}</label>
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
-                                        <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
-                                            <FiMail />
+                                <div className="flex flex-col">
+                                        <div className="flex items-center gap-2 text-gray-900 dark:text-white font-medium">
+                                            <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                                <FiMail />
+                                            </div>
+                                            <span>{user?.email || 'N/A'}</span>
+                                            {user?.email && (
+                                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${user?.isEmailVerified ? 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400' : 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400'}`}>
+                                                    {user?.isEmailVerified ? t('verified', 'Vérifié') : t('pending', 'En attente')}
+                                                </span>
+                                            )}
                                         </div>
-                                        <span>{user?.email || 'N/A'}</span>
+                                        {!user?.isEmailVerified && user?.email && (
+                                            <p className="text-[10px] text-orange-600 dark:text-orange-400 font-bold mt-1 ml-11 uppercase tracking-tighter">
+                                                {t('checkEmailToVerify', 'Vérifiez votre boîte mail pour confirmer')}
+                                            </p>
+                                        )}
                                     </div>
-                                </div>
                             </div>
                             <div>
                                 <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('phoneNumber')}</label>
@@ -245,6 +284,71 @@ const ProfilePage = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Attendance Section */}
+                        <div className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tighter flex items-center gap-2">
+                                    <FiClock className="text-blue-500" /> {t('workSession', 'Session de Travail')}
+                                </h3>
+                                {todayAttendance?.clockIn && !todayAttendance?.clockOut && (
+                                    <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 text-[10px] font-black uppercase tracking-widest animate-pulse">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                        {t('inProgress', 'En cours')}
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-6 border border-gray-100 dark:border-gray-700">
+                                {!todayAttendance?.clockIn ? (
+                                    <div className="text-center space-y-4">
+                                        <p className="text-xs text-gray-500 font-bold">{t('noActiveSession', 'Aucune session active pour aujourd\'hui.')}</p>
+                                        <button
+                                            onClick={handleClockIn}
+                                            disabled={attendanceLoading}
+                                            className="w-full flex items-center justify-center gap-2 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-[0.98] uppercase tracking-widest text-xs"
+                                        >
+                                            <FiPlay /> {t('clockIn', 'Pointer l\'Entrée')}
+                                        </button>
+                                    </div>
+                                ) : todayAttendance?.clockOut ? (
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t('clockIn', 'Entrée')}</p>
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white">{new Date(todayAttendance.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                            </div>
+                                            <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{t('clockOut', 'Sortie')}</p>
+                                                <p className="text-sm font-bold text-gray-900 dark:text-white">{new Date(todayAttendance.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-center gap-2 p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-600 rounded-xl">
+                                            <FiCheckCircle />
+                                            <span className="text-xs font-black uppercase tracking-widest">
+                                                {t('shiftCompleted', 'Session terminée')}: {parseFloat(todayAttendance.totalHours).toFixed(2)}h
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <div className="flex flex-col items-center text-center">
+                                            <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">{t('activeSessionSince', 'Session active depuis')}</p>
+                                            <h4 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">
+                                                {new Date(todayAttendance.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </h4>
+                                        </div>
+                                        <button
+                                            onClick={handleClockOut}
+                                            disabled={attendanceLoading}
+                                            className="w-full flex items-center justify-center gap-2 py-4 bg-red-600 hover:bg-red-700 text-white font-black rounded-xl transition-all shadow-lg shadow-red-500/20 active:scale-[0.98] uppercase tracking-widest text-xs"
+                                        >
+                                            <FiSquare /> {t('clockOut', 'Pointer la Sortie')}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
                     
@@ -260,7 +364,7 @@ const ProfilePage = () => {
                             <div>
                                 {user?.role === 'cashier' ? (
                                     <>
-                                        <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 block mb-2">
                                             {t('netSalaryThisMonth', 'Net Salary This Month')}
                                         </label>
                                         {(() => {
@@ -271,28 +375,31 @@ const ProfilePage = () => {
                                                 user?.stats?.workedDays
                                             );
                                             return (
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center text-green-600">
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex items-center gap-3 bg-green-50 dark:bg-green-500/10 p-4 rounded-2xl border border-green-100 dark:border-green-500/20">
+                                                        <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center text-white text-xl shadow-lg shadow-green-500/20">
                                                             💰
                                                         </div>
-                                                        <span className="text-gray-900 dark:text-white font-black text-lg">
-                                                            {formatCurrency(salaryData.netSalary, null, false)}
-                                                        </span>
-                                                        <FiLock className="text-gray-400 ml-auto" size={14} title="Auto-calculated" />
+                                                        <div className="flex-1">
+                                                            <div className="text-gray-900 dark:text-white font-black text-2xl leading-none">
+                                                                {formatCurrency(salaryData.netSalary, null, false)}
+                                                            </div>
+                                                            <div className="text-[9px] font-bold text-green-600 uppercase tracking-widest mt-1">Calculated Net</div>
+                                                        </div>
+                                                        <FiLock className="text-gray-400" size={14} title="Auto-calculated" />
                                                     </div>
-                                                    <div className="pl-11 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
-                                                        <div className="flex justify-between gap-4">
-                                                            <span>{t('expectedMonthlySalary', 'Expected Monthly')}:</span>
-                                                            <span className="font-medium text-gray-400 line-through">{formatCurrency(salaryData.expectedMonthlySalary, null, false)}</span>
+                                                    <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 space-y-2 px-1">
+                                                        <div className="flex justify-between border-b border-gray-50 dark:border-gray-800/50 pb-1.5">
+                                                            <span>{t('expectedMonthlySalary', 'Base Salary')}:</span>
+                                                            <span className="text-gray-400 line-through">{formatCurrency(salaryData.expectedMonthlySalary, null, false)}</span>
                                                         </div>
-                                                        <div className="flex justify-between gap-4">
-                                                            <span>{t('dailySalary', 'Daily Salary')}:</span>
-                                                            <span className="font-medium">{formatCurrency(salaryData.dailySalary, null, false)}</span>
+                                                        <div className="flex justify-between border-b border-gray-50 dark:border-gray-800/50 pb-1.5">
+                                                            <span>{t('dailySalary', 'Rate Per Day')}:</span>
+                                                            <span className="text-gray-700 dark:text-gray-200">{formatCurrency(salaryData.dailySalary, null, false)}</span>
                                                         </div>
-                                                        <div className="flex justify-between gap-4">
+                                                        <div className="flex justify-between">
                                                             <span>{t('workedDays')}:</span>
-                                                            <span className="font-medium">{user?.stats?.workedDays || 0} {t('days')}</span>
+                                                            <span className="text-blue-600 dark:text-blue-400">{user?.stats?.workedDays || 0} {t('days')}</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -301,18 +408,20 @@ const ProfilePage = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('monthlySalary')}</label>
-                                        <div className="flex items-center gap-3 text-gray-900 dark:text-white font-black text-lg">
-                                            <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 block mb-2">{t('monthlySalary')}</label>
+                                        <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                                            <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white text-xl">
                                                 💰
                                             </div>
-                                            {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
+                                            <span className="text-gray-900 dark:text-white font-black text-2xl">
+                                                {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
+                                            </span>
                                         </div>
                                     </>
                                 )}
                             </div>
 
-                            {user.role === 'cashier' && (
+                            {user?.role === 'cashier' && (
                                 <div>
                                     <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('shiftSchedule')}</label>
                                     <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
@@ -370,64 +479,19 @@ const ProfilePage = () => {
                             </div>
                         </div>
 
-                        {/* Primes Received Section */}
-                        <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
-                            <h4 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6 flex items-center gap-2">
-                                <FiActivity size={14} /> {t('primesReceived')}
-                            </h4>
+                        {/* Primes Received Section (Cashiers Only) */}
+                        {user?.role === 'cashier' && (
+                            <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
+                                <h4 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6 flex items-center gap-2">
+                                    <FiActivity size={14} /> {t('primesReceived')}
+                                </h4>
 
-                            {user.role === 'admin' ? (
-                                <div className="space-y-6">
-                                    <div className="flex flex-col sm:flex-row gap-4">
-                                        <div className="flex-1 space-y-1.5">
-                                            <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Montant Prime (TND)</label>
-                                            <input
-                                                type="number"
-                                                placeholder="0.00"
-                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500 font-bold"
-                                                value={primeData.amount}
-                                                onChange={e => setPrimeData({ ...primeData, amount: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="flex-1 space-y-1.5">
-                                            <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">Raison / Occasion</label>
-                                            <input
-                                                type="text"
-                                                placeholder="ex: Eid Al-Fitr 2026"
-                                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-orange-500 font-medium"
-                                                value={primeData.reason}
-                                                onChange={e => setPrimeData({ ...primeData, reason: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex flex-col gap-4">
-                                        <button
-                                            onClick={handleDistributePrime}
-                                            disabled={isDistributing}
-                                            className="w-full py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-black rounded-2xl shadow-lg shadow-orange-500/25 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-                                        >
-                                            {isDistributing ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '🚀 Distribute to All'}
-                                        </button>
-                                        
-                                        <div className="p-4 bg-orange-50/50 dark:bg-orange-500/5 rounded-2xl border border-orange-100 dark:border-orange-500/10">
-                                            <p className="text-xs text-orange-600 dark:text-orange-400 font-bold flex items-center gap-2">
-                                                <FiActivity size={14} /> 
-                                                {user?.stats?.lastSystemDistribution 
-                                                    ? `Last distributed: ${formatCurrency(user.stats.lastSystemDistribution.amount, null, false)} — ${user.stats.lastSystemDistribution.reason} (${formatDate(user.stats.lastSystemDistribution.distributedAt)})`
-                                                    : 'No prime distributed yet'
-                                                }
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div className="p-5 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 block">Dernière Prime</label>
                                         <p className="text-gray-900 dark:text-white font-bold flex items-center gap-2">
                                             {user?.stats?.lastPrime 
-                                                ? `${formatCurrency(user.stats.lastPrime.amount, null, false)} — ${user.stats.lastPrime.reason} (${formatDate(user.stats.lastPrime.distributedAt)})`
+                                                ? `${formatCurrency(user?.stats?.lastPrime?.amount, null, false)} — ${user?.stats?.lastPrime?.reason} (${formatDate(user?.stats?.lastPrime?.distributedAt)})`
                                                 : 'No prime received yet'
                                             }
                                             <FiLock className="text-gray-400 ml-auto" size={12} />
@@ -441,8 +505,77 @@ const ProfilePage = () => {
                                         </p>
                                     </div>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
+                        {/* Charts Section */}
+                        {user?.role === 'cashier' && user?.stats?.dailySalesTrend && (
+                            <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    {/* Daily Revenue Trend */}
+                                    <div>
+                                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">{t('dailyRevenueTrend', 'Tendance Revenu Quotidien')}</h4>
+                                        <div className="h-48 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={user.stats.dailySalesTrend}>
+                                                    <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                                                        {user.stats.dailySalesTrend.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.revenue > 100 ? '#6366f1' : '#a5b4fc'} />
+                                                        ))}
+                                                    </Bar>
+                                                    <Tooltip cursor={{fill: 'transparent'}} content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            return (
+                                                                <div className="bg-white dark:bg-gray-800 p-2 border border-gray-100 dark:border-gray-700 rounded-lg shadow-xl text-[10px] font-bold">
+                                                                    {formatCurrency(payload[0].value)}
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    {/* Attendance Session History */}
+                                    {user?.stats?.sessionHistory && (
+                                        <div>
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">{t('attendanceStatus', 'Statut Présence')}</h4>
+                                            <div className="space-y-2">
+                                                {user.stats.sessionHistory.map((day, i) => (
+                                                    <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                                                        <div className="flex items-center gap-3">
+                                                            <FiCalendar className="text-gray-400" size={14} />
+                                                            <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-widest">
+                                                                {new Date(day.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'short' })}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-black text-gray-400">{day.hours.toFixed(1)}h</span>
+                                                            {day.status === 'PRESENT' ? (
+                                                                <span className="flex items-center gap-1 text-[10px] font-black text-green-500 uppercase">
+                                                                    <FiCheckCircle /> Present
+                                                                </span>
+                                                            ) : day.status === 'LATE' ? (
+                                                                <span className="flex items-center gap-1 text-[10px] font-black text-orange-500 uppercase">
+                                                                    <FiClock /> Late
+                                                                </span>
+                                                            ) : (
+                                                                <span className="flex items-center gap-1 text-[10px] font-black text-red-500 uppercase">
+                                                                    <FiXCircle /> Absent
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                     </div>
                 </div>
 
@@ -509,7 +642,7 @@ const ProfilePage = () => {
                                     <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-500/10 rounded-2xl border border-red-100 dark:border-red-500/20">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-lg overflow-hidden">
-                                                <img src={imagePreview || user.profilePicture} alt="" className="w-full h-full object-cover" />
+                                                <img src={imagePreview || user?.profilePicture} alt="" className="w-full h-full object-cover" />
                                             </div>
                                             <span className="text-xs font-bold text-red-600 dark:text-red-400">{t('deletePictureConfirm', 'Supprimer la photo ?')}</span>
                                         </div>

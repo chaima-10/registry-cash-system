@@ -4,7 +4,8 @@
  */
 class AIService {
     async generateResponse(messages, systemContext) {
-        const models = ['gemini-flash-latest', 'gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-pro-latest'];
+        // Generic model pointers for long-term stability
+        const models = ['gemini-flash-latest', 'gemini-pro-latest', 'gemini-2.5-flash-lite'];
         
         const callGemini = async (model, retryCount = 0) => {
             try {
@@ -32,7 +33,9 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                             lastAddedRole = geminiRole;
                         } else {
                             // Append to the existing part if same role consecutively
-                            normalizedMessages[normalizedMessages.length - 1].parts[0].text += "\n" + (msg.content || "...");
+                            if (normalizedMessages.length > 0) {
+                                normalizedMessages[normalizedMessages.length - 1].parts[0].text += "\n" + (msg.content || "...");
+                            }
                         }
                     }
                 }
@@ -46,37 +49,55 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                     return "Comment puis-je vous aider en tant que Marketing Copilot ?";
                 }
 
-                const apiKey = process.env.GEMINI_API_KEY || '';
+                // Clean API Key: remove quotes and whitespace
+                const apiKey = (process.env.GEMINI_API_KEY || '').replace(/["']/g, '').trim();
                 if (!apiKey || apiKey.length < 10) {
-                    throw new Error("Clé API Gemini (GEMINI_API_KEY) manquante ou invalide dans le fichier .env.");
+                    throw new Error("Clé API Gemini (GEMINI_API_KEY) manquante ou invalide.");
                 }
 
                 // Make real API calls using the Gemini endpoint
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                
+                const requestBody = {
+                    contents: normalizedMessages, 
+                    generationConfig: {
+                        maxOutputTokens: 2000,
+                        temperature: 0.7
+                    }
+                };
+
+                // systemInstruction is supported on all modern flash/pro models
+                if (model.includes('flash') || model.includes('pro')) {
+                    requestBody.systemInstruction = {
+                        parts: [{ text: systemPrompt }]
+                    };
+                } else {
+                    // For 1.0 models, prepend system prompt to the first user message
+                    if (normalizedMessages.length > 0 && normalizedMessages[0].role === 'user') {
+                        normalizedMessages[0].parts[0].text = `Instructions: ${systemPrompt}\n\nContext: ${normalizedMessages[0].parts[0].text}`;
+                    }
+                }
+
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        systemInstruction: {
-                            parts: [{ text: systemPrompt }]
-                        },
-                        contents: normalizedMessages, // Full conversation history for context
-                        generationConfig: {
-                            maxOutputTokens: 1500
-                        }
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
                     const errBody = await response.text();
-                    // Retry logic for 429 or 5xx errors
-                    if ((response.status === 429 || response.status >= 500) && retryCount < 2) {
-                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-                        return callGemini(model, retryCount + 1);
+                    console.error(`Gemini API Error Body (${model}):`, errBody);
+                    
+                    // Handle Quota Exhaustion specifically
+                    if (response.status === 429) {
+                        const currentIndex = models.indexOf(model);
+                        if (currentIndex < models.length - 1) {
+                            return callGemini(models[currentIndex + 1], 0);
+                        }
+                        throw new Error("QUOTA_EXCEEDED");
                     }
-                    throw new Error(`API Gemini a renvoyé l'erreur ${response.status}: ${errBody}`);
+
+                    throw new Error(`API Gemini Error ${response.status}: ${errBody.substring(0, 100)}`);
                 }
 
                 const data = await response.json();
@@ -84,13 +105,17 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
                     return data.candidates[0].content.parts[0].text;
                 }
 
-                throw new Error("Format de réponse inattendu de l'API Gemini.");
+                throw new Error("Format de réponse inattendu.");
 
             } catch (err) {
-                const currentIndex = models.indexOf(model);
-                if (currentIndex !== -1 && currentIndex < models.length - 1 && retryCount >= 1) {
-                    console.warn(`Falling back to ${models[currentIndex + 1]} due to exhaustion of ${model}`);
-                    return callGemini(models[currentIndex + 1], 0);
+                // If it's a quota error or 400/404, try fallback
+                const isRetryable = err.message.includes("429") || err.message.includes("400") || err.message.includes("404");
+                if (isRetryable) {
+                    const currentIndex = models.indexOf(model);
+                    if (currentIndex !== -1 && currentIndex < models.length - 1) {
+                        console.warn(`Falling back from ${model} due to error: ${err.message}`);
+                        return callGemini(models[currentIndex + 1], 0);
+                    }
                 }
                 throw err;
             }
@@ -100,7 +125,7 @@ Réponds de manière concise, engageante et professionnelle. Tu peux utiliser de
             return await callGemini(models[0]);
         } catch (err) {
             console.error("AI Service Error:", err.message);
-            return `[Erreur API Marketing Copilot] : ${err.message}`;
+            return `ERROR_AI: ${err.message}`;
         }
     }
 }

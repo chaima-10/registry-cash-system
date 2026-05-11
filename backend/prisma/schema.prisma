@@ -79,19 +79,19 @@ model product {
 }
 
 model sale {
-  id            Int                @id @default(autoincrement())
-  userId        Int
-  user          user               @relation(fields: [userId], references: [id])
-  totalAmount   Decimal            @db.Decimal(12, 4)
-  paymentMethod sale_paymentMethod
-  createdAt     DateTime           @default(now())
-  currency      String             @default("USD")
-  exchangeRate  Decimal            @default(1.0000) @db.Decimal(10, 4)
-  subtotalHT    Decimal            @default(0.00) @db.Decimal(12, 4)
-  tvaAmount     Decimal            @default(0.00) @db.Decimal(12, 4)
-  amountTendered Decimal?          @db.Decimal(12, 4)
-  changeAmount   Decimal?          @db.Decimal(12, 4)
-  items         saleitem[]
+  id             Int                @id @default(autoincrement())
+  userId         Int
+  user           user               @relation(fields: [userId], references: [id])
+  totalAmount    Decimal            @db.Decimal(12, 4)
+  paymentMethod  sale_paymentMethod
+  createdAt      DateTime           @default(now())
+  currency       String             @default("USD")
+  exchangeRate   Decimal            @default(1.0000) @db.Decimal(10, 4)
+  subtotalHT     Decimal            @default(0.00) @db.Decimal(12, 4)
+  tvaAmount      Decimal            @default(0.00) @db.Decimal(12, 4)
+  amountTendered Decimal?           @db.Decimal(12, 4)
+  changeAmount   Decimal?           @db.Decimal(12, 4)
+  items          saleitem[]
 
   @@index([userId], map: "Sale_userId_fkey")
   @@map("Sale")
@@ -156,6 +156,7 @@ model user {
   updatedAt              DateTime                @updatedAt
   loginHistory           loginhistory[]
   primes                 prime[]
+  attendance             attendance[]
 
   @@map("User")
 }
@@ -173,10 +174,10 @@ model prime {
 }
 
 model loginhistory {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  loginAt   DateTime @default(now())
+  id      Int      @id @default(autoincrement())
+  userId  Int
+  user    user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  loginAt DateTime @default(now())
 
   @@index([userId])
   @@map("LoginHistory")
@@ -208,32 +209,32 @@ model giveaway {
 }
 
 model giveawayparticipation {
-  id            Int      @id @default(autoincrement())
+  id            Int              @id @default(autoincrement())
   giveawayId    Int
-  giveaway      giveaway @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  userId        Int?     // Made optional for guest participants
-  user          user?    @relation(fields: [userId], references: [id])
+  giveaway      giveaway         @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  userId        Int? // Made optional for guest participants
+  user          user?            @relation(fields: [userId], references: [id])
   clientName    String?
   clientSurname String?
   clientPhone   String?
-  joinedAt      DateTime @default(now())
+  joinedAt      DateTime         @default(now())
+  winners       giveawaywinner[]
 
   @@index([giveawayId])
   @@index([userId])
   @@index([clientPhone])
-  winners       giveawaywinner[]
 }
 
 model giveawaywinner {
-  id              Int                   @id @default(autoincrement())
+  id              Int                    @id @default(autoincrement())
   giveawayId      Int
-  giveaway        giveaway              @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
-  participationId Int?                  // Link to participation record
+  giveaway        giveaway               @relation(fields: [giveawayId], references: [id], onDelete: Cascade)
+  participationId Int? // Link to participation record
   participation   giveawayparticipation? @relation(fields: [participationId], references: [id])
-  userId          Int?                  // Made optional
-  user            user?                 @relation(fields: [userId], references: [id])
-  selectedAt      DateTime              @default(now())
-  rank            Int                   // 1st, 2nd, 3rd winner, etc.
+  userId          Int? // Made optional
+  user            user?                  @relation(fields: [userId], references: [id])
+  selectedAt      DateTime               @default(now())
+  rank            Int // 1st, 2nd, 3rd winner, etc.
 
   @@unique([giveawayId, userId], map: "GiveawayWinner_user_giveaway_unique")
   @@index([giveawayId])
@@ -250,4 +251,20 @@ enum giveaway_status {
 enum user_role {
   admin
   cashier
+}
+
+model attendance {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  user       user      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date       DateTime  @db.Date
+  status     String    @default("PRESENT")
+  role       user_role
+  clockIn    DateTime?
+  clockOut   DateTime?
+  totalHours Decimal?  @db.Decimal(10, 2)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("Attendance")
 }

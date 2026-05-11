@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
@@ -33,12 +33,16 @@ const AIMarketing = () => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     
     // Marketing Chat State with LocalStorage Persistence
+    // FIX 1: localStorage with expiration (7 days)
     const [chatMessages, setChatMessages] = useState(() => {
         const saved = localStorage.getItem('marketing_chat_history');
         if (saved) {
             try {
-                const history = JSON.parse(saved);
-                return history.filter(m => m.content !== t('historyCleared'));
+                const { data, timestamp } = JSON.parse(saved);
+                const isExpired = Date.now() - timestamp > 7 * 24 * 60 * 60 * 1000;
+                if (!isExpired && Array.isArray(data)) {
+                    return data.filter(m => m.content !== t('historyCleared'));
+                }
             } catch (e) {
                 console.error("Failed to parse chat history", e);
             }
@@ -59,6 +63,8 @@ const AIMarketing = () => {
     const timeoutRef = useRef(null);
     const [selectedPoster, setSelectedPoster] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadError, setDownloadError] = useState(false);
+    const [showClearConfirm, setShowClearConfirm] = useState(false);
     
     // Selected Custom Event
     const [customEvent, setCustomEvent] = useState('');
@@ -69,29 +75,16 @@ const AIMarketing = () => {
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Scroll to bottom and save history
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        localStorage.setItem('marketing_chat_history', JSON.stringify(chatMessages));
+        // FIX 1: localStorage with expiration (7 days)
+        localStorage.setItem('marketing_chat_history', JSON.stringify({ data: chatMessages, timestamp: Date.now() }));
     }, [chatMessages, isAiTyping]);
 
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            const prodRes = await api.get('/products');
-            const data = prodRes.data || [];
-            setProducts(data);
-            generateAiPromotions(data, t('general'));
-        } catch (error) {
-            console.error("Error fetching data:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const generateAiPromotions = async (prods, eventName) => {
+    const generateAiPromotions = useCallback(async (prods, eventName) => {
         setIsGeneratingPromos(true);
         setGenerationTimeout(false);
         const eventLabel = eventName || t('general');
@@ -116,12 +109,30 @@ const AIMarketing = () => {
             // Clear timeout on success
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
             
+            // FIX: Robust JSON parsing with fallback to regex
             let text = response.data.reply;
-            const jsonMatch = text.match(/\[.*\]/s);
-            if (jsonMatch) {
-                const validData = JSON.parse(jsonMatch[0]).filter(p => p.title && p.description);
-                if (validData.length > 0) {
-                    setPromotions(validData);
+            let validData = null;
+            try {
+                // Try direct JSON parse first
+                const cleanedText = text.trim();
+                validData = JSON.parse(cleanedText);
+            } catch (e) {
+                // Fallback to regex extraction
+                const jsonMatch = text.match(/\[.*\]/s);
+                if (jsonMatch) {
+                    try {
+                        validData = JSON.parse(jsonMatch[0]);
+                    } catch (parseError) {
+                        throw new Error("Invalid AI data");
+                    }
+                } else {
+                    throw new Error("Invalid AI data");
+                }
+            }
+            if (validData) {
+                const filteredData = validData.filter(p => p.title && p.description);
+                if (filteredData.length > 0) {
+                    setPromotions(filteredData);
                     return;
                 }
             }
@@ -136,7 +147,21 @@ const AIMarketing = () => {
             setIsGeneratingPromos(false);
             setGenerationTimeout(false);
         }
-    };
+    }, [t]);
+
+    const fetchData = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const prodRes = await api.get('/products');
+            const data = prodRes.data || [];
+            setProducts(data);
+            generateAiPromotions(data, t('general'));
+        } catch (error) {
+            console.error("Error fetching data:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [t, generateAiPromotions]);
 
     const handleRetry = () => {
         generateAiPromotions(products, activeEventName);
@@ -153,11 +178,20 @@ const AIMarketing = () => {
 
         try {
             const systemContext = "Expert Copywriter. No explanations. Social media focus.";
+            // FIX: Limit API messages to last 20 to avoid context overflow
             const apiMessages = chatMessages.concat({ role: 'user', content: message })
+                .slice(-20)
                 .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
 
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
-            setChatMessages(prev => [...prev, { role: 'ai', content: response.data.reply }]);
+            let reply = response.data.reply;
+            
+            // If backend returned a known error code, show localized friendly message
+            if (reply.includes('ERROR_AI:') || reply.includes('QUOTA_EXCEEDED')) {
+                reply = t('aiErrorQuota', 'Quota d\'intelligence artificielle épuisé pour aujourd\'hui. Veuillez réessayer demain.');
+            }
+            
+            setChatMessages(prev => [...prev, { role: 'ai', content: reply }]);
         } catch (error) {
             setChatMessages(prev => [...prev, { role: 'ai', content: t('aiErrorQuota') }]);
         } finally {
@@ -169,13 +203,31 @@ const AIMarketing = () => {
         if (!posterRef.current) return;
         setIsDownloading(true);
         try {
+            // Preload all images before capturing
+            const images = posterRef.current.querySelectorAll('img');
+            const imagePromises = Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+                return new Promise((resolve, reject) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Continue even if image fails
+                    setTimeout(resolve, 3000); // Timeout after 3s
+                });
+            });
+            await Promise.all(imagePromises);
+
             const canvas = await html2canvas(posterRef.current, {
                 useCORS: true,
-                allowTaint: false,
+                allowTaint: true,
                 scale: 2,
-                logging: false,
-                backgroundColor: null,
-                imageTimeout: 15000,
+                logging: true,
+                backgroundColor: '#ffffff',
+                imageTimeout: 30000,
+                onclone: (clonedDoc) => {
+                    const clonedImages = clonedDoc.querySelectorAll('img');
+                    clonedImages.forEach(img => {
+                        img.crossOrigin = 'anonymous';
+                    });
+                }
             });
             const imgData = canvas.toDataURL('image/png');
             const link = document.createElement('a');
@@ -184,7 +236,8 @@ const AIMarketing = () => {
             link.click();
         } catch (error) {
             console.error("Download failed:", error);
-            alert(t('downloadError'));
+            setDownloadError(true);
+            setTimeout(() => setDownloadError(false), 3000);
         } finally {
             setIsDownloading(false);
         }
@@ -201,10 +254,18 @@ const AIMarketing = () => {
     };
 
     const clearChatHistory = () => {
-        if (window.confirm(t('clearChatConfirm'))) {
-            setChatMessages([{ role: 'ai', content: t('marketingWelcomeAi') }]);
-            localStorage.removeItem('marketing_chat_history');
-        }
+        // FIX: Replace window.confirm with modal state
+        setShowClearConfirm(true);
+    };
+
+    const confirmClearHistory = () => {
+        setChatMessages([{ role: 'ai', content: t('marketingWelcomeAi') }]);
+        localStorage.removeItem('marketing_chat_history');
+        setShowClearConfirm(false);
+    };
+
+    const cancelClearHistory = () => {
+        setShowClearConfirm(false);
     };
 
     const getProductByName = (name) => products.find(p => p.name === name);
@@ -220,11 +281,11 @@ const AIMarketing = () => {
     );
 
     return (
-        <div className={`flex h-full gap-6 ${isRtl ? 'flex-row-reverse text-right' : ''}`}>
+        <div className={`flex flex-col xl:flex-row h-full gap-4 lg:gap-6 ${isRtl ? 'xl:flex-row-reverse text-right' : ''}`}>
             
-            <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-                <div className="p-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center gap-6">
-                    <div className="flex items-center gap-4">
+            <div className="flex-1 min-w-0 flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                <div className="p-4 md:p-8 pb-4 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 lg:gap-6">
+                    <div className="flex items-center gap-3 lg:gap-4">
                         {/* Back Arrow - Only visible when poster is selected */}
                         <AnimatePresence>
                             {selectedPoster && (
@@ -233,60 +294,68 @@ const AIMarketing = () => {
                                     animate={{ opacity: 1, x: 0 }}
                                     exit={{ opacity: 0, x: -20 }}
                                     onClick={handleBackToSuggestions}
-                                    className="flex items-center justify-center w-12 h-12 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                    className="flex items-center justify-center w-10 h-10 lg:w-12 lg:h-12 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                     title={t('back')}
+                                    aria-label={t('back')}
                                 >
-                                    <FiArrowLeft size={28} />
+                                    <FiArrowLeft size={24} />
                                 </motion.button>
                             )}
                         </AnimatePresence>
-                        <div className="w-14 h-14 bg-blue-600 rounded-[1.25rem] flex items-center justify-center text-white"><FiZap size={28} /></div>
+                        <div className="w-12 h-12 lg:w-14 lg:h-14 bg-blue-600 rounded-xl lg:rounded-[1.25rem] flex items-center justify-center text-white shrink-0"><FiZap size={24} /></div>
                         <div>
-                            <h2 className="font-black text-2xl uppercase tracking-tighter">{t('aiSuggestions')}</h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{t('marketingStudioDesc')}</p>
+                            <h2 className="font-black text-xl lg:text-2xl uppercase tracking-tighter">{t('aiSuggestions')}</h2>
+                            <p className="text-[10px] lg:text-xs text-slate-500 dark:text-slate-400">{t('marketingStudioDesc')}</p>
                         </div>
                     </div>
-                    <div className="flex bg-slate-50 dark:bg-slate-950 p-2 rounded-[2rem] border border-slate-200 dark:border-slate-700 w-96">
+                    <div className="flex bg-slate-50 dark:bg-slate-950 p-1.5 rounded-full border border-slate-200 dark:border-slate-700 w-full lg:w-96">
                         <input
                             type="text"
                             value={customEvent}
                             onChange={(e) => setCustomEvent(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && generateAiPromotions(products, customEvent)}
                             placeholder={t('specialEvent')}
-                            className="bg-transparent border-none outline-none pl-4 flex-1 text-sm font-semibold"
+                            disabled={isGeneratingPromos}
+                            className="bg-transparent border-none outline-none pl-4 flex-1 text-xs lg:text-sm font-semibold disabled:opacity-50"
                         />
-                        <button onClick={() => generateAiPromotions(products, customEvent)} className="px-6 py-3 bg-blue-600 text-white font-black text-[10px] rounded-3xl uppercase tracking-wider">{t('generate')}</button>
+                        <button 
+                            onClick={() => generateAiPromotions(products, customEvent)} 
+                            disabled={isGeneratingPromos}
+                            className="px-4 lg:px-6 py-2 lg:py-3 bg-blue-600 text-white font-black text-[9px] lg:text-[10px] rounded-full uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isGeneratingPromos ? (t('generating') || '...') : t('generate')}
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 xl:grid-cols-2 gap-10">
+                <div className="flex-1 overflow-y-auto p-4 md:p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2 gap-6 lg:gap-10">
                     <AnimatePresence>
                         {isGeneratingPromos ? (
                             <>
-                                {[1, 2, 3, 4].map((i) => (
+                                {[1, 2].map((i) => (
                                     <SuggestionSkeleton key={i} />
                                 ))}
                             </>
                         ) : (
                             promotions.map((promo, idx) => (
                                 <motion.div 
-                                    key={idx} 
+                                    key={promo.title || idx} 
                                     layout 
                                     initial={{ opacity: 0, y: 20 }} 
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: idx * 0.1 }}
-                                    className="group relative bg-white dark:bg-slate-900 rounded-[3rem] p-10 border border-slate-100 dark:border-slate-800 hover:border-blue-500/50 cursor-pointer shadow-xl flex flex-col hover:shadow-2xl transition-all duration-300"
+                                    className="group relative bg-white dark:bg-slate-900 rounded-[1.5rem] md:rounded-[3rem] p-4 md:p-10 border border-slate-100 dark:border-slate-800 hover:border-blue-500/50 cursor-pointer shadow-xl flex flex-col hover:shadow-2xl transition-all duration-300"
                                     onClick={() => setSelectedPoster(promo)}
                                 >
-                                    <div className="flex justify-between items-start mb-8">
-                                        <span className="px-5 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 text-[10px] font-black uppercase rounded-full">{promo.timing}</span>
-                                        <div className="text-4xl">{promo.emoji}</div>
+                                    <div className="flex justify-between items-start mb-6 lg:mb-8">
+                                        <span className="px-4 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 text-[9px] lg:text-[10px] font-black uppercase rounded-full">{promo.timing}</span>
+                                        <div className="text-3xl lg:text-4xl">{promo.emoji}</div>
                                     </div>
-                                    <h4 className="text-3xl font-black mb-4 tracking-tighter">{promo.title}</h4>
-                                    <p className="text-slate-500 mb-10">{promo.description}</p>
+                                    <h4 className="text-2xl lg:text-3xl font-black mb-3 lg:mb-4 tracking-tighter">{promo.title}</h4>
+                                    <p className="text-sm lg:text-base text-slate-500 mb-6 lg:mb-10 line-clamp-3">{promo.description}</p>
                                     <div className="mt-auto flex justify-between items-center">
-                                        <span className="text-2xl font-black text-blue-600">-{promo.discountPercent}%</span>
-                                        <div className="p-4 bg-blue-600 text-white rounded-2xl group-hover:scale-110 transition-transform"><FiArrowRight size={20} /></div>
+                                        <span className="text-xl lg:text-2xl font-black text-blue-600">-{promo.discountPercent}%</span>
+                                        <div className="p-3 lg:p-4 bg-blue-600 text-white rounded-xl lg:rounded-2xl group-hover:scale-110 transition-transform"><FiArrowRight size={18} /></div>
                                     </div>
                                 </motion.div>
                             ))
@@ -314,13 +383,13 @@ const AIMarketing = () => {
                 </div>
             </div>
 
-            <div className="w-[450px] flex flex-col bg-white dark:bg-slate-900 rounded-[3.5rem] shadow-2xl overflow-hidden">
-                <div className="bg-blue-800 p-10 text-white flex justify-between items-start">
+            <div className="w-full xl:w-[450px] min-h-[400px] h-[50vh] xl:h-full flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] md:rounded-[3.5rem] shadow-2xl overflow-hidden shrink-0">
+                <div className="bg-blue-800 p-4 md:p-10 text-white flex justify-between items-start shrink-0">
                     <div>
-                        <h2 className="font-black text-xl uppercase tracking-tighter">{t('marketingCopilot')}</h2>
-                        <span className="text-[10px] uppercase opacity-70">{t('aiStrategyMode')}</span>
+                        <h2 className="font-black text-lg lg:text-xl uppercase tracking-tighter">{t('marketingCopilot')}</h2>
+                        <span className="text-[9px] lg:text-[10px] uppercase opacity-70">{t('aiStrategyMode')}</span>
                     </div>
-                    <button onClick={clearChatHistory} className="p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors" title={t('clearHistory')}><FiTrash2 size={18} /></button>
+                    <button onClick={clearChatHistory} className="p-2 lg:p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors" title={t('clearHistory')} aria-label={t('clearHistory')}><FiTrash2 size={18} /></button>
                 </div>
                 <div className="flex-1 p-8 overflow-y-auto space-y-6 bg-slate-50 dark:bg-slate-900/50">
                     {chatMessages.map((msg, i) => (
@@ -370,7 +439,7 @@ const AIMarketing = () => {
                                 type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)}
                                 placeholder={t('marketingWelcomeChat')} className="w-full bg-slate-100 dark:bg-slate-900 border-none rounded-[1.5rem] pl-6 pr-14 py-4 text-sm font-semibold"
                             />
-                            <button type="submit" className="absolute right-2 top-2 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"><FiSend size={18} /></button>
+                            <button type="submit" className="absolute right-2 top-2 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95" aria-label={t('send')}><FiSend size={18} /></button>
                         </div>
                     </form>
                 </div>
@@ -384,12 +453,14 @@ const AIMarketing = () => {
                             <button 
                                 onClick={handleBackToSuggestions}
                                 className="absolute top-4 left-4 md:top-8 md:left-8 z-50 flex items-center gap-2 px-4 py-2 md:px-6 md:py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white font-semibold text-sm transition-all hover:scale-105"
+                                aria-label={t('back')}
                             >
                                 <FiArrowLeft size={18} />
                                 <span className="hidden sm:inline">{t('back')}</span>
                             </button>
                             
-                            <button onClick={() => setSelectedPoster(null)} className="absolute top-4 right-4 md:top-12 md:right-12 z-50 w-10 h-10 md:w-16 md:h-16 bg-white/10 hover:bg-red-500/20 rounded-full flex items-center justify-center text-white transition-colors"><FiTrash2 size={20} /></button>
+                            {/* FIX 2: Missing i18n keys with fallbacks */}
+                            <button onClick={() => setSelectedPoster(null)} className="absolute top-4 right-4 md:top-12 md:right-12 z-50 w-10 h-10 md:w-16 md:h-16 bg-white/10 hover:bg-red-500/20 rounded-full flex items-center justify-center text-white transition-colors" aria-label={t('close') || 'Close'}><FiTrash2 size={20} /></button>
                             
                             <div ref={posterRef} className="w-full md:w-[55%] p-8 md:p-20 flex flex-col justify-between text-white overflow-y-auto" style={{ backgroundColor: selectedPoster.theme || '#2563eb' }}>
                                 <div>
@@ -430,7 +501,7 @@ const AIMarketing = () => {
                                                            <img 
                                                                 crossOrigin="anonymous" 
                                                                 src={prod.imageUrl.startsWith('http') 
-                                                                    ? `${API_URL}/api/proxy/image?url=${encodeURIComponent(prod.imageUrl)}` 
+                                                                    ? `${API_URL}/api/proxy/image?url=${encodeURIComponent(prod.imageUrl)}&cb=${Date.now()}` 
                                                                     : `${API_URL}${prod.imageUrl}`} 
                                                                 className="w-full h-full object-cover" 
                                                                 alt={pName}
@@ -444,10 +515,16 @@ const AIMarketing = () => {
                                         })}
                                     </div>
                                 </div>
-                                <div className="mt-6 md:mt-8 pt-4 md:pt-8 border-t border-slate-100 dark:border-slate-800 flex gap-3 md:gap-4">
-                                    <button onClick={handleDownloadPoster} disabled={isDownloading} className="flex-1 py-4 md:py-7 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors">
+                                <div className="mt-6 md:mt-8 pt-4 md:pt-8 border-t border-slate-100 dark:border-slate-800 flex gap-3 md:gap-4 relative">
+                                    <button onClick={handleDownloadPoster} disabled={isDownloading} className="flex-1 py-4 md:py-7 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors" aria-label={t('download')}>
                                         {isDownloading ? t('downloading') : t('download')}
                                     </button>
+                                    {/* FIX: Inline error message for download failure */}
+                                    {downloadError && (
+                                        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded-lg whitespace-nowrap">
+                                            {t('downloadError')}
+                                        </div>
+                                    )}
                                     <button onClick={handlePublishNow} className="flex-[2] py-4 md:py-7 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors">
                                         {t('publishNow')}
                                     </button>
@@ -455,6 +532,43 @@ const AIMarketing = () => {
                             </div>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* FIX: Confirmation modal for clearing chat history */}
+            <AnimatePresence>
+                {showClearConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-3xl"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                        >
+                            <h3 className="text-xl font-black mb-4 text-slate-800 dark:text-white">{t('clearChatConfirm')}</h3>
+                            <div className="flex gap-4 mt-6">
+                                <button
+                                    // FIX 2: Missing i18n keys with fallbacks
+                                    onClick={cancelClearHistory}
+                                    className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-2xl font-black uppercase text-xs transition-colors"
+                                >
+                                    {t('cancel') || 'Cancel'}
+                                </button>
+                                <button
+                                    // FIX 2: Missing i18n keys with fallbacks
+                                    onClick={confirmClearHistory}
+                                    className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black uppercase text-xs transition-colors"
+                                >
+                                    {t('confirm') || 'Confirm'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>

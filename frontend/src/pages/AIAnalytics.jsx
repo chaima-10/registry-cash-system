@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     FiTrendingUp, FiBox, FiCalendar, FiAlertCircle, FiPieChart, 
@@ -9,14 +9,13 @@ import {
     Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart
 } from 'recharts';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 
 const AIAnalytics = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { formatCurrency } = useAuth();
     const [activeTab, setActiveTab] = useState('products');
-    const [topProductsSortBy, setTopProductsSortBy] = useState('revenue');
     
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
@@ -25,24 +24,26 @@ const AIAnalytics = () => {
     const [loadingData, setLoadingData] = useState(true);
     const [promoSuccess, setPromoSuccess] = useState({});
     const [orderSuccess, setOrderSuccess] = useState({});
-    const [generatingPoster, setGeneratingPoster] = useState({});
-    const [posterGenerated, setPosterGenerated] = useState({});
-    const [selectedPoster, setSelectedPoster] = useState(null);
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-    const [isGeneratingMarketing, setIsGeneratingMarketing] = useState(false);
     const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
     const [aiForecastData, setAiForecastData] = useState(null);
     const [aiInsights, setAiInsights] = useState(null);
     const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+    const [insightsCacheKey, setInsightsCacheKey] = useState('');
     
     // AI Chat State
-    const [chatMessages, setChatMessages] = useState([
-        { role: 'ai', content: 'Hello! I am your Analytics AI Assistant. I can help you analyze your sales, inventory, and customer behavior. Ask me anything!' }
-    ]);
+    const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
     const chatEndRef = useRef(null);
+
+    // Initialize chat welcome message when translations are available
+    useEffect(() => {
+        setChatMessages([
+            { role: 'ai', content: t('aiChatWelcome', 'Hello! I am your Analytics AI Assistant. I can help you analyze your sales, inventory, and customer behavior. Ask me anything!') }
+        ]);
+    }, [t]);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -58,9 +59,14 @@ const AIAnalytics = () => {
                 setSales(Array.isArray(salesRes.data) ? salesRes.data : salesRes.data?.sales || []);
                 setUsers(Array.isArray(usersRes.data) ? usersRes.data : usersRes.data?.users || []);
                 setCategories(Array.isArray(catRes.data) ? catRes.data : catRes.data?.categories || []);
-                
-                generateAiForecast();
-                generateAiInsights();
+
+                // Load cached insights
+                const cachedInsights = localStorage.getItem('aiInsights');
+                const cachedCacheKey = localStorage.getItem('aiInsightsCacheKey');
+                if (cachedInsights && cachedCacheKey) {
+                    setAiInsights(JSON.parse(cachedInsights));
+                    setInsightsCacheKey(cachedCacheKey);
+                }
             } catch (error) {
                 console.error("Erreur de chargement des données", error);
             } finally {
@@ -69,6 +75,11 @@ const AIAnalytics = () => {
         };
         fetchDashboardData();
     }, []);
+    // Generate cache key based on current data state and language
+    const newCacheKey = useMemo(() => 
+        `${products.length}-${sales.length}-${products[0]?.stockQuantity ?? 0}-${sales[0]?.totalAmount ?? 0}-${i18n.language}`,
+        [products, sales, i18n.language]
+    );
 
     const isToday = (dateStr) => {
         const d = new Date(dateStr);
@@ -82,7 +93,7 @@ const AIAnalytics = () => {
         return d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
     };
 
-    const getDailySummary = () => {
+    const getDailySummary = useMemo(() => {
         let todayRevenue = 0;
         let yesterdayRevenue = 0;
         let todayCount = 0;
@@ -105,43 +116,9 @@ const AIAnalytics = () => {
             isPositive: diff >= 0,
             todayCount
         };
-    };
+    }, [sales]);
 
-    const getTopProducts = () => {
-        const map = {};
-        sales.forEach(sale => {
-            if (sale.items) {
-                sale.items.forEach(item => {
-                    if (!item.product || item.product.isDeleted || item.product.status !== 'Active') return;
-
-                    if (!map[item.productId]) {
-                        map[item.productId] = { 
-                            id: item.productId, 
-                            name: item.product.name, 
-                            imageUrl: item.product.imageUrl || null, 
-                            revenue: 0, 
-                            qty: 0 
-                        };
-                    }
-                    map[item.productId].revenue += parseFloat(item.subtotal || 0);
-                    map[item.productId].qty += item.quantity;
-                });
-            }
-        });
-        // Also enrich from products list if imageUrl not already set from sale items
-        const result = Object.values(map);
-        result.forEach(p => {
-            if (!p.imageUrl) {
-                const found = products.find(pr => pr.id === p.id);
-                if (found) p.imageUrl = found.imageUrl || null;
-            }
-        });
-        return result
-            .sort((a, b) => topProductsSortBy === 'revenue' ? b.revenue - a.revenue : b.qty - a.qty)
-            .slice(0, 5);
-    };
-
-    const getSlowProductsWithPromos = () => {
+    const slowProductsWithPromos = useMemo(() => {
         const salesMap = {};
         sales.forEach(sale => {
             if (sale.items) {
@@ -161,11 +138,12 @@ const AIAnalytics = () => {
         return slow.map(p => ({
             ...p,
             suggestedDiscount: p.stockQuantity > 50 ? '-30%' : '-15%',
-            actionReason: t('actionReasonSlow', { qty: p.stockQuantity })
+            salesCount: salesMap[p.id] || 0,
+            actionReason: t('actionReasonSlow', { stock: p.stockQuantity, sales: salesMap[p.id] || 0 })
         }));
-    };
+    }, [products, sales, t]);
 
-    const getBehaviorData = () => {
+    const behaviorData = useMemo(() => {
         const hourCounts = Array(24).fill(0);
         let totalRevenue = 0;
 
@@ -192,9 +170,9 @@ const AIAnalytics = () => {
         const flow = todaySalesCount > 10 ? 'High' : todaySalesCount > 3 ? 'Moderate' : 'Stable';
 
         return { heatmapData, panierMoyen, totalClients: sales.length, peakHour: `${peakH}:00`, flow };
-    };
+    }, [sales]);
 
-    const getAnomalies = () => {
+    const getAnomalies = useMemo(() => {
         const anomaliesList = [];
         const salesMap = {};
         sales.forEach(sale => {
@@ -222,9 +200,9 @@ const AIAnalytics = () => {
         });
 
         return anomaliesList.slice(0, 6);
-    };
+    }, [products, sales, t]);
 
-    const getSmartAlerts = () => {
+    const smartAlerts = useMemo(() => {
         const salesMap = {};
         sales.forEach(sale => {
             if (sale.items) {
@@ -234,26 +212,31 @@ const AIAnalytics = () => {
             }
         });
 
-        // Calculate real number of days in current month for velocity
+        
         const now = new Date();
         const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
         
         const alerts = [];
         products.forEach(p => {
+            const reorderLevel = Number(p.reorderLevel || 5);
             const totalSold = salesMap[p.id] || 0;
-            const dailyVelocity = totalSold / daysInMonth; // Actual days in month velocity
+            const dailyVelocity = totalSold / daysInMonth; 
             const daysRemaining = dailyVelocity > 0 ? p.stockQuantity / dailyVelocity : 999;
             
-            if (p.stockQuantity <= 10) {
-                alerts.push({ p, days: daysRemaining.toFixed(1), urgency: 'high', reason: t('stockCriticalAbs', "Stock critique absolu (<10)") });
-            } else if (dailyVelocity > 1 && daysRemaining < 7) {
-                alerts.push({ p, days: daysRemaining.toFixed(1), urgency: 'medium', reason: t('sellingFastAlert', { days: daysRemaining.toFixed(0) }) });
+            if (p.stockQuantity <= reorderLevel) {
+                const urgency = p.stockQuantity <= (reorderLevel / 2) ? 'high' : 'medium';
+                alerts.push({ 
+                    p, 
+                    days: daysRemaining.toFixed(1), 
+                    urgency, 
+                    reason: t('lowStock') + ` (${p.stockQuantity}/${reorderLevel.toFixed(0)})` 
+                });
             }
         });
         return alerts.sort((a,b) => a.days - b.days).slice(0, 8);
-    };
+    }, [products, sales]);
 
-    const getAIPerformanceMetrics = () => {
+    const getAIPerformanceMetrics = useMemo(() => {
         const now = new Date();
         const thisMonth = now.getMonth();
         const thisYear = now.getFullYear();
@@ -271,8 +254,8 @@ const AIAnalytics = () => {
         });
         
         const growth = lastMonthRev > 0 ? ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100 : 12.5;
-        const lowStockCount = products.filter(p => p.stockQuantity <= 10).length;
-        // Urgency is high if many products are low stock (max 95%)
+        const lowStockCount = products.filter(p => p.stockQuantity <= Number(p.reorderLevel || 5)).length;
+        
         const supplyUrgency = products.length > 0 ? (lowStockCount / products.length) * 100 : 0;
         const trend = growth > 2 ? t('uptrend', 'HAUSSE') : growth < -2 ? t('downtrend', 'BAISSE') : t('stable', 'STABLE');
         
@@ -281,95 +264,265 @@ const AIAnalytics = () => {
             supplyUrgency: Math.max(15, Math.min(95, (supplyUrgency * 10) + 15)).toFixed(0), // Scale for visual impact
             trend
         };
-    };
+    }, [sales, products, t]);
 
-    const generateAiForecast = async () => {
+    const generateAiForecast = useCallback(async () => {
         setIsGeneratingForecast(true);
         try {
-            const salesData = sales.slice(-50).map(s => ({
+            if (sales.length < 5) {
+                throw new Error('Données insuffisantes pour une prévision IA fiable (min. 5 transactions)');
+            }
+
+            const salesData = sales.slice(-40).map(s => ({
                 date: s.createdAt,
                 amount: parseFloat(s.totalAmount || 0),
                 items: s.items?.length || 0
             }));
             
-            const productData = products.slice(0, 20).map(p => ({
+            const productData = products.slice(0, 15).map(p => ({
                 name: p.name,
                 stock: p.stockQuantity,
-                price: p.price,
-                category: p.categoryId
+                price: p.price
             }));
 
-            const prompt = `Analyze this retail sales data and provide 6-month sales forecast. Return ONLY JSON format: [{"month": "M+1", "prediction": number, "confidence": "high/medium/low", "insight": "brief reason"}]. Sales data: ${JSON.stringify(salesData)}. Products: ${JSON.stringify(productData)}. Current month revenue: ${salesData.reduce((sum, s) => sum + s.amount, 0)}.`;
+            const prompt = `Analyze this retail sales data and provide 6-month sales forecast. Return ONLY JSON format: [{"month": "M+1", "prediction": number, "confidence": "high/medium/low", "insight": "brief reason"}]. 
+            If data is sparse, provide realistic projections based on the few transactions available.
+            Sales data: ${JSON.stringify(salesData)}. 
+            Products: ${JSON.stringify(productData)}. 
+            Current month revenue: ${salesData.reduce((sum, s) => sum + s.amount, 0)}.`;
 
             const response = await api.post('/ai/chat', {
                 messages: [{ role: 'user', content: prompt }],
-                systemContext: 'Retail Analytics Expert. JSON only. No markdown. Provide realistic forecasts based on historical data.'
+                systemContext: 'Retail Analytics Expert. Return ONLY a valid JSON array of objects. No markdown, no triple backticks, no preamble.'
             });
 
-            const text = response.data.reply;
-            const jsonMatch = text.match(/\[.*\]/s);
-            if (jsonMatch) {
-                const forecastData = JSON.parse(jsonMatch[0]);
-                setAiForecastData(forecastData);
-            } else {
-                throw new Error('Invalid AI response');
+            const replyText = response.data.reply;
+            if (!replyText) throw new Error('Empty AI response');
+
+            console.log('Raw AI Forecast Response:', replyText);
+
+            if (replyText.startsWith('ERROR_AI:')) {
+                throw new Error(replyText);
             }
+
+            // Deep clean the string: remove smart quotes, control characters, and hidden whitespace
+            const cleanText = (str) => {
+                return str
+                    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"') // All types of double quotes
+                    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'") // All types of single quotes
+                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // Control characters
+                    .trim();
+            };
+
+            // Attempt 1: Standard Array
+            const startIdx = replyText.indexOf('[');
+            const endIdx = replyText.lastIndexOf(']');
+            
+            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+                const jsonPart = cleanText(replyText.substring(startIdx, endIdx + 1));
+                try {
+                    const forecastData = JSON.parse(jsonPart);
+                    if (Array.isArray(forecastData) && forecastData.length > 0) {
+                        setAiForecastData(forecastData);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Forecast parsing attempt 1 failed:', e.message, 'Data:', jsonPart.substring(0, 50));
+                }
+            }
+
+            // Attempt 2: Object Discovery
+            const objStart = replyText.indexOf('{');
+            const objEnd = replyText.lastIndexOf('}');
+            if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
+                try {
+                    const sanitizedObj = cleanText(replyText.substring(objStart, objEnd + 1));
+                    const fullObj = JSON.parse(sanitizedObj);
+                    const possibleArray = Object.values(fullObj).find(val => Array.isArray(val) && val.length > 0);
+                    if (possibleArray) {
+                        setAiForecastData(possibleArray);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Forecast parsing attempt 2 failed:', e.message);
+                }
+            }
+            
+            throw new Error('Format de réponse IA non reconnu ou corrompu');
         } catch (error) {
-            console.error('AI Forecast error:', error);
-            // Fallback to simple calculation
-            setAiForecastData(null);
+            console.error('AI Forecast error details:', error);
+            // Fallback: Generate a simple linear forecast
+            const currentRev = sales.slice(-30).reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0);
+            const fallbackData = [
+                { month: 'M+1', prediction: currentRev * 1.05, confidence: 'medium', insight: 'Croissance linéaire estimée basées sur les dernières ventes.' },
+                { month: 'M+2', prediction: currentRev * 1.10, confidence: 'low', insight: 'Tendance saisonnière projetée.' }
+            ];
+            setAiForecastData(fallbackData);
         } finally {
             setIsGeneratingForecast(false);
         }
-    };
+    }, [sales, products]);
 
-    // Generate AI inventory insights
-    const generateAiInsights = async () => {
+    const generateAiInsights = useCallback(async () => {
         setIsGeneratingInsights(true);
         try {
-            const inventoryData = products.map(p => ({
+            if (products.length === 0) {
+                throw new Error('Aucun produit disponible pour l\'analyse.');
+            }
+
+            const inventoryData = products.slice(0, 30).map(p => ({
                 name: p.name,
                 stock: p.stockQuantity,
                 price: p.price,
-                purchasePrice: p.purchasePrice,
-                category: p.categoryId
+                purchasePrice: p.purchasePrice
             }));
 
             const salesByProduct = {};
-            sales.forEach(s => {
+            sales.slice(-100).forEach(s => {
                 s.items?.forEach(item => {
-                    const productId = item.product?.id;
+                    const productId = item.product?.id || item.productId;
                     if (productId) {
                         salesByProduct[productId] = (salesByProduct[productId] || 0) + (item.quantity || 1);
                     }
                 });
             });
 
-            const prompt = `Analyze this retail inventory and sales data. Provide 3-5 actionable insights for inventory management. Return ONLY JSON format: [{"type": "restock/alert/discount/promotion", "product": "name", "reason": "why", "action": "what to do", "priority": "high/medium/low"}]. Inventory: ${JSON.stringify(inventoryData)}. Sales by product: ${JSON.stringify(salesByProduct)}.`;
+            const prompt = `Analyze this retail inventory and provide 3-5 specific, actionable recommendations. Return ONLY JSON format: [{"type": "restock/alert/discount/promotion/price_adjust/remove", "product": "exact product name", "reason": "specific problem", "action": "exact next step", "priority": "high/medium/low"}].
+            Inventory: ${JSON.stringify(inventoryData)}
+            Sales velocity: ${JSON.stringify(salesByProduct)}`;
 
             const response = await api.post('/ai/chat', {
                 messages: [{ role: 'user', content: prompt }],
-                systemContext: 'Inventory Management Expert. JSON only. No markdown. Provide actionable insights.'
+                systemContext: 'Inventory Strategy Expert. Return ONLY a valid JSON array. No text before or after the JSON.'
             });
 
-            const text = response.data.reply;
-            const jsonMatch = text.match(/\[.*\]/s);
-            if (jsonMatch) {
-                const insightsData = JSON.parse(jsonMatch[0]);
-                setAiInsights(insightsData);
-            } else {
-                throw new Error('Invalid AI response');
+            const replyText = response.data.reply;
+            if (!replyText) throw new Error('Empty AI response');
+
+            console.log('Raw AI Insights Response:', replyText);
+
+            if (replyText.startsWith('ERROR_AI:')) {
+                throw new Error(replyText);
             }
+
+            // Deep clean
+            const cleanText = (str) => {
+                return str
+                    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+                    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+                    .trim();
+            };
+
+            const startIdx = replyText.indexOf('[');
+            const endIdx = replyText.lastIndexOf(']');
+            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+                const jsonPart = cleanText(replyText.substring(startIdx, endIdx + 1));
+                try {
+                    const insightsData = JSON.parse(jsonPart);
+                    if (Array.isArray(insightsData)) {
+                        setAiInsights(insightsData);
+                        localStorage.setItem('aiInsights', JSON.stringify(insightsData));
+                        localStorage.setItem('aiInsightsCacheKey', `v1-${products.length}-${sales.length}`);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Insights parsing attempt 1 failed:', e.message);
+                }
+            }
+
+            // Object search
+            const objStart = replyText.indexOf('{');
+            const objEnd = replyText.lastIndexOf('}');
+            if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
+                try {
+                    const sanitizedObj = cleanText(replyText.substring(objStart, objEnd + 1));
+                    const fullObj = JSON.parse(sanitizedObj);
+                    const possibleArray = Object.values(fullObj).find(val => Array.isArray(val) && val.length > 0);
+                    if (possibleArray) {
+                        setAiInsights(possibleArray);
+                        localStorage.setItem('aiInsights', JSON.stringify(possibleArray));
+                        localStorage.setItem('aiInsightsCacheKey', `v1-${products.length}-${sales.length}`);
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Insights parsing attempt 2 failed:', e.message);
+                }
+            }
+            
+            throw new Error('Format de réponse IA Insights non reconnu');
         } catch (error) {
-            console.error('AI Insights error:', error);
-            setAiInsights(null);
+            console.error('AI Insights error details:', error);
+            // Overstocked with no sales - specific discount
+            products.filter(p => p.stockQuantity > 50 && (!salesMap[p.id] || salesMap[p.id] === 0)).slice(0, 2).forEach(p => {
+                const discount = p.stockQuantity > 100 ? 40 : 25;
+                fallbackInsights.push({
+                    type: 'discount',
+                    product: p.name,
+                    reason: t('overstockNoSales', { stock: p.stockQuantity }),
+                    action: t('applyDiscountToClear', { discount }),
+                    priority: 'high'
+                });
+            });
+            
+            // Slow moving stock
+            products.filter(p => p.stockQuantity > 20 && salesMap[p.id] > 0 && salesMap[p.id] < 5).slice(0, 2).forEach(p => {
+                fallbackInsights.push({
+                    type: 'discount',
+                    product: p.name,
+                    reason: t('slowMovingStock', { sold: salesMap[p.id], stock: p.stockQuantity }),
+                    action: t('apply15PercentDiscount'),
+                    priority: 'medium'
+                });
+            });
+            
+            // Low margin products
+            products.filter(p => p.purchasePrice && parseFloat(p.price) <= parseFloat(p.purchasePrice) * 1.2).slice(0, 1).forEach(p => {
+                const margin = ((parseFloat(p.price) - parseFloat(p.purchasePrice)) / parseFloat(p.purchasePrice) * 100).toFixed(0);
+                fallbackInsights.push({
+                    type: 'price_adjust',
+                    product: p.name,
+                    reason: t('lowMargin', { margin }),
+                    action: t('increasePrice15Percent'),
+                    priority: 'medium'
+                });
+            });
+            
+            // If still no insights, provide general analysis
+            if (fallbackInsights.length === 0) {
+                const totalStock = products.reduce((sum, p) => sum + p.stockQuantity, 0);
+                const avgStock = products.length > 0 ? Math.round(totalStock / products.length) : 0;
+                fallbackInsights.push({
+                    type: 'info',
+                    product: t('globalInventory'),
+                    reason: t('inventoryAnalysis', { count: products.length, avgStock }),
+                    action: t('analyzeTopSellingProducts'),
+                    priority: 'low'
+                });
+            }
+            
+            setAiInsights(fallbackInsights);
+            localStorage.setItem('aiInsights', JSON.stringify(fallbackInsights));
+            localStorage.setItem('aiInsightsCacheKey', newCacheKey);
         } finally {
             setIsGeneratingInsights(false);
         }
-    };
+    }, [sales, products, t, newCacheKey]);
 
-    const getForecastData = () => {
-        
+    useEffect(() => {
+        if (sales.length > 0 && products.length > 0) {
+            generateAiForecast();
+        }
+    }, [generateAiForecast]);
+
+    useEffect(() => {
+        if (newCacheKey !== insightsCacheKey && sales.length > 0 && products.length > 0) {
+            setInsightsCacheKey(newCacheKey);
+            generateAiInsights();
+        }
+    }, [newCacheKey, generateAiInsights, insightsCacheKey]);
+
+    const forecastData = useMemo(() => {
         if (aiForecastData && aiForecastData.length > 0) {
             return aiForecastData.map(f => ({
                 name: f.month,
@@ -401,7 +554,7 @@ const AIAnalytics = () => {
                 insight: 'Projected based on historical data'
             };
         });
-    };
+    }, [aiForecastData, sales]);
 
     const handleApplyPromotion = async (product) => {
         const discountNum = Math.abs(parseInt(product.suggestedDiscount));
@@ -442,16 +595,6 @@ const AIAnalytics = () => {
     };
 
 
-    const handleGeneratePoster = (ideaId) => {
-        setGeneratingPoster(prev => ({ ...prev, [ideaId]: true }));
-    
-        setTimeout(() => {
-            setGeneratingPoster(prev => ({ ...prev, [ideaId]: false }));
-            setPosterGenerated(prev => ({ ...prev, [ideaId]: true }));
-        }, 2500);
-    };
-
-    // AI Chat functionality
     const handleChatSubmit = async (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
@@ -467,12 +610,13 @@ const AIAnalytics = () => {
                 totalSales: sales.length,
                 totalRevenue: sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0),
                 totalProducts: products.length,
-                lowStockCount: products.filter(p => p.stockQuantity <= 10).length,
+                lowStockCount: products.filter(p => p.stockQuantity <= Number(p.reorderLevel || 5)).length,
                 topSellingProduct: products.length > 0 ? products[0].name : 'N/A'
             };
 
             const systemContext = `You are a Retail Analytics Expert. Answer questions about sales, inventory, and business performance. Use this data: ${JSON.stringify(contextData)}. Be concise and actionable.`;
             const apiMessages = chatMessages
+                .slice(-10)
                 .concat({ role: 'user', content: userMessage })
                 .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
 
@@ -487,11 +631,11 @@ const AIAnalytics = () => {
 
     const clearChatHistory = () => {
         setChatMessages([
-            { role: 'ai', content: 'Hello! I am your Analytics AI Assistant. I can help you analyze your sales, inventory, and customer behavior. Ask me anything!' }
+            { role: 'ai', content: t('aiChatWelcome', 'Hello! I am your Analytics AI Assistant. I can help you analyze your sales, inventory, and customer behavior. Ask me anything!') }
         ]);
     };
 
-    // Auto-scroll chat to bottom
+    
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages, isAiTyping]);
@@ -504,52 +648,58 @@ const AIAnalytics = () => {
         switch (activeTab) {
 
             case 'products':
-                const slowProds = getSlowProductsWithPromos();
+                const slowProds = slowProductsWithPromos;
                 return (
                     <div className="space-y-6">
                     
-                        {aiInsights && aiInsights.length > 0 && (
-                            <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-2xl shadow-xl text-white">
-                                <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-bold flex items-center gap-2"><FiZap /> {t('aiInsights', 'Insights IA')}</h3>
-                                    <button 
-                                        onClick={generateAiInsights}
-                                        disabled={isGeneratingInsights}
-                                        className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
-                                    >
-                                        {isGeneratingInsights ? <FiRefreshCw className="animate-spin" /> : t('refresh', 'Actualiser')}
-                                    </button>
-                                </div>
-                                <div className="grid gap-3">
-                                    {aiInsights.map((insight, i) => (
-                                        <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+                        <div className="bg-gradient-to-br  from-blue-200 to-indigo-200 p-6 rounded-2xl shadow-xl text-gray-800">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-bold flex items-center gap-2 text-blue-900"><FiZap /> {t('aiInsights', 'Insights IA')}</h3>
+                                <button 
+                                    onClick={generateAiInsights}
+                                    disabled={isGeneratingInsights}
+                                    className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
+                                >
+                                    {isGeneratingInsights ? <FiRefreshCw className="animate-spin" /> : t('refresh', 'Actualiser')}
+                                </button>
+                            </div>
+                            <div className="grid gap-3">
+                                {aiInsights && aiInsights.length > 0 ? (
+                                    aiInsights.map((insight, i) => (
+                                        <div key={i} className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-200 shadow-sm">
                                             <div className="flex items-start gap-3">
                                                 <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
-                                                    insight.priority === 'high' ? 'bg-red-400' : 
-                                                    insight.priority === 'medium' ? 'bg-yellow-400' : 'bg-green-400'
+                                                    insight.priority === 'high' ? 'bg-red-500' : 
+                                                    insight.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
                                                 }`} />
                                                 <div className="flex-1">
-                                                    <div className="font-bold text-sm mb-1">{insight.product}</div>
-                                                    <div className="text-xs opacity-90 mb-2">{insight.reason}</div>
-                                                    <div className="text-xs font-medium bg-white/20 inline-block px-2 py-1 rounded-md">
+                                                    <div className="font-bold text-sm mb-1 text-gray-800">{insight.product}</div>
+                                                    <div className="text-xs text-gray-600 mb-2">{insight.reason}</div>
+                                                    <div className="text-xs font-medium bg-blue-100 text-blue-800 inline-block px-2 py-1 rounded-md">
                                                         {insight.action}
                                                     </div>
                                                 </div>
-                                                <div className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+                                                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
                                                     {insight.type}
                                                 </div>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
+                                    ))
+                                ) : (
+                                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-200 shadow-sm">
+                                        <div className="text-sm text-gray-600">
+                                            {isGeneratingInsights ? t('aiThinking', 'L\'IA réfléchit...') : t('noAlerts', 'Aucune alerte.')}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        )}
+                        </div>
 
-                        <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                        <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                             <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><FiActivity className="text-orange-500" /> {t('adaptedPromotions', 'Promotions Adaptées')}</h3>
                             <p className="text-sm text-gray-500 mb-6">{t('analyticsPromoDesc', 'Suggestions IA pour écouler les stocks dormants et maximiser la rotation.')}</p>
                             
-                            <div className="grid gap-4 md:grid-cols-2">
+                            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
                                 {slowProds.map((p, i) => (
                                     <div key={i} className="p-4 border border-orange-100 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl">
                                         <div className="flex items-start gap-3 mb-3">
@@ -586,114 +736,152 @@ const AIAnalytics = () => {
                     </div>
                 );
             case 'forecasts':
-                const aiMetrics = getAIPerformanceMetrics();
+                const aiMetrics = getAIPerformanceMetrics;
                 return (
                     <div className="space-y-8">
                         {/* Forecast Summary Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-2">{t('estimatedGrowth', 'Croissance Estimée')}</div>
-                                <div className="text-3xl font-black text-slate-800 dark:text-white">{aiMetrics.growth > 0 ? '+' : ''}{aiMetrics.growth}%</div>
-                                <div className="text-xs text-slate-400 mt-1 font-bold">{t('projectionQ2', 'Projection Q2 2026')}</div>
+                                <div className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white">{aiMetrics.growth > 0 ? '+' : ''}{aiMetrics.growth}%</div>
+                                <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('projectionQ2', 'Projection Q2 2026')}</div>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-indigo-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('supplyUrgency', 'Urgence Approvisionnement')}</div>
-                                <div className="text-3xl font-black text-indigo-600">{aiMetrics.supplyUrgency}%</div>
-                                <div className="text-xs text-slate-400 mt-1 font-bold">{t('optimalStockCapacity', 'Capacité de stockage optimale')}</div>
+                                <div className="text-2xl lg:text-3xl font-black text-indigo-600">{aiMetrics.supplyUrgency}%</div>
+                                <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('optimalStockCapacity', 'Capacité de stockage optimale')}</div>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
                                 <div className="text-teal-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('marketTrend', 'Tendance Marché')}</div>
-                                <div className="text-3xl font-black text-teal-600">{aiMetrics.trend}</div>
-                                <div className="text-xs text-slate-400 mt-1 font-bold">{t('favorableSeasonality', 'Saisonnalité favorable')}</div>
+                                <div className="text-2xl lg:text-3xl font-black text-teal-600">{aiMetrics.trend}</div>
+                                <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('favorableSeasonality', 'Saisonnalité favorable')}</div>
                             </div>
                         </div>
 
                         {/* Chart Area */}
-                        <div className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 flex flex-col h-[500px]">
-                            <div className="mb-8 flex justify-between items-end">
+                        <div className="bg-white dark:bg-gray-800 p-4 lg:p-8 rounded-2xl lg:rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 flex flex-col min-h-[400px] h-[50vh] lg:h-[500px]">
+                            <div className="mb-4 lg:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 lg:gap-4">
                                 <div>
-                                    <h3 className="text-2xl font-black tracking-tighter uppercase leading-none mb-2">{t('salesForecasts', 'Prévisions Stratégiques')}</h3>
-                                    <p className="text-slate-400 text-sm font-medium">{t('forecastDesc', 'Anticipation des flux de vente et optimisation des achats.')}</p>
+                                    <h3 className="text-lg lg:text-2xl font-black tracking-tighter uppercase leading-none mb-1 lg:mb-2">{t('salesForecasts', 'Prévisions Stratégiques')}</h3>
+                                    <p className="text-slate-400 text-[10px] lg:text-sm font-medium">{t('forecastDesc', 'Anticipation des flux de vente et optimisation des achats.')}</p>
                                 </div>
                                 <div className="flex gap-4">
-                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div> {t('supply', 'Appro.') }
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        <div className="w-2 h-2 lg:w-3 lg:h-3 bg-blue-500 rounded-full"></div> {t('supply', 'Appro.') }
                                     </div>
-                                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                        <div className="w-3 h-[2px] bg-indigo-500"></div> {t('forecast', 'Prévision') }
+                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                        <div className="w-2 h-[2px] lg:w-3 lg:h-[2px] bg-indigo-500"></div> {t('forecast', 'Prévision') }
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex-1">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart data={getForecastData()}>
-                                        <defs>
-                                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                                                <stop offset="100%" stopColor="#2563eb" stopOpacity={0.4}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                                        <XAxis 
-                                            dataKey="name" 
-                                            axisLine={false} 
-                                            tickLine={false} 
-                                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}} 
-                                            dy={10}
-                                        />
-                                        <YAxis 
-                                            axisLine={false} 
-                                            tickLine={false} 
-                                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
-                                        />
-                                        <Tooltip 
-                                            cursor={{fill: 'rgba(59, 130, 246, 0.05)'}}
-                                            contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '16px' }} 
-                                        />
-                                        <Bar dataKey="Approvisionnement" fill="url(#barGradient)" radius={[10, 10, 0, 0]} barSize={40} />
-                                        <Line type="monotone" dataKey="Prédiction" stroke="#6366f1" strokeWidth={4} dot={{ r: 6, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
+                            <div className="flex-1 min-h-[400px]">
+                                {!aiForecastData ? (
+                                    <div className="h-full flex flex-col items-center justify-center space-y-4">
+                                        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                        <p className="text-slate-400 font-medium">{t('generatingForecast', 'Génération des prévisions IA...')}</p>
+                                    </div>
+                                ) : (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={aiForecastData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                            <defs>
+                                                <linearGradient id="predictionGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
+                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1}/>
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                                            <XAxis 
+                                                dataKey="month" 
+                                                axisLine={false} 
+                                                tickLine={false} 
+                                                tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                                                dy={10}
+                                            />
+                                            <YAxis 
+                                                axisLine={false} 
+                                                tickLine={false} 
+                                                tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                                                tickFormatter={(val) => formatCurrency(val)}
+                                            />
+                                            <Tooltip 
+                                                contentStyle={{ 
+                                                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                                                    borderRadius: '16px', 
+                                                    border: 'none', 
+                                                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+                                                    padding: '12px'
+                                                }}
+                                                formatter={(val) => [formatCurrency(val), t('prediction', 'Prédiction')]}
+                                            />
+                                            <Legend verticalAlign="top" height={36} iconType="circle" />
+                                            <Area 
+                                                type="monotone" 
+                                                dataKey="prediction" 
+                                                fill="url(#predictionGradient)" 
+                                                stroke="#6366f1" 
+                                                strokeWidth={3}
+                                                name={t('predictionArea', 'Zone de Croissance')}
+                                            />
+                                            <Bar 
+                                                dataKey="prediction" 
+                                                name={t('monthlyPrediction', 'Prédiction Mensuelle')} 
+                                                fill="#6366f1" 
+                                                radius={[6, 6, 0, 0]} 
+                                                barSize={30}
+                                                opacity={0.3}
+                                            />
+                                            <Line 
+                                                type="monotone" 
+                                                dataKey="prediction" 
+                                                name={t('trendLine', 'Ligne de Tendance')}
+                                                stroke="#f43f5e" 
+                                                strokeWidth={3} 
+                                                dot={{ fill: '#f43f5e', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                                                activeDot={{ r: 6, strokeWidth: 0 }}
+                                            />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                )}
                             </div>
                         </div>
                     </div>
                 );
             case 'behavior':
-                const behavior = getBehaviorData();
+                const behavior = behaviorData;
                 return (
                     <div className="space-y-8">
                         {/* Behavior Insights Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-8 rounded-3xl shadow-xl text-white flex flex-col justify-between relative overflow-hidden">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 lg:p-8 rounded-2xl lg:rounded-3xl shadow-xl text-white flex flex-col justify-between relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full -mr-16 -mt-16"></div>
                                  <div>
-                                    <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">{t('peakActivity', 'Heure de Pointe')}</div>
-                                    <div className="text-4xl font-black">{behavior.peakHour}</div>
+                                    <div className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">{t('peakActivity', 'Heure de Pointe')}</div>
+                                    <div className="text-3xl lg:text-4xl font-black">{behavior.peakHour}</div>
                                 </div>
-                                <div className="text-xs font-bold opacity-70 mt-4">{t('basedOnRealTransactions', 'Basé sur vos transactions réelles.')}</div>
+                                <div className="text-[10px] lg:text-xs font-bold opacity-70 mt-4">{t('basedOnRealTransactions', 'Basé sur vos transactions réelles.')}</div>
                             </div>
 
-                            <div className="bg-white dark:bg-gray-800 p-7 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
-                                <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('customerFlow', 'Flux Clients')}</div>
-                                <div className="text-3xl font-black text-slate-800 dark:text-white">{t(`flow${behavior.flow}`, behavior.flow)}</div>
-                                <div className="text-xs text-green-500 mt-1 font-bold">{t('stableLastHours', 'Stable sur les dernières heures')}</div>
+                            <div className="bg-white dark:bg-gray-800 p-6 lg:p-7 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
+                                <div className="text-slate-400 font-black text-[9px] lg:text-[10px] uppercase tracking-widest mb-2">{t('customerFlow', 'Flux Clients')}</div>
+                                <div className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white">{t(`flow${behavior.flow}`, behavior.flow)}</div>
+                                <div className="text-[10px] lg:text-xs text-green-500 mt-1 font-bold">{t('stableLastHours', 'Stable sur les dernières heures')}</div>
                             </div>
 
-                            <div className="bg-white dark:bg-gray-800 p-7 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
-                                <div className="text-slate-400 font-black text-[10px] uppercase tracking-widest mb-2">{t('averageBasket', 'Panier Moyen')}</div>
-                                <div className="text-3xl font-black text-slate-800 dark:text-white">{formatCurrency(behavior.panierMoyen)}</div>
-                                <div className="text-xs text-slate-400 mt-1 font-bold">{t('avgSpendPerClient', 'Dépense moyenne par client')}</div>
+                            <div className="bg-white dark:bg-gray-800 p-6 lg:p-7 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center sm:col-span-2 lg:col-span-1">
+                                <div className="text-slate-400 font-black text-[9px] lg:text-[10px] uppercase tracking-widest mb-2">{t('averageBasket', 'Panier Moyen')}</div>
+                                <div className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white">{formatCurrency(behavior.panierMoyen)}</div>
+                                <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('avgSpendPerClient', 'Dépense moyenne par client')}</div>
                             </div>
                         </div>
 
                         {/* Customer Traffic Area */}
-                        <div className="bg-white dark:bg-gray-800 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 h-[400px] flex flex-col">
-                            <div className="mb-8 flex justify-between items-center">
+                        <div className="bg-white dark:bg-gray-800 p-4 lg:p-8 rounded-2xl lg:rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 min-h-[350px] h-[40vh] lg:h-[400px] flex flex-col">
+                            <div className="mb-4 lg:mb-8 flex justify-between items-center">
                                 <div>
-                                    <h3 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1">{t('activityByHour', 'Trafic Intraday')}</h3>
-                                    <p className="text-slate-400 text-sm font-medium">{t('heatmapDesc', 'Visualisation des pics de transactions par tranche horaire.')}</p>
+                                    <h3 className="text-lg lg:text-2xl font-black tracking-tighter uppercase leading-none mb-1">{t('activityByHour', 'Trafic Intraday')}</h3>
+                                    <p className="text-slate-400 text-[10px] lg:text-sm font-medium">{t('heatmapDesc', 'Visualisation des pics de transactions par tranche horaire.')}</p>
                                 </div>
-                                <div className="text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-4 py-2 rounded-full uppercase tracking-widest">
+                                <div className="text-[9px] lg:text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-3 lg:px-4 py-1.5 lg:py-2 rounded-full uppercase tracking-widest">
                                     {t('directUpdate', 'Mise à jour directe')}
                                 </div>
                             </div>
@@ -740,8 +928,8 @@ const AIAnalytics = () => {
                                     <FiZap size={24} />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black tracking-tighter">AI Analytics Assistant</h3>
-                                    <p className="text-xs text-gray-500 font-medium">Ask questions about your sales, inventory, and performance</p>
+                                    <h3 className="text-xl font-black tracking-tighter"> AI Analytics Assistant</h3>
+                                    <p className="text-xs text-gray-500 font-medium">{t('AIIntro','Ask questions about your sales, inventory, and performance')}</p>
                                 </div>
                             </div>
                             <button 
@@ -818,12 +1006,9 @@ const AIAnalytics = () => {
     };
 
     return (
-        <div className="flex h-[calc(100vh-8rem)] gap-6">
-            
-            {/* MAIN DASHBOARD PANEL */}
+        <div className="flex flex-col h-full gap-4 lg:gap-6">
             <div className="flex-1 flex flex-col min-w-0">
-                {/* Tabs */}
-                <div className="flex space-x-2 mb-6 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar">
+                <div className="flex space-x-2 mb-4 lg:mb-6 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar">
                     {[
                         { id: 'products', label: t('tabProductsPromos', 'Produits & Promos'), icon: FiBox },
                         { id: 'forecasts', label: t('tabForecasts', 'Prévisions'), icon: FiTrendingUp },

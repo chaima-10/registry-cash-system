@@ -13,6 +13,19 @@ class UserRepository {
         return await prisma.user.findUnique({ where: { id } });
     }
 
+    async findUserByVerificationToken(token) {
+        return await prisma.user.findFirst({ where: { emailVerificationToken: token } });
+    }
+
+    async findUserByResetToken(token) {
+        return await prisma.user.findFirst({
+            where: {
+                resetPasswordToken: token,
+                resetPasswordExpires: { gte: new Date() }
+            }
+        });
+    }
+
     async findUserByIdWithSelectedFields(id, selectFields) {
         return await prisma.user.findUnique({ where: { id }, select: selectFields });
     }
@@ -144,6 +157,24 @@ class UserRepository {
 
     async createPrimes(dataArray) {
         return await prisma.prime.createMany({ data: dataArray });
+    }
+
+    async createSalaryPayments(dataArray) {
+        return await prisma.salarypayment.createMany({ data: dataArray });
+    }
+
+    async getLastSalaryDistribution() {
+        return await prisma.salarypayment.findFirst({
+            orderBy: { paidAt: 'desc' },
+            select: { amount: true, month: true, paidAt: true }
+        });
+    }
+
+    async getAllSalaryPayments(userId) {
+        return await prisma.salarypayment.findMany({
+            where: { userId },
+            orderBy: { paidAt: 'desc' }
+        });
     }
 }
 

@@ -89,6 +89,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const updateUser = (updatedData) => {
+        if (!updatedData || typeof updatedData !== 'object') {
+            console.error("updateUser called with invalid data:", updatedData);
+            return;
+        }
         setUser(prev => {
             const newUser = prev ? { ...prev, ...updatedData } : null;
             if (updatedData.theme) {
