@@ -65,7 +65,7 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
             isScanningRef.current = true;
             setIsScannerStarted(false);
 
-            // 1. Try High-Resolution Stream first, fallback to standard, then basic
+            // 1. Try High-Resolution Stream first, fallback to standard, then basic, then ANY camera
             let stream;
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
@@ -78,10 +78,17 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                         video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
                     });
                 } catch (stdResError) {
-                    console.warn("[Scanner] Standard-res failed, falling back to basic...", stdResError);
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment" }
-                    });
+                    console.warn("[Scanner] Standard-res failed, falling back to basic environment...", stdResError);
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: { facingMode: "environment" }
+                        });
+                    } catch (envResError) {
+                        console.warn("[Scanner] Environment camera failed, falling back to ANY camera...", envResError);
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: true
+                        });
+                    }
                 }
             }
             
