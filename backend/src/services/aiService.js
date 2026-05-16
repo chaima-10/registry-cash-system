@@ -1,130 +1,102 @@
 /**
  * AI Service to handle external API communication
- * Wired directly to Google Gemini API via generateContent
+ * Updated to use Groq API (fast inference engine)
  */
 class AIService {
     async generateResponse(messages, systemContext) {
-        // Generic model pointers for long-term stability
-        const models = ['gemini-flash-latest', 'gemini-pro-latest', 'gemini-2.5-flash-lite'];
+        // Use Groq models (active)
+        const models = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
         
-        const callGemini = async (model, retryCount = 0) => {
+        const callGroq = async (model, retryCount = 0) => {
             try {
-                // Setup dynamic system prompt defining it as a marketing copilot
                 const defaultSystemPrompt = `Tu es un Marketing Copilot expert intégré au dashboard d'Intelligence Artificielle de notre système de caisse.
 Ta mission est d'accompagner l'utilisateur en générant des textes de publication, des hooks (IG/TikTok), des hashtags pertinents ou en proposant des stratégies marketing.
 Réponds de manière concise, engageante et professionnelle. Tu peux utiliser des emojis adaptés.`;
 
-                // Use the provided system context, or default to the Marketing Copilot prompt
                 const systemPrompt = systemContext || defaultSystemPrompt;
 
-                // Normalize messages: Gemini requires alternating 'user' and 'model' roles.
-                let normalizedMessages = [];
-                let lastAddedRole = null;
+                // Normalize messages for OpenAI format (system, user, assistant)
+                let normalizedMessages = [
+                    { role: 'system', content: systemPrompt }
+                ];
 
                 for (const msg of messages) {
-                    if (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'ai' || msg.role === 'model') {
-                        const geminiRole = msg.role === 'user' ? 'user' : 'model';
-                        // Skip if same role as last one (to maintain alternating pattern)
-                        if (geminiRole !== lastAddedRole) {
-                            normalizedMessages.push({
-                                role: geminiRole,
-                                parts: [{ text: msg.content || "..." }]
-                            });
-                            lastAddedRole = geminiRole;
-                        } else {
-                            // Append to the existing part if same role consecutively
-                            if (normalizedMessages.length > 0) {
-                                normalizedMessages[normalizedMessages.length - 1].parts[0].text += "\n" + (msg.content || "...");
-                            }
-                        }
-                    }
+                    const role = (msg.role === 'user') ? 'user' : 'assistant';
+                    const content = msg.content || "...";
+                    normalizedMessages.push({ role, content });
                 }
 
-                // Ensure the last message is from the user (required by Gemini)
-                if (normalizedMessages.length > 0 && normalizedMessages[normalizedMessages.length - 1].role !== 'user') {
-                    normalizedMessages.pop();
-                }
-
-                if (normalizedMessages.length === 0) {
-                    return "Comment puis-je vous aider en tant que Marketing Copilot ?";
-                }
-
-                // Clean API Key: remove quotes and whitespace
-                const apiKey = (process.env.GEMINI_API_KEY || '').replace(/["']/g, '').trim();
+                // Check for API Key
+                const apiKey = (process.env.GROK_API_KEY || process.env.GROQ_API_KEY || process.env.GEMINI_API_KEY || '').replace(/["']/g, '').trim();
+                
                 if (!apiKey || apiKey.length < 10) {
-                    throw new Error("Clé API Gemini (GEMINI_API_KEY) manquante ou invalide.");
+                    throw new Error("AUTH_ERROR: Clé API Groq manquante.");
                 }
 
-                // Make real API calls using the Gemini endpoint
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const url = 'https://api.groq.com/openai/v1/chat/completions';
                 
                 const requestBody = {
-                    contents: normalizedMessages, 
-                    generationConfig: {
-                        maxOutputTokens: 2000,
-                        temperature: 0.7
-                    }
+                    model: model,
+                    messages: normalizedMessages, 
+                    temperature: 0.7,
+                    max_tokens: 2048
                 };
-
-                // systemInstruction is supported on all modern flash/pro models
-                if (model.includes('flash') || model.includes('pro')) {
-                    requestBody.systemInstruction = {
-                        parts: [{ text: systemPrompt }]
-                    };
-                } else {
-                    // For 1.0 models, prepend system prompt to the first user message
-                    if (normalizedMessages.length > 0 && normalizedMessages[0].role === 'user') {
-                        normalizedMessages[0].parts[0].text = `Instructions: ${systemPrompt}\n\nContext: ${normalizedMessages[0].parts[0].text}`;
-                    }
-                }
 
                 const response = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
                     body: JSON.stringify(requestBody)
                 });
 
+                const data = await response.json();
+
                 if (!response.ok) {
-                    const errBody = await response.text();
-                    console.error(`Gemini API Error Body (${model}):`, errBody);
+                    console.error(`Groq API Error (${model}) Status ${response.status}:`, JSON.stringify(data));
                     
-                    // Handle Quota Exhaustion specifically
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error("AUTH_ERROR: Accès refusé. Vérifiez votre clé API Groq.");
+                    }
+
                     if (response.status === 429) {
                         const currentIndex = models.indexOf(model);
                         if (currentIndex < models.length - 1) {
-                            return callGemini(models[currentIndex + 1], 0);
+                            console.warn(`Quota exceeded for ${model}, trying fallback...`);
+                            return callGroq(models[currentIndex + 1]);
                         }
-                        throw new Error("QUOTA_EXCEEDED");
+                        throw new Error("QUOTA_EXCEEDED: Quota d'utilisation épuisé.");
                     }
 
-                    throw new Error(`API Gemini Error ${response.status}: ${errBody.substring(0, 100)}`);
+                    throw new Error(`API_ERROR: ${data.error?.message || response.statusText}`);
                 }
 
-                const data = await response.json();
-                if (data && data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts.length > 0) {
-                    return data.candidates[0].content.parts[0].text;
+                if (data.choices && data.choices[0]?.message?.content) {
+                    return data.choices[0].message.content;
                 }
 
-                throw new Error("Format de réponse inattendu.");
+                throw new Error("FORMAT_ERROR: Réponse inattendue de l'IA.");
 
             } catch (err) {
-                // If it's a quota error or 400/404, try fallback
-                const isRetryable = err.message.includes("429") || err.message.includes("400") || err.message.includes("404");
-                if (isRetryable) {
-                    const currentIndex = models.indexOf(model);
-                    if (currentIndex !== -1 && currentIndex < models.length - 1) {
-                        console.warn(`Falling back from ${model} due to error: ${err.message}`);
-                        return callGemini(models[currentIndex + 1], 0);
-                    }
+                console.error(`Attempt with ${model} failed:`, err.message);
+                
+                // Don't retry auth errors
+                if (err.message.startsWith("AUTH_")) throw err;
+                
+                // Retry logic for transient errors
+                const currentIndex = models.indexOf(model);
+                if (currentIndex < models.length - 1 && retryCount < 1) {
+                    return callGroq(models[currentIndex + 1], retryCount + 1);
                 }
                 throw err;
             }
         };
 
         try {
-            return await callGemini(models[0]);
+            return await callGroq(models[0]);
         } catch (err) {
-            console.error("AI Service Error:", err.message);
+            console.error("Final AI Service Failure:", err.message);
             return `ERROR_AI: ${err.message}`;
         }
     }

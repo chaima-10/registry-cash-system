@@ -616,9 +616,22 @@ const AIAnalytics = () => {
                 .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
 
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
-            setChatMessages(prev => [...prev, { role: 'ai', content: response.data.reply }]);
+            let reply = response.data.reply;
+
+            // Handle specific AI error codes from backend
+            if (reply.includes('ERROR_AI:')) {
+                if (reply.includes('QUOTA_EXCEEDED')) {
+                    reply = t('aiErrorQuota', 'Quota d\'IA épuisé.');
+                } else if (reply.includes('AUTH_LEAKED') || reply.includes('AUTH_ERROR')) {
+                    reply = t('aiErrorAuth', 'Erreur d\'authentification IA (Clé invalide).');
+                } else {
+                    reply = t('aiErrorGeneral', 'Erreur technique IA.');
+                }
+            }
+
+            setChatMessages(prev => [...prev, { role: 'ai', content: reply }]);
         } catch (error) {
-            setChatMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error. Please try again.' }]);
+            setChatMessages(prev => [...prev, { role: 'ai', content: t('aiErrorGeneral', 'Désolé, une erreur est survenue.') }]);
         } finally {
             setIsAiTyping(false);
         }
