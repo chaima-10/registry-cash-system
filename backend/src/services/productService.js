@@ -39,7 +39,8 @@ class ProductService {
             imageUrl = await uploadService.uploadImage(file, 'products');
         }
 
-        return await productRepository.createProduct({
+        const safetyStockVal = safetyStock !== undefined ? parseInt(safetyStock) : 0;
+        const productData = {
             barcode: cleanBarcode,
             name: name || 'Produit sans nom',
             price: parseFloat(price || 0).toString(),
@@ -50,12 +51,19 @@ class ProductService {
             remise: validRemise.toString(),
             tva: validTva.toString(),
             imageUrl: imageUrl,
-            safetyStock: safetyStock !== undefined ? parseInt(safetyStock) : 0,
-        });
+            safetyStock: safetyStockVal,
+        };
 
-        // Calculate initial reorder level
-        const stockService = require('./stockService');
-        stockService.updateProductReorderLevel(product.id).catch(console.error);
+        if (safetyStockVal > 0) {
+            productData.reorderLevel = safetyStockVal.toString();
+        }
+
+        const product = await productRepository.createProduct(productData);
+
+        if (safetyStockVal === 0) {
+            const stockService = require('./stockService');
+            stockService.updateProductReorderLevel(product.id).catch(console.error);
+        }
 
         return product;
     }
@@ -82,6 +90,10 @@ class ProductService {
             stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : undefined,
             safetyStock: safetyStock !== undefined ? parseInt(safetyStock) : undefined,
         };
+
+        if (updateData.safetyStock !== undefined && updateData.safetyStock > 0) {
+            updateData.reorderLevel = updateData.safetyStock.toString();
+        }
 
         if (barcode !== undefined && barcode !== null && barcode !== '') {
             const cleanBarcode = barcode.trim();
@@ -128,8 +140,8 @@ class ProductService {
 
         const updatedProduct = await productRepository.updateProduct(id, updateData);
 
-        // Recalculate reorder level if stock or safetyStock changed
-        if (stockQuantity !== undefined || safetyStock !== undefined) {
+        if ((updateData.safetyStock === undefined || updateData.safetyStock === 0) && (stockQuantity !== undefined || safetyStock !== undefined)) {
+            // Only recalculate if safetyStock is 0 or not set
             const stockService = require('./stockService');
             stockService.updateProductReorderLevel(id).catch(console.error);
         }
