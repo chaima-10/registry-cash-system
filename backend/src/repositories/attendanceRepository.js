@@ -3,7 +3,8 @@ const prisma = require('../config/prisma');
 class AttendanceRepository {
     async clockIn(userId, role) {
         const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of day in local time
+        const todayStr = now.toISOString().split('T')[0];
+        const today = new Date(todayStr + 'T00:00:00.000Z');
         const isLate = (now.getHours() > 9) || (now.getHours() === 9 && now.getMinutes() > 0);
         const currentStatus = isLate ? 'LATE' : 'PRESENT';
 
@@ -30,16 +31,11 @@ class AttendanceRepository {
             });
         } catch (error) {
             console.error('Error in clockIn:', error);
-            // If upsert fails, try a more robust approach
             if (error.code === 'P2002') {
-                // Try to find any record for this user today and update it
                 const anyRecord = await prisma.attendance.findFirst({
                     where: {
                         userId: parseInt(userId),
-                        date: {
-                            gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-                            lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
-                        }
+                        date: today
                     }
                 });
                 
@@ -60,7 +56,8 @@ class AttendanceRepository {
 
     async clockOut(userId) {
         const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayStr = now.toISOString().split('T')[0];
+        const today = new Date(todayStr + 'T00:00:00.000Z');
 
         const record = await this.getAttendanceRecord(userId, today);
         if (!record || !record.clockIn) {
@@ -87,7 +84,8 @@ class AttendanceRepository {
 
     async markPresent(userId, role) {
         const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayStr = now.toISOString().split('T')[0];
+        const today = new Date(todayStr + 'T00:00:00.000Z');
 
         try {
             return await prisma.attendance.upsert({
@@ -114,10 +112,7 @@ class AttendanceRepository {
                 const anyRecord = await prisma.attendance.findFirst({
                     where: {
                         userId: parseInt(userId),
-                        date: {
-                            gte: new Date(today.getFullYear(), today.getMonth(), today.getDate()),
-                            lt: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
-                        }
+                        date: today
                     }
                 });
                 
@@ -137,7 +132,8 @@ class AttendanceRepository {
 
     async markAbsent(userId, role, date) {
         const d = new Date(date);
-        const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const todayStr = d.toISOString().split('T')[0];
+        const targetDate = new Date(todayStr + 'T00:00:00.000Z');
 
         try {
             return await prisma.attendance.upsert({
@@ -163,10 +159,7 @@ class AttendanceRepository {
                 const anyRecord = await prisma.attendance.findFirst({
                     where: {
                         userId: parseInt(userId),
-                        date: {
-                            gte: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate()),
-                            lt: new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate() + 1)
-                        }
+                        date: targetDate
                     }
                 });
                 
@@ -185,7 +178,8 @@ class AttendanceRepository {
 
     async getAttendanceRecord(userId, date) {
         const d = new Date(date);
-        const targetDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const todayStr = d.toISOString().split('T')[0];
+        const targetDate = new Date(todayStr + 'T00:00:00.000Z');
 
         return await prisma.attendance.findUnique({
             where: {
