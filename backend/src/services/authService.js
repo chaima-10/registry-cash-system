@@ -1,4 +1,5 @@
 const userRepository = require('../repositories/userRepository');
+const attendanceRepository = require('../repositories/attendanceRepository');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -131,6 +132,14 @@ class AuthService {
         // }
 
         await userRepository.updateLastLogin(user.id);
+
+        // Mark attendance as PRESENT for today
+        try {
+            await attendanceRepository.markPresent(user.id, user.role);
+        } catch (error) {
+            console.error("Failed to mark attendance:", error);
+            // We don't block login if attendance marking fails
+        }
 
         const payload = { id: user.id, role: user.role };
         const token = jwt.sign(payload, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });

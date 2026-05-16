@@ -218,14 +218,19 @@ const AIAnalytics = () => {
         
         const alerts = [];
         products.forEach(p => {
+            const reorderLevel = Number(p.reorderLevel || 5);
             const totalSold = salesMap[p.id] || 0;
             const dailyVelocity = totalSold / daysInMonth; 
             const daysRemaining = dailyVelocity > 0 ? p.stockQuantity / dailyVelocity : 999;
             
-            if (p.stockQuantity <= 10) {
-                alerts.push({ p, days: daysRemaining.toFixed(1), urgency: 'high', reason: t('stockCriticalAbs', "Stock critique absolu (<10)") });
-            } else if (dailyVelocity > 1 && daysRemaining < 7) {
-                alerts.push({ p, days: daysRemaining.toFixed(1), urgency: 'medium', reason: t('sellingFastAlert', { days: daysRemaining.toFixed(0) }) });
+            if (p.stockQuantity <= reorderLevel) {
+                const urgency = p.stockQuantity <= (reorderLevel / 2) ? 'high' : 'medium';
+                alerts.push({ 
+                    p, 
+                    days: daysRemaining.toFixed(1), 
+                    urgency, 
+                    reason: t('lowStock') + ` (${p.stockQuantity}/${reorderLevel.toFixed(0)})` 
+                });
             }
         });
         return alerts.sort((a,b) => a.days - b.days).slice(0, 8);
@@ -249,7 +254,7 @@ const AIAnalytics = () => {
         });
         
         const growth = lastMonthRev > 0 ? ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100 : 12.5;
-        const lowStockCount = products.filter(p => p.stockQuantity <= 10).length;
+        const lowStockCount = products.filter(p => p.stockQuantity <= Number(p.reorderLevel || 5)).length;
         
         const supplyUrgency = products.length > 0 ? (lowStockCount / products.length) * 100 : 0;
         const trend = growth > 2 ? t('uptrend', 'HAUSSE') : growth < -2 ? t('downtrend', 'BAISSE') : t('stable', 'STABLE');
@@ -605,7 +610,7 @@ const AIAnalytics = () => {
                 totalSales: sales.length,
                 totalRevenue: sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0),
                 totalProducts: products.length,
-                lowStockCount: products.filter(p => p.stockQuantity <= 10).length,
+                lowStockCount: products.filter(p => p.stockQuantity <= Number(p.reorderLevel || 5)).length,
                 topSellingProduct: products.length > 0 ? products[0].name : 'N/A'
             };
 

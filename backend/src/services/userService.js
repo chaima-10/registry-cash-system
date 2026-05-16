@@ -1,4 +1,5 @@
 const userRepository = require('../repositories/userRepository');
+const attendanceRepository = require('../repositories/attendanceRepository');
 const uploadService = require('../services/uploadService');
 const bcrypt = require('bcryptjs');
 
@@ -25,33 +26,31 @@ class UserService {
         const todayRevenueMap = {};
         todaySales.forEach(s => todayRevenueMap[s.userId] = Number(s._sum.totalAmount || 0));
 
-        // 2. Sales Activity (Worked Days for Cashiers)
-        const sales = await userRepository.getSalesSince(startOfMonth);
-        const salesActivityMap = {};
-        sales.forEach(sale => {
-            const dateStr = sale.createdAt.toISOString().split('T')[0];
-            if (!salesActivityMap[sale.userId]) salesActivityMap[sale.userId] = new Set();
-            salesActivityMap[sale.userId].add(dateStr);
-        });
+        // 2. Attendance Data
+        const attendanceRecords = await attendanceRepository.getAllAttendance(startOfMonth, now);
+        const workedDaysMap = {};
+        const totalHoursMap = {};
+        
+        // Create a user map for quick lookups
+        const userMap = {};
+        users.forEach(u => userMap[u.id] = u);
 
-        // 3. Login History (Worked Days for Admins)
-        const loginLogs = await userRepository.getLoginsSince(startOfMonth);
-        const loginActivityMap = {};
-        loginLogs.forEach(log => {
-            const dateStr = log.loginAt.toISOString().split('T')[0];
-            if (!loginActivityMap[log.userId]) loginActivityMap[log.userId] = new Set();
-            loginActivityMap[log.userId].add(dateStr);
+        attendanceRecords.forEach(record => {
+            if (record.status === 'PRESENT') {
+                const dateStr = record.date.toISOString().split('T')[0];
+                if (!workedDaysMap[record.userId]) workedDaysMap[record.userId] = new Set();
+                workedDaysMap[record.userId].add(dateStr);
+                
+                if (!totalHoursMap[record.userId]) totalHoursMap[record.userId] = 0;
+                totalHoursMap[record.userId] += Number(record.totalHours || 0);
+            }
         });
 
         return users.map(user => {
             const isCreatedThisMonth = user.createdAt >= startOfMonth;
             
-            let workedDays = 0;
-            if (user.role === 'admin') {
-                workedDays = (loginActivityMap[user.id] && loginActivityMap[user.id].size) || 0;
-            } else {
-                workedDays = (salesActivityMap[user.id] && salesActivityMap[user.id].size) || 0;
-            }
+            let workedDays = (workedDaysMap[user.id] && workedDaysMap[user.id].size) || 0;
+            let totalMonthHours = totalHoursMap[user.id] || 0;
 
             let effectiveDaysToCount = daysInMonthSoFar;
             if (isCreatedThisMonth) {
@@ -72,6 +71,7 @@ class UserService {
                 absences,
                 salary: user.salary,
                 monthlySalary: (Number(user.salary || 0) * workedDays).toFixed(2),
+                totalMonthHours: totalMonthHours.toFixed(2),
                 createdAt: user.createdAt
             };
         });
@@ -113,18 +113,10 @@ class UserService {
 
         const totalSalesMonth = monthlySales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
 
-        const saleDays = new Set(monthlySales.map(s => s.createdAt.toISOString().split('T')[0]));
-        
-        let workedDaysCount = 0;
-        if (user.role === 'admin') {
-            const loginLogs = await userRepository.getMonthlyLoginHistory(userId, startOfMonth);
-            const loginDays = new Set(loginLogs.map(l => l.loginAt.toISOString().split('T')[0]));
-            
-            const unionDays = new Set([...saleDays, ...loginDays]);
-            workedDaysCount = unionDays.size;
-        } else {
-            workedDaysCount = saleDays.size;
-        }
+        // Real Attendance Records
+        const attendanceRecords = await attendanceRepository.getAttendanceHistory(userId, startOfMonth, now);
+        const workedDaysCount = attendanceRecords.filter(r => r.status === 'PRESENT').length;
+        const totalMonthHours = attendanceRecords.reduce((sum, r) => sum + Number(r.totalHours || 0), 0);
 
         const isCreatedThisMonth = user.createdAt >= startOfMonth;
         let effectiveDaysToCount = daysInMonthSoFar;
@@ -145,17 +137,55 @@ class UserService {
             lastSystemDistribution = await userRepository.getLastSystemDistribution();
         }
 
+        // --- Prepare Chart Data ---
+        // 1. Session History (Last 7 days attendance)
+        const sessionHistory = attendanceRecords
+            .sort((a, b) => b.date - a.date)
+            .slice(0, 7)
+            .map(r => ({
+                date: r.date.toISOString().split('T')[0],
+                hours: Number(r.totalHours || 0),
+                status: r.status
+            }));
+
+        // 2. Daily Sales Trend (Last 7 days revenue)
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const last7DaysSales = monthlySales.filter(s => s.createdAt >= weekAgo);
+        
+        const dailySalesMap = {};
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            dailySalesMap[d.toISOString().split('T')[0]] = 0;
+        }
+
+        last7DaysSales.forEach(s => {
+            const dateStr = s.createdAt.toISOString().split('T')[0];
+            if (dailySalesMap[dateStr] !== undefined) {
+                dailySalesMap[dateStr] += Number(s.totalAmount || 0);
+            }
+        });
+
+        const dailySalesTrend = Object.keys(dailySalesMap).map(dateStr => ({
+            name: new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }),
+            revenue: dailySalesMap[dateStr]
+        }));
+
         return {
             ...user,
             stats: {
                 monthlySalary: (Number(user.salary || 0) * workedDaysCount).toFixed(2),
                 workedDays: workedDaysCount,
                 absences,
+                totalMonthHours: totalMonthHours.toFixed(2),
                 dailyRevenue: todayRevenue.toFixed(2),
                 totalSalesMonth: totalSalesMonth.toFixed(2),
                 lastPrime: allPrimes[0] || null,
                 totalPrimesYear: totalPrimesYear.toFixed(2),
-                lastSystemDistribution: lastSystemDistribution
+                lastSystemDistribution: lastSystemDistribution,
+                sessionHistory,
+                dailySalesTrend
             }
         };
     }
@@ -190,6 +220,44 @@ class UserService {
         );
 
         return { message: `Prime de ${amount} TND distribuée avec succès à ${targetUsers.length} employés.` };
+    }
+
+    async distributeSalary(adminId, month) {
+        const requester = await userRepository.findUserById(adminId);
+        if (requester.role !== 'admin') {
+            throw new Error('Seul un administrateur peut distribuer les salaires.');
+        }
+
+        const targetUsers = await userRepository.getAllUsersWithSelectedFields({
+            id: true, username: true, salary: true
+        });
+
+        if (targetUsers.length === 0) {
+            return { message: "Aucun utilisateur trouvé dans la base de données." };
+        }
+
+        const monthStr = month || new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+
+        const payments = targetUsers
+            .filter(user => parseFloat(user.salary) > 0)
+            .map(user => ({
+                userId: user.id,
+                amount: user.salary.toString(),
+                month: monthStr
+            }));
+
+        if (payments.length === 0) {
+            return { message: "Aucun employé avec un salaire défini." };
+        }
+
+        await userRepository.createSalaryPayments(payments);
+
+        const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+        return { 
+            message: `Salaires distribués avec succès à ${payments.length} employés. Total: ${totalPaid.toFixed(2)} TND pour ${monthStr}.`,
+            totalPaid,
+            employeeCount: payments.length
+        };
     }
 
     async updateProfile(userId, data, file) {

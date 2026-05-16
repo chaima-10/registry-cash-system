@@ -3,7 +3,7 @@ const uploadService = require('./uploadService');
 
 class ProductService {
     async createProduct(data, file) {
-        const { barcode, name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva } = data;
+        const { barcode, name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva, safetyStock } = data;
 
         console.log('Creating product with barcode:', barcode);
 
@@ -50,7 +50,14 @@ class ProductService {
             remise: validRemise.toString(),
             tva: validTva.toString(),
             imageUrl: imageUrl,
+            safetyStock: safetyStock !== undefined ? parseInt(safetyStock) : 0,
         });
+
+        // Calculate initial reorder level
+        const stockService = require('./stockService');
+        stockService.updateProductReorderLevel(product.id).catch(console.error);
+
+        return product;
     }
 
     async getAllProducts() {
@@ -66,13 +73,14 @@ class ProductService {
     }
 
     async updateProduct(id, data, file) {
-        const { name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva, barcode } = data;
+        const { name, price, purchasePrice, stockQuantity, categoryId, subcategoryId, remise, tva, barcode, safetyStock } = data;
 
         let updateData = {
             name,
             price: price !== undefined ? parseFloat(price) : undefined,
             purchasePrice: purchasePrice !== undefined && purchasePrice !== '' ? parseFloat(purchasePrice) : undefined,
             stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity) : undefined,
+            safetyStock: safetyStock !== undefined ? parseInt(safetyStock) : undefined,
         };
 
         if (barcode !== undefined && barcode !== null && barcode !== '') {
@@ -118,7 +126,15 @@ class ProductService {
         if (updateData.price !== undefined) updateData.price = updateData.price.toString();
         if (updateData.purchasePrice !== undefined) updateData.purchasePrice = updateData.purchasePrice.toString();
 
-        return await productRepository.updateProduct(id, updateData);
+        const updatedProduct = await productRepository.updateProduct(id, updateData);
+
+        // Recalculate reorder level if stock or safetyStock changed
+        if (stockQuantity !== undefined || safetyStock !== undefined) {
+            const stockService = require('./stockService');
+            stockService.updateProductReorderLevel(id).catch(console.error);
+        }
+
+        return updatedProduct;
     }
 
     async deleteProduct(id) {

@@ -17,8 +17,6 @@ const POS = () => {
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState({ items: [], totalAmount: 0 });
     const [searchTerm, setSearchTerm] = useState('');
-    const [barcodeInput, setBarcodeInput] = useState('');
-    const barcodeInputRef = useRef(null);
     const [loading, setLoading] = useState(true);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [completedSale, setCompletedSale] = useState(null);
@@ -69,9 +67,6 @@ const POS = () => {
         } else {
             alert(t('productNotFound', 'Product not found for barcode: ') + scannedCode);
         }
-
-        setBarcodeInput('');
-        barcodeInputRef.current?.focus();
     };
 
     const handleCameraScan = async (decodedText) => {
@@ -150,9 +145,7 @@ const POS = () => {
     };
 
     const filteredProducts = products.filter(p => {
-        const matchesName = p.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesBarcode = barcodeInput.trim() === '' || p.barcode.includes(barcodeInput.trim());
-        return matchesName && matchesBarcode;
+        return p.name.toLowerCase().includes(searchTerm.toLowerCase());
     });
 
     const [activeTab, setActiveTab] = useState('products'); // 'products' or 'cart' for mobile
@@ -181,39 +174,26 @@ const POS = () => {
                     </div>
                     
                     <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
-                        {/* 1. Barcode Scanner Input */}
-                        <div className="flex flex-1 gap-2">
-                            <form onSubmit={handleBarcodeSubmit} className="relative flex-1">
-                                <FiBox className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-500" />
+                        {/* Search Input */}
+                        <div className="relative flex-1 flex gap-2">
+                            <div className="relative flex-1">
+                                <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                                 <input
-                                    ref={barcodeInputRef}
                                     type="text"
-                                    placeholder={t('scanBarcodeToCart', 'Scan Barcode')}
-                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border-2 border-purple-100 dark:border-purple-800 focus:border-purple-500 dark:focus:border-purple-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white shadow-sm text-sm"
-                                    value={barcodeInput}
-                                    onChange={e => setBarcodeInput(e.target.value)}
+                                    placeholder={t('searchByName', 'Search by name...')}
+                                    className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border-2 border-blue-100 dark:border-blue-900 focus:border-blue-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white shadow-sm text-sm"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
                                     autoFocus
                                 />
-                            </form>
+                            </div>
                             <button
                                 onClick={() => setIsCameraScannerOpen(true)}
-                                className="p-3 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900 dark:hover:bg-purple-800 text-purple-700 dark:text-purple-300 rounded-xl transition-all shadow-sm border border-purple-200 dark:border-purple-700 flex items-center justify-center transform active:scale-95"
+                                className="p-3 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-800/50 text-blue-600 dark:text-blue-400 rounded-xl transition-all shadow-sm border border-blue-200 dark:border-blue-800 flex items-center justify-center transform active:scale-95"
                                 title={t('scanWithCamera', 'Scan with Camera')}
                             >
                                 <FiCamera size={20} />
                             </button>
-                        </div>
-
-                        {/* Search Input */}
-                        <div className="relative flex-1">
-                            <FiSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder={t('searchByName', 'Search...')}
-                                className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-xl outline-none focus:ring-2 focus:ring-purple-500 transition-all text-gray-900 dark:text-white shadow-sm text-sm"
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                            />
                         </div>
                     </div>
                 </div>
@@ -268,7 +248,13 @@ const POS = () => {
                                             </span>
                                         )}
                                     </div>
-                                    <span className={`text-[9px] lg:text-[10px] px-1.5 py-0.5 rounded font-medium ${product.stockQuantity > 0 ? 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400'}`}>
+                                    <span className={`text-[9px] lg:text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                        product.stockQuantity <= 0 
+                                            ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400' 
+                                            : product.stockQuantity <= Number(product.reorderLevel || 5)
+                                                ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400'
+                                                : 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'
+                                    }`}>
                                         {product.stockQuantity > 0 ? `${product.stockQuantity}` : 'Out'}
                                     </span>
                                 </div>

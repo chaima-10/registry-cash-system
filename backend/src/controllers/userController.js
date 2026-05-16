@@ -45,6 +45,20 @@ exports.distributePrime = async (req, res) => {
     }
 };
 
+// Distribute salary to all active users
+exports.distributeSalary = async (req, res) => {
+    try {
+        const result = await userService.distributeSalary(req.user.id, req.body.month);
+        res.json(result);
+    } catch (error) {
+        console.error("Distribute Salary Error:", error);
+        if (error.message.includes('Seul un administrateur')) {
+            return res.status(403).json({ message: error.message });
+        }
+        res.status(500).json({ message: 'Erreur serveur lors de la distribution des salaires.', error: error.message });
+    }
+};
+
 // Update current user profile
 exports.updateProfile = async (req, res) => {
     try {

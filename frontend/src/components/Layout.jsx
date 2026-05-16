@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    FiHome, FiBox, FiUsers, FiLogOut, FiMenu, FiX, FiShoppingCart, FiSettings, FiUser, FiMoon, FiSun, FiChevronDown, FiActivity, FiShoppingBag, FiGift
+    FiHome, FiBox, FiUsers, FiLogOut, FiMenu, FiX, FiShoppingCart, FiSettings, FiUser, FiMoon, FiSun, FiChevronDown, FiActivity, FiShoppingBag, FiGift, FiCalendar, FiTrendingUp
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -68,7 +68,7 @@ const Layout = () => {
         { to: '/', icon: FiHome, label: t('dashboard'), adminOnly: true },
         { to: '/pos', icon: FiShoppingCart, label: t('posTerminal'), adminOnly: false },
         { to: '/products', icon: FiBox, label: t('products'), adminOnly: true },
-        { to: '/users', icon: FiUsers, label: t('users'), adminOnly: true },
+        { to: '/users', icon: FiUsers, label: t('users', 'Users'), adminOnly: true },
         { to: '/analytics', icon: FiActivity, label: t('aiAnalytics', 'AI Analytics'), adminOnly: true },
         { to: '/giveaways', icon: FiGift, label: t('giveaways', 'Giveaways'), adminOnly: false },
         { to: '/marketing', icon: FiShoppingBag, label: t('marketingStudio', 'Marketing Studio'), adminOnly: true },

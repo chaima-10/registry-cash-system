@@ -23,3 +23,9 @@ export const distributePrimes = async (primeData) => {
     const response = await api.post('/users/distribute-prime', primeData);
     return response.data;
 };
+
+// Distribute Salaries
+export const distributeSalaries = async (salaryData) => {
+    const response = await api.post('/users/distribute-salary', salaryData);
+    return response.data;
+};

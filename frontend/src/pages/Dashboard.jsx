@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    FiDollarSign, FiActivity, FiRefreshCw, FiTrendingUp, FiAlertCircle, 
-    FiBox, FiArrowRight, FiClock, FiShoppingBag, FiZap, FiAward, FiPieChart
+    FiBox, FiArrowRight, FiClock, FiShoppingBag, FiZap, FiAward, FiPieChart,
+    FiChevronRight, FiArchive, FiCheckCircle, FiInfo, FiRefreshCw,
+    FiDollarSign, FiActivity, FiTrendingUp, FiAlertCircle
 } from 'react-icons/fi';
+import { 
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+    Tooltip, ResponsiveContainer, BarChart, Bar 
+} from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
@@ -37,6 +42,15 @@ const StatCard = ({ title, value, subtitle, icon: Icon, color, trend }) => (
     </motion.div>
 );
 
+const Badge = ({ label, color, bg }) => (
+    <span 
+        className="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border shrink-0"
+        style={{ color, backgroundColor: bg, borderColor: color + '20' }}
+    >
+        {label}
+    </span>
+);
+
 const Dashboard = () => {
     const { t } = useTranslation();
     const { formatCurrency } = useAuth();
@@ -45,6 +59,8 @@ const Dashboard = () => {
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedProductId, setSelectedProductId] = useState(null);
+    const [inventoryFilter, setInventoryFilter] = useState('ALL');
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
     useEffect(() => {
@@ -179,6 +195,76 @@ const Dashboard = () => {
     };
 
     const { totalRevenue, totalCost, netProfit, margin, transactionCount, cashierMap, revTrend, profitTrend } = getDashboardData();
+    
+    // Inventory Data Intelligence (Ported from Inventory Analytics)
+    const inventoryData = useMemo(() => {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+
+        return products.map(p => {
+            const productSales = sales.filter(s => {
+                const saleDate = new Date(s.createdAt);
+                return saleDate >= weekAgo && s.items?.some(item => item.productId === p.id);
+            });
+
+            const weeklyVolume = productSales.reduce((sum, s) => {
+                const item = s.items.find(i => i.productId === p.id);
+                return sum + (item?.quantity || 0);
+            }, 0);
+
+            const weeklyRevenue = productSales.reduce((sum, s) => {
+                const item = s.items.find(i => i.productId === p.id);
+                return sum + (item ? item.quantity * (item.price || 0) : 0);
+            }, 0);
+
+            const reorderLevel = Number(p.reorderLevel || 5);
+            let status = 'HEALTHY';
+            if (p.stockQuantity <= 0) status = 'OUT_OF_STOCK';
+            else if (p.stockQuantity <= reorderLevel) status = 'LOW_STOCK';
+
+            return {
+                ...p,
+                weeklyVolume,
+                weeklyRevenue,
+                reorderLevel,
+                inventoryValue: p.stockQuantity * (p.purchasePrice || 0),
+                status
+            };
+        });
+    }, [products, sales]);
+
+    const filteredInventory = useMemo(() => {
+        if (inventoryFilter === 'ALL') return inventoryData;
+        return inventoryData.filter(row => row.status === inventoryFilter);
+    }, [inventoryData, inventoryFilter]);
+
+    const selectedProduct = useMemo(() => {
+        return inventoryData.find(p => p.id === selectedProductId) || null;
+    }, [inventoryData, selectedProductId]);
+
+    const productHistoryData = useMemo(() => {
+        if (!selectedProduct) return [];
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            const volume = sales.filter(s => s.createdAt.split('T')[0] === dateStr && s.items?.some(item => item.productId === selectedProduct.id))
+                               .reduce((sum, s) => sum + (s.items.find(idx => idx.productId === selectedProduct.id)?.quantity || 0), 0);
+            days.push({ name: d.toLocaleDateString('fr-FR', { weekday: 'short' }), volume });
+        }
+        return days;
+    }, [selectedProduct, sales]);
+
+    const getStatusInfo = (status) => {
+        switch(status) {
+            case 'HEALTHY': return { label: t('healthy', 'Sain'), color: '#059669', bg: 'rgba(5,150,105,0.1)' };
+            case 'LOW_STOCK': return { label: t('lowStock', 'Faible'), color: '#d97706', bg: 'rgba(217,119,6,0.1)' };
+            case 'OUT_OF_STOCK': return { label: t('outOfStock', 'Epuisé'), color: '#dc2626', bg: 'rgba(220,38,38,0.1)' };
+            default: return { label: status, color: '#64748b', bg: 'rgba(100,116,139,0.1)' };
+        }
+    };
+
     const inventoryValue = products.reduce((acc, p) => acc + (p.stockQuantity * parseFloat(p.price || 0)), 0);
 
     const getPeriodSummary = () => ({ rev: totalRevenue, count: transactionCount });
@@ -200,14 +286,19 @@ const Dashboard = () => {
     };
 
     const getSmartAlerts = () => {
-        const salesMap = {};
-        sales.forEach(sale => { if (sale.items) sale.items.forEach(item => { salesMap[item.productId] = (salesMap[item.productId] || 0) + item.quantity; }); });
         const alerts = [];
         products.forEach(p => {
-            if (p.stockQuantity <= 10) alerts.push({ p, urgency: 'high', reason: t('stockCritical', "Stock critique (<10)") });
-            else if ((salesMap[p.id] || 0) > 50 && p.stockQuantity < 30) alerts.push({ p, urgency: 'medium', reason: t('sellingFastAlert', "Vente rapide, stock faible") });
+            const reorderLevel = Number(p.reorderLevel || 5);
+            if (p.stockQuantity <= reorderLevel) {
+                const urgency = p.stockQuantity <= (reorderLevel / 2) ? 'high' : 'medium';
+                alerts.push({ 
+                    p, 
+                    urgency, 
+                    reason: t('lowStock') + ` (${p.stockQuantity}/${reorderLevel.toFixed(0)})` 
+                });
+            }
         });
-        return alerts.slice(0, 4);
+        return alerts.sort((a, b) => (a.p.stockQuantity / Number(a.p.reorderLevel)) - (b.p.stockQuantity / Number(b.p.reorderLevel))).slice(0, 4);
     };
 
     const timeAgo = (dateStr) => {
@@ -357,7 +448,7 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Stock Alerts (New) */}
+                {/* Stock Alerts (Now using dynamic threshold) */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-xl">
                     <h3 className="text-xl font-black flex items-center gap-3 tracking-tighter uppercase mb-8"><FiAlertCircle className="text-red-500" /> {t('stockAlerts')}</h3>
                     <div className="space-y-3">
@@ -365,6 +456,170 @@ const Dashboard = () => {
                             <div key={i} className={`flex items-center justify-between p-4 border rounded-2xl relative overflow-hidden ${a.urgency === 'high' ? 'bg-red-50 border-red-100 dark:bg-red-900/10' : 'bg-orange-50 border-orange-100 dark:bg-orange-900/10'}`}><div className={`absolute left-0 top-0 bottom-0 w-1 ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}></div><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0 ml-2">{a.p.imageUrl ? <img src={getImageUrl(a.p.imageUrl)} alt={a.p.name} className="w-full h-full object-contain" /> : <span className="text-[10px] font-black text-gray-400">{a.p.name.substring(0, 2).toUpperCase()}</span>}</div><div><p className={`font-bold text-xs ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>{a.p.name}</p><p className={`text-[10px] mt-0.5 font-bold ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>{a.reason}</p></div></div><span className={`px-3 py-1 text-white font-black rounded-lg text-[10px] ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}>{a.p.stockQuantity} {t('units', 'unités')}</span></div>
                         ))}
                     </div>
+                </div>
+            </div>
+
+            <hr className="border-slate-100 dark:border-slate-800 my-12" />
+
+            {/* INTEGRATED INVENTORY ANALYTICS SECTION */}
+            <div className="space-y-8 pb-12">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">
+                            {t('inventoryAnalytics', 'Inventory Performance')}
+                        </h2>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
+                            {t('inventorySubtitle', 'Deep insights into your product performance and stock health.')}
+                        </p>
+                    </div>
+                    
+                    {/* Inventory Filter Tabs */}
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                        {[
+                            { id: 'ALL', label: t('allProducts', 'Tous') },
+                            { id: 'LOW_STOCK', label: t('lowStock', 'Alerte') },
+                            { id: 'HEALTHY', label: t('healthy', 'Sain') }
+                        ].map(f => (
+                            <button key={f.id} onClick={() => { setInventoryFilter(f.id); setSelectedProductId(null); }} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${inventoryFilter === f.id ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-md' : 'text-slate-400'}`}>
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-12 gap-8 items-start">
+                    {/* Main Inventory Table */}
+                    <div className={`col-span-12 ${selectedProductId ? 'lg:col-span-8' : ''} transition-all duration-500`}>
+                        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-xl overflow-hidden">
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500">
+                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">{t('product', 'Produit')}</th>
+                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('stock', 'Stock')}</th>
+                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('weeklySales', 'Ventes (7j)')}</th>
+                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-right">{t('value', 'Valeur')}</th>
+                                            <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('status', 'Statut')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                                        {filteredInventory.slice(0, 10).map((row, idx) => {
+                                            const status = getStatusInfo(row.status);
+                                            const isSelected = selectedProductId === row.id;
+                                            return (
+                                                <motion.tr
+                                                    key={row.id}
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ delay: idx * 0.02 }}
+                                                    onClick={() => setSelectedProductId(isSelected ? null : row.id)}
+                                                    className={`cursor-pointer transition-all duration-300 ${isSelected ? 'bg-blue-50/50 dark:bg-blue-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                                                >
+                                                    <td className="px-8 py-5">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                                                                {row.imageUrl ? <img src={getImageUrl(row.imageUrl)} className="w-full h-full object-contain" /> : <FiBox className="text-slate-400" />}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <div className="font-black text-slate-800 dark:text-white text-sm tracking-tighter truncate max-w-[150px]">{row.name}</div>
+                                                                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{row.category?.name || 'Uncategorized'}</div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5 text-center font-black text-slate-800 dark:text-white text-sm">{row.stockQuantity}</td>
+                                                    <td className="px-6 py-5 text-center">
+                                                        <div className="flex flex-col items-center">
+                                                            <span className="font-black text-blue-600 dark:text-blue-400 text-sm">+{row.weeklyVolume}</span>
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{formatCurrency(row.weeklyRevenue)}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5 text-right font-black text-slate-800 dark:text-white text-sm">
+                                                        {formatCurrency(row.inventoryValue)}
+                                                    </td>
+                                                    <td className="px-8 py-5 text-center">
+                                                        <Badge label={status.label} color={status.color} bg={status.bg} />
+                                                    </td>
+                                                </motion.tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Ported Product Detail Sidebar */}
+                    <AnimatePresence>
+                        {selectedProduct && (
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                className="col-span-12 lg:col-span-4 space-y-6"
+                            >
+                                <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl p-8 overflow-hidden sticky top-8">
+                                    <div className="flex justify-between items-start mb-8">
+                                        <div>
+                                            <div className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em] mb-2">{t('productFocus', 'Product Focus')}</div>
+                                            <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter leading-none">{selectedProduct.name}</h3>
+                                        </div>
+                                        <button onClick={() => setSelectedProductId(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+                                            <FiChevronRight size={24} className="rotate-90 lg:rotate-0" />
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4 mb-8">
+                                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('currentStock', 'Stock Actuel')}</div>
+                                            <div className="text-xl font-black text-slate-800 dark:text-white">{selectedProduct.stockQuantity}</div>
+                                        </div>
+                                        <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
+                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('reorderLevel', 'Seuil Alerte')}</div>
+                                            <div className="text-xl font-black text-slate-800 dark:text-white">{selectedProduct.reorderLevel.toFixed(0)}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        <div>
+                                            <div className="flex justify-between items-end mb-4">
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">{t('salesTrend', 'Tendance Ventes (7j)')}</h4>
+                                                <div className="text-[10px] font-black text-green-500 flex items-center gap-1">
+                                                    <FiTrendingUp /> {t('rising', 'HAUSSE')}
+                                                </div>
+                                            </div>
+                                            <div className="h-40 w-full bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl p-4">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <AreaChart data={productHistoryData}>
+                                                        <defs>
+                                                            <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                                            </linearGradient>
+                                                        </defs>
+                                                        <Area type="monotone" dataKey="volume" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorVolume)" />
+                                                    </AreaChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-900 rounded-2xl p-5 text-white flex items-center gap-4 mt-6 border border-white/5 shadow-xl">
+                                            <div className="p-2 bg-blue-500/20 rounded-xl text-blue-400">
+                                                <FiZap size={20} />
+                                            </div>
+                                            <div>
+                                                <div className="text-[10px] font-black uppercase tracking-widest opacity-70">{t('aiRecommendation', 'Recommandation AI')}</div>
+                                                <div className="text-xs font-bold mt-0.5">
+                                                    {selectedProduct.status === 'LOW_STOCK' 
+                                                        ? t('reorderNow', 'Commander immédiatement.')
+                                                        : t('stockHealthy', 'Niveau optimal maintenu.')}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
         </div>
