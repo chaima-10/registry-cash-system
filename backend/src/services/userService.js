@@ -54,10 +54,31 @@ class UserService {
             let workedDays = (workedDaysMap[user.id] && workedDaysMap[user.id].size) || 0;
             let totalMonthHours = totalHoursMap[user.id] || 0;
 
-            let effectiveDaysToCount = pastDaysInMonth;
-            if (isCreatedThisMonth) {
-                const userCreationDay = user.createdAt.getDate();
-                effectiveDaysToCount = Math.max(0, pastDaysInMonth - userCreationDay + 1);
+            let scheduledWorkingDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']; // Default
+            try {
+                if (user.shiftSchedule) {
+                    const schedule = typeof user.shiftSchedule === 'string' ? JSON.parse(user.shiftSchedule) : user.shiftSchedule;
+                    if (schedule.shiftWorkingDays) {
+                        scheduledWorkingDays = schedule.shiftWorkingDays.split(',');
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing shiftSchedule for absence calculation:", e);
+            }
+
+            let effectiveDaysToCount = 0;
+            const startDate = isCreatedThisMonth ? user.createdAt : startOfMonth;
+            const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Midnight today (exclude today)
+            
+            let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()); // Midnight of start date
+            const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            
+            while (currentDate < endDate) {
+                const dayName = daysMap[currentDate.getDay()];
+                if (scheduledWorkingDays.includes(dayName)) {
+                    effectiveDaysToCount++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
             }
 
             const absences = Math.max(0, effectiveDaysToCount - workedDays);

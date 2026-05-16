@@ -5,7 +5,29 @@ class AttendanceRepository {
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
         const today = new Date(todayStr + 'T00:00:00.000Z');
-        const isLate = (now.getHours() > 9) || (now.getHours() === 9 && now.getMinutes() > 0);
+        
+        let isLate = false;
+        try {
+            const user = await prisma.user.findUnique({ where: { id: parseInt(userId) } });
+            let shiftStartTime = "09:00"; // default
+            if (user && user.shiftSchedule) {
+                const schedule = JSON.parse(user.shiftSchedule);
+                if (schedule.shiftStartTime) {
+                    shiftStartTime = schedule.shiftStartTime;
+                }
+            }
+            const [expectedHour, expectedMinute] = shiftStartTime.split(':').map(Number);
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            
+            if (currentHour > expectedHour || (currentHour === expectedHour && currentMinute > 0)) {
+                isLate = true;
+            }
+        } catch (e) {
+            console.error("Error parsing shiftSchedule for LATE calculation:", e);
+            isLate = (now.getHours() > 9) || (now.getHours() === 9 && now.getMinutes() > 0);
+        }
+
         const currentStatus = isLate ? 'LATE' : 'PRESENT';
 
         try {
