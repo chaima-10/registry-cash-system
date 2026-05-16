@@ -7,7 +7,7 @@ const emailService = require('./emailService');
 
 class AuthService {
     async register(data) {
-        const { username, password, role, fullName, salary, email } = data;
+        const { username, password, role, fullName, salary, email, shiftSchedule } = data;
 
         const existingUser = await userRepository.findUserByUsername(username);
         if (existingUser) {
@@ -35,7 +35,8 @@ class AuthService {
             fullName: fullName || '',
             salary: salary ? parseFloat(salary) : 0.00,
             emailVerificationToken: verificationToken,
-            isEmailVerified: false
+            isEmailVerified: false,
+            shiftSchedule: shiftSchedule || ''
         });
 
         // Send verification email if email is provided

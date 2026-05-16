@@ -12,6 +12,7 @@ class UserService {
             role: true,
             salary: true,
             workingDays: true,
+            shiftSchedule: true,
             createdAt: true,
             theme: true
         });
@@ -70,6 +71,7 @@ class UserService {
                 workedDays,
                 absences,
                 salary: user.salary,
+                shiftSchedule: user.shiftSchedule,
                 monthlySalary: (Number(user.salary || 0) * workedDays).toFixed(2),
                 totalMonthHours: totalMonthHours.toFixed(2),
                 createdAt: user.createdAt
@@ -343,12 +345,13 @@ class UserService {
     }
 
     async updateUser(id, data) {
-        const { fullName, salary, workingDays, password } = data;
+        const { fullName, salary, workingDays, password, shiftSchedule } = data;
 
         const dataToUpdate = {
             fullName,
             salary: salary !== undefined && salary !== "" ? parseFloat(salary) : 0.00,
-            workingDays: workingDays || ""
+            workingDays: workingDays || "",
+            shiftSchedule: shiftSchedule !== undefined ? shiftSchedule : undefined
         };
 
         if (password && password.trim() !== "") {
