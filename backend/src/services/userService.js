@@ -20,7 +20,8 @@ class UserService {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const daysInMonthSoFar = now.getDate();
+        // Only count up to yesterday for absences to avoid marking someone absent for a day that hasn't finished
+        const pastDaysInMonth = Math.max(0, now.getDate() - 1);
 
         // 1. Daily Revenue (Today)
         const todaySales = await userRepository.getDailyRevenue(startOfToday);
@@ -53,10 +54,10 @@ class UserService {
             let workedDays = (workedDaysMap[user.id] && workedDaysMap[user.id].size) || 0;
             let totalMonthHours = totalHoursMap[user.id] || 0;
 
-            let effectiveDaysToCount = daysInMonthSoFar;
+            let effectiveDaysToCount = pastDaysInMonth;
             if (isCreatedThisMonth) {
                 const userCreationDay = user.createdAt.getDate();
-                effectiveDaysToCount = (daysInMonthSoFar - userCreationDay) + 1;
+                effectiveDaysToCount = Math.max(0, pastDaysInMonth - userCreationDay + 1);
             }
 
             const absences = Math.max(0, effectiveDaysToCount - workedDays);
@@ -351,7 +352,7 @@ class UserService {
             fullName,
             salary: salary !== undefined && salary !== "" ? parseFloat(salary) : 0.00,
             workingDays: workingDays || "",
-            shiftSchedule: shiftSchedule !== undefined ? shiftSchedule : undefined
+            shiftSchedule: shiftSchedule !== undefined ? (typeof shiftSchedule === 'object' ? JSON.stringify(shiftSchedule) : shiftSchedule) : undefined
         };
 
         if (password && password.trim() !== "") {

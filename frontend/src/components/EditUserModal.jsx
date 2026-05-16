@@ -70,6 +70,7 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
                                 placeholder="0.00"
                                 value={formData.salary}
                                 onChange={handleChange}
+                                onWheel={(e) => e.target.blur()}
                                 className="w-full px-5 py-4 bg-gray-50/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium pr-14"
                             />
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black text-blue-500/50 dark:text-blue-400/30">TND</div>

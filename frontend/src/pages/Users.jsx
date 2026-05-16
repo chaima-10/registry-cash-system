@@ -209,7 +209,7 @@ const Users = () => {
                             <div className="relative">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 font-black text-[10px]">TND</span>
                                 <input required type="number" step="0.001" className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-black text-sm"
-                                    value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} />
+                                    value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} onWheel={(e) => e.target.blur()} />
                             </div>
                         </div>
 
