@@ -196,26 +196,64 @@ const Dashboard = () => {
 
     const { totalRevenue, totalCost, netProfit, margin, transactionCount, cashierMap, revTrend, profitTrend } = getDashboardData();
     
-    // Inventory Data Intelligence (Ported from Inventory Analytics)
+    // Inventory Data Intelligence — filtered by selected period
     const inventoryData = useMemo(() => {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
+        // Previous period boundaries for trend comparison
+        const now2 = new Date();
+        const isPrevPeriod = (d) => {
+            if (period === 'day') {
+                const prev = new Date(); prev.setDate(prev.getDate() - 1);
+                return d.getDate() === prev.getDate() && d.getMonth() === prev.getMonth() && d.getFullYear() === prev.getFullYear();
+            }
+            if (period === 'week') {
+                const diff = (now2 - d) / (1000 * 60 * 60 * 24);
+                return diff > 7 && diff <= 14;
+            }
+            // month
+            const prevMonth = now2.getMonth() === 0 ? 11 : now2.getMonth() - 1;
+            const prevYear = now2.getMonth() === 0 ? now2.getFullYear() - 1 : now2.getFullYear();
+            return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
+        };
 
         return products.map(p => {
-            const productSales = sales.filter(s => {
-                const saleDate = new Date(s.createdAt);
-                return saleDate >= weekAgo && s.items?.some(item => item.productId === p.id);
-            });
+            // Current period sales for this product
+            const periodSales = sales.filter(s =>
+                checkPeriod(new Date(s.createdAt)) && s.items?.some(item => item.productId === p.id)
+            );
+            // Previous period sales for this product
+            const prevSales = sales.filter(s =>
+                isPrevPeriod(new Date(s.createdAt)) && s.items?.some(item => item.productId === p.id)
+            );
 
-            const weeklyVolume = productSales.reduce((sum, s) => {
+            const periodVolume = periodSales.reduce((sum, s) => {
                 const item = s.items.find(i => i.productId === p.id);
                 return sum + (item?.quantity || 0);
             }, 0);
 
-            const weeklyRevenue = productSales.reduce((sum, s) => {
+            const periodRevenue = periodSales.reduce((sum, s) => {
                 const item = s.items.find(i => i.productId === p.id);
-                return sum + (item ? item.quantity * (item.price || 0) : 0);
+                return sum + (item ? item.quantity * parseFloat(item.price || 0) : 0);
             }, 0);
+
+            const prevVolume = prevSales.reduce((sum, s) => {
+                const item = s.items.find(i => i.productId === p.id);
+                return sum + (item?.quantity || 0);
+            }, 0);
+
+            // Margin %: (sellPrice - purchasePrice) / sellPrice * 100
+            const sellPrice = parseFloat(p.price || 0);
+            const purchasePrice = parseFloat(p.purchasePrice || 0);
+            const tvaRate = parseFloat(p.tva || 0);
+            const costPrice = purchasePrice * (1 + tvaRate / 100);
+            const margin = sellPrice > 0 ? ((sellPrice - costPrice) / sellPrice * 100) : 0;
+
+            // Rotation: units sold in period / current stock
+            const rotation = p.stockQuantity > 0 ? (periodVolume / p.stockQuantity) : periodVolume > 0 ? 999 : 0;
+
+            // Trend: compare current vs previous period volume
+            let trend = 0;
+            if (prevVolume === 0) trend = periodVolume > 0 ? 100 : 0;
+            else trend = Math.round(((periodVolume - prevVolume) / prevVolume) * 100);
 
             const reorderLevel = Number(p.reorderLevel || 5);
             let status = 'HEALTHY';
@@ -224,14 +262,16 @@ const Dashboard = () => {
 
             return {
                 ...p,
-                weeklyVolume,
-                weeklyRevenue,
+                periodVolume,
+                periodRevenue,
+                margin: margin.toFixed(1),
+                rotation: rotation.toFixed(2),
+                trend,
                 reorderLevel,
-                inventoryValue: p.stockQuantity * (p.purchasePrice || 0),
                 status
             };
         });
-    }, [products, sales]);
+    }, [products, sales, period]);
 
     const filteredInventory = useMemo(() => {
         if (inventoryFilter === 'ALL') return inventoryData;
@@ -245,16 +285,29 @@ const Dashboard = () => {
     const productHistoryData = useMemo(() => {
         if (!selectedProduct) return [];
         const days = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const dateStr = d.toISOString().split('T')[0];
-            const volume = sales.filter(s => s.createdAt.split('T')[0] === dateStr && s.items?.some(item => item.productId === selectedProduct.id))
-                               .reduce((sum, s) => sum + (s.items.find(idx => idx.productId === selectedProduct.id)?.quantity || 0), 0);
-            days.push({ name: d.toLocaleDateString('fr-FR', { weekday: 'short' }), volume });
+        const pointCount = period === 'day' ? 24 : period === 'week' ? 7 : 30;
+
+        if (period === 'day') {
+            // Show hours of today
+            for (let i = 0; i < 24; i++) {
+                const volume = sales.filter(s => {
+                    const d = new Date(s.createdAt);
+                    return isToday(d) && d.getHours() === i && s.items?.some(item => item.productId === selectedProduct.id);
+                }).reduce((sum, s) => sum + (s.items.find(idx => idx.productId === selectedProduct.id)?.quantity || 0), 0);
+                days.push({ name: `${i}h`, volume });
+            }
+        } else {
+            for (let i = pointCount - 1; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                const volume = sales.filter(s => s.createdAt.split('T')[0] === dateStr && s.items?.some(item => item.productId === selectedProduct.id))
+                                   .reduce((sum, s) => sum + (s.items.find(idx => idx.productId === selectedProduct.id)?.quantity || 0), 0);
+                days.push({ name: d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }), volume });
+            }
         }
         return days;
-    }, [selectedProduct, sales]);
+    }, [selectedProduct, sales, period]);
 
     const getStatusInfo = (status) => {
         switch(status) {
@@ -315,7 +368,7 @@ const Dashboard = () => {
     const summary = getPeriodSummary();
     const topProducts = getTopProducts();
     const alerts = getSmartAlerts();
-    const recentTransactions = sales.slice(0, 5); 
+    const recentTransactions = sales.filter(s => checkPeriod(new Date(s.createdAt)));
     const topCashiers = Object.values(cashierMap).sort((a,b) => b.revenue - a.revenue).slice(0, 5);
     const maxCashierRevenue = topCashiers.length > 0 ? topCashiers[0].revenue : 1;
 
@@ -378,12 +431,12 @@ const Dashboard = () => {
                             <FiClock className="text-blue-600" /> {t('recentTransactions', 'Dernières Transactions')}
                         </h3>
                         <div className="text-[9px] lg:text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full uppercase tracking-widest">
-                            {sales.length} {t('total')}
+                            {recentTransactions.length} {t('total')}
                         </div>
                     </div>
                     <div className="space-y-3 lg:space-y-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
                         <AnimatePresence mode="popLayout">
-                            {sales.map((tx, i) => (
+                            {recentTransactions.map((tx, i) => (
                                 <motion.div layout key={tx.id || i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center justify-between p-4 lg:p-5 bg-slate-50/50 dark:bg-slate-800/40 rounded-2xl lg:rounded-3xl border border-transparent hover:border-blue-100 dark:hover:border-blue-900 transition-all hover:bg-white dark:hover:bg-slate-900 group">
                                     <div className="flex items-center gap-3 lg:gap-4">
                                         <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-xl lg:rounded-2xl bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-base lg:text-lg shadow-sm group-hover:scale-105 transition-transform">{tx.user?.username?.charAt(0).toUpperCase() || 'U'}</div>
@@ -496,9 +549,13 @@ const Dashboard = () => {
                                     <thead>
                                         <tr className="bg-slate-50/50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500">
                                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest">{t('product', 'Produit')}</th>
-                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('stock', 'Stock')}</th>
-                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('weeklySales', 'Ventes (7j)')}</th>
-                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-right">{t('value', 'Valeur')}</th>
+                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">
+                                                {period === 'day' ? t('salesToday', 'Ventes (Jour)') : period === 'week' ? t('salesWeek', 'Ventes (Sem.)') : t('salesMonth', 'Ventes (Mois)')}
+                                            </th>
+                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('caLabel', 'CA')}</th>
+                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('marginLabel2', 'Marge %')}</th>
+                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('rotation', 'Rotation')}</th>
+                                            <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('trend', 'Tendance')}</th>
                                             <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-center">{t('status', 'Statut')}</th>
                                         </tr>
                                     </thead>
@@ -526,16 +583,35 @@ const Dashboard = () => {
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-5 text-center font-black text-slate-800 dark:text-white text-sm">{row.stockQuantity}</td>
+                                                    {/* Ventes période */}
                                                     <td className="px-6 py-5 text-center">
-                                                        <div className="flex flex-col items-center">
-                                                            <span className="font-black text-blue-600 dark:text-blue-400 text-sm">+{row.weeklyVolume}</span>
-                                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{formatCurrency(row.weeklyRevenue)}</span>
+                                                        <span className="font-black text-blue-600 dark:text-blue-400 text-sm">+{row.periodVolume}</span>
+                                                        <div className="text-[9px] font-bold text-slate-400">{t('units', 'unités')}</div>
+                                                    </td>
+                                                    {/* CA période */}
+                                                    <td className="px-6 py-5 text-center font-black text-slate-800 dark:text-white text-sm">
+                                                        {formatCurrency(row.periodRevenue)}
+                                                    </td>
+                                                    {/* Marge % */}
+                                                    <td className="px-6 py-5 text-center">
+                                                        <span className={`font-black text-sm ${parseFloat(row.margin) >= 20 ? 'text-emerald-600' : parseFloat(row.margin) >= 10 ? 'text-amber-500' : 'text-red-500'}`}>
+                                                            {row.margin}%
+                                                        </span>
+                                                    </td>
+                                                    {/* Rotation */}
+                                                    <td className="px-6 py-5 text-center">
+                                                        <span className={`font-black text-sm ${parseFloat(row.rotation) >= 1 ? 'text-emerald-600' : parseFloat(row.rotation) >= 0.3 ? 'text-amber-500' : 'text-slate-400'}`}>
+                                                            {row.rotation}x
+                                                        </span>
+                                                    </td>
+                                                    {/* Tendance */}
+                                                    <td className="px-6 py-5 text-center">
+                                                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black ${row.trend > 0 ? 'bg-green-100 text-green-600' : row.trend < 0 ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                            <FiTrendingUp className={row.trend < 0 ? 'rotate-180' : ''} size={10} />
+                                                            {row.trend > 0 ? '+' : ''}{row.trend}%
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-5 text-right font-black text-slate-800 dark:text-white text-sm">
-                                                        {formatCurrency(row.inventoryValue)}
-                                                    </td>
+                                                    {/* Statut */}
                                                     <td className="px-8 py-5 text-center">
                                                         <Badge label={status.label} color={status.color} bg={status.bg} />
                                                     </td>
@@ -582,10 +658,23 @@ const Dashboard = () => {
                                     <div className="space-y-6">
                                         <div>
                                             <div className="flex justify-between items-end mb-4">
-                                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">{t('salesTrend', 'Tendance Ventes (7j)')}</h4>
-                                                <div className="text-[10px] font-black text-green-500 flex items-center gap-1">
-                                                    <FiTrendingUp /> {t('rising', 'HAUSSE')}
-                                                </div>
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                                                    {period === 'day' ? t('salesTrendDay', 'Tendance Ventes (Jour)') : period === 'week' ? t('salesTrendWeek', 'Tendance Ventes (7j)') : t('salesTrendMonth', 'Tendance Ventes (Mois)')}
+                                                </h4>
+                                                {(() => {
+                                                    const t2 = selectedProduct.trend;
+                                                    if (t2 > 0) return (
+                                                        <div className="text-[10px] font-black text-green-500 flex items-center gap-1">
+                                                            <FiTrendingUp size={12} /> +{t2}%
+                                                        </div>
+                                                    );
+                                                    if (t2 < 0) return (
+                                                        <div className="text-[10px] font-black text-red-500 flex items-center gap-1">
+                                                            <FiTrendingUp size={12} className="rotate-180" /> {t2}%
+                                                        </div>
+                                                    );
+                                                    return <div className="text-[10px] font-black text-slate-400">—</div>;
+                                                })()}
                                             </div>
                                             <div className="h-40 w-full bg-slate-50/50 dark:bg-slate-800/30 rounded-2xl p-4">
                                                 <ResponsiveContainer width="100%" height="100%">
@@ -599,20 +688,6 @@ const Dashboard = () => {
                                                         <Area type="monotone" dataKey="volume" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorVolume)" />
                                                     </AreaChart>
                                                 </ResponsiveContainer>
-                                            </div>
-                                        </div>
-
-                                        <div className="bg-slate-900 rounded-2xl p-5 text-white flex items-center gap-4 mt-6 border border-white/5 shadow-xl">
-                                            <div className="p-2 bg-blue-500/20 rounded-xl text-blue-400">
-                                                <FiZap size={20} />
-                                            </div>
-                                            <div>
-                                                <div className="text-[10px] font-black uppercase tracking-widest opacity-70">{t('aiRecommendation', 'Recommandation AI')}</div>
-                                                <div className="text-xs font-bold mt-0.5">
-                                                    {selectedProduct.status === 'LOW_STOCK' 
-                                                        ? t('reorderNow', 'Commander immédiatement.')
-                                                        : t('stockHealthy', 'Niveau optimal maintenu.')}
-                                                </div>
                                             </div>
                                         </div>
                                     </div>

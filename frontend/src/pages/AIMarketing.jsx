@@ -185,6 +185,7 @@ const AIMarketing = () => {
 
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
             let reply = response.data.reply;
+            const provider = response.data.provider || 'AI';
             
             // Handle specific AI error codes from backend
             if (reply.includes('ERROR_AI:')) {
@@ -199,7 +200,7 @@ const AIMarketing = () => {
                 }
             }
             
-            setChatMessages(prev => [...prev, { role: 'ai', content: reply }]);
+            setChatMessages(prev => [...prev, { role: 'ai', content: reply, provider }]);
         } catch (error) {
             setChatMessages(prev => [...prev, { role: 'ai', content: t('aiErrorQuota') }]);
         } finally {
@@ -513,6 +514,12 @@ const AIMarketing = () => {
                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[85%] px-6 py-4 rounded-[2rem] ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-sm'}`}>
                                 <p className="text-sm font-medium">{msg.content}</p>
+                                {msg.role === 'ai' && msg.provider && (
+                                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center gap-1.5 opacity-50">
+                                        <FiZap className="text-[10px]" />
+                                        <span className="text-[10px] font-bold tracking-wider uppercase">{msg.provider}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}

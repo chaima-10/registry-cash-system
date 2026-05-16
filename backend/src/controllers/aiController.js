@@ -8,9 +8,9 @@ exports.chat = async (req, res) => {
             return res.status(400).json({ message: 'Messages array is required' });
         }
 
-        const reply = await aiService.generateResponse(messages, systemContext);
+        const { reply, provider } = await aiService.generateResponse(messages, systemContext);
         
-        return res.json({ reply });
+        return res.json({ reply, provider });
 
     } catch (error) {
         console.error('Error in AI Controller:', error);

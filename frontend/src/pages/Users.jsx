@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { FiActivity, FiDollarSign, FiClock, FiFileText } from 'react-icons/fi';
 import SalaryHistoryModal from '../components/SalaryHistoryModal';
 import ShiftScheduleSelector from '../components/ShiftScheduleSelector';
+import toast from 'react-hot-toast';
 
 // Lazy load AttendanceTracker to isolate errors
 import React, { Suspense } from 'react';
@@ -61,7 +62,8 @@ const Users = () => {
 
     const handleDistributePrime = async () => {
         if (!primeData.amount || isNaN(primeData.amount) || parseFloat(primeData.amount) <= 0) {
-            return alert(t('pleaseEnterValidAmount', 'Veuillez saisir un montant valide.'));
+            toast.error(t('pleaseEnterValidAmount', 'Veuillez saisir un montant valide.'));
+            return;
         }
         setIsDistributing(true);
         try {
@@ -70,12 +72,12 @@ const Users = () => {
                 reason: primeData.reason 
             });
             
-            alert(res.message);
+            toast.success(res.message);
             fetchUsers();
             setPrimeData({ amount: '', reason: '' });
         } catch (error) {
             const errorMsg = error.response?.data?.message || t('failedToDistributePrime', 'Échec de la distribution.');
-            alert(`Erreur: ${errorMsg}`);
+            toast.error(`Erreur: ${errorMsg}`);
             console.error("Distribution Error:", error);
         } finally {
             setIsDistributing(false);
@@ -86,12 +88,12 @@ const Users = () => {
         setIsDistributingSalary(true);
         try {
             const res = await distributeSalaries({ month: salaryMonth });
-            alert(res.message);
+            toast.success(res.message);
             fetchUsers();
             setSalaryMonth('');
         } catch (error) {
             const errorMsg = error.response?.data?.message || t('failedToDistributeSalary', 'Échec de la distribution des salaires.');
-            alert(`Erreur: ${errorMsg}`);
+            toast.error(`Erreur: ${errorMsg}`);
             console.error("Salary Distribution Error:", error);
         } finally {
             setIsDistributingSalary(false);
@@ -356,7 +358,7 @@ const Users = () => {
                             <div className="p-4 bg-emerald-50/50 dark:bg-emerald-500/5 rounded-2xl border border-emerald-100 dark:border-emerald-500/10">
                                 <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-2">
                                     <FiDollarSign size={14} />
-                                    {t('salaryNote', 'Chaque employé recevra son salaire journalier défini dans son profil.')}
+                                    {t('salaryNote', 'Chaque employé recevra son salaire net mensuel basé sur sa présence (Salaire Journalier × Jours Travaillés).')}
                                 </p>
                             </div>
 

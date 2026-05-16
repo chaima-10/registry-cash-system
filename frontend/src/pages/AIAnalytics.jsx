@@ -11,6 +11,7 @@ import {
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const AIAnalytics = () => {
     const { t, i18n } = useTranslation();
@@ -25,6 +26,12 @@ const AIAnalytics = () => {
     const [promoSuccess, setPromoSuccess] = useState({});
     const [orderSuccess, setOrderSuccess] = useState({});
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const getImageUrl = (path) => {
+        if (!path) return null;
+        if (path.startsWith('http')) return path;
+        const cleanPath = path.startsWith('/') ? path : `/${path}`;
+        return `${API_URL}${cleanPath}`;
+    };
 
     const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
     const [aiForecastData, setAiForecastData] = useState(null);
@@ -117,7 +124,6 @@ const AIAnalytics = () => {
             todayCount
         };
     }, [sales]);
-
     const slowProductsWithPromos = useMemo(() => {
         const salesMap = {};
         sales.forEach(sale => {
@@ -135,13 +141,104 @@ const AIAnalytics = () => {
             .sort((a, b) => b.stockQuantity - a.stockQuantity)
             .slice(0, 5);
 
-        return slow.map(p => ({
-            ...p,
-            suggestedDiscount: p.stockQuantity > 50 ? '-30%' : '-15%',
-            salesCount: salesMap[p.id] || 0,
-            actionReason: t('actionReasonSlow', { stock: p.stockQuantity, sales: salesMap[p.id] || 0 })
-        }));
+        return slow.map(p => {
+            const price = parseFloat(p.price);
+            const purchasePrice = parseFloat(p.purchasePrice || 0);
+            
+            let discount = 15;
+            if (p.stockQuantity > 300) discount = 40;
+            else if (p.stockQuantity > 150) discount = 30;
+            else if (p.stockQuantity > 80) discount = 20;
+
+            // Safety check: ensure selling price > purchase price (keep at least 2% margin)
+            if (purchasePrice > 0 && (price * (1 - discount/100)) < purchasePrice * 1.02) {
+                discount = Math.floor((1 - (purchasePrice * 1.02 / price)) * 100);
+                if (discount < 0) discount = 0;
+            }
+            
+            return {
+                ...p,
+                type: 'CLEARANCE',
+                suggestedDiscount: discount > 0 ? `-${discount}%` : 'PROMO MIN.',
+                salesCount: salesMap[p.id] || 0,
+                actionReason: t('actionReasonSlow', { stock: p.stockQuantity, sales: salesMap[p.id] || 0 })
+            };
+        });
     }, [products, sales, t]);
+
+    const bundleSuggestions = useMemo(() => {
+        const associations = {};
+        sales.forEach(sale => {
+            const itemIds = sale.items?.map(i => i.productId) || [];
+            for (let i = 0; i < itemIds.length; i++) {
+                for (let j = i + 1; j < itemIds.length; j++) {
+                    const p1 = itemIds[i];
+                    const p2 = itemIds[j];
+                    if (!associations[p1]) associations[p1] = {};
+                    if (!associations[p2]) associations[p2] = {};
+                    associations[p1][p2] = (associations[p1][p2] || 0) + 1;
+                    associations[p2][p1] = (associations[p2][p1] || 0) + 1;
+                }
+            }
+        });
+
+        const suggestions = [];
+        const seen = new Set();
+        Object.keys(associations).forEach(p1Id => {
+            const related = associations[p1Id];
+            const topRelatedId = Object.keys(related).sort((a, b) => related[b] - related[a])[0];
+            
+            if (topRelatedId) {
+                const pairId = [p1Id, topRelatedId].sort().join('-');
+                if (seen.has(pairId)) return;
+                seen.add(pairId);
+
+                const prod1 = products.find(p => p.id === parseInt(p1Id));
+                const prod2 = products.find(p => p.id === parseInt(topRelatedId));
+                
+                if (prod1 && prod2) {
+                    suggestions.push({
+                        type: 'BUNDLE',
+                        productA: prod1,
+                        productB: prod2,
+                        strength: related[topRelatedId],
+                        suggestedPromo: '-20% sur le duo'
+                    });
+                }
+            }
+        });
+        return suggestions.sort((a,b) => b.strength - a.strength).slice(0, 3);
+    }, [sales, products]);
+
+    const flashSaleSuggestions = useMemo(() => {
+        const hourCounts = Array(24).fill(0);
+        sales.forEach(s => {
+            const h = new Date(s.createdAt).getHours();
+            if (!isNaN(h)) hourCounts[h]++;
+        });
+
+        // Find quietest hours between 9h and 20h
+        const quietHours = [];
+        for (let h = 9; h <= 20; h++) {
+            if (hourCounts[h] < (sales.length / (24 * 7))) { // Very low relative to average
+                quietHours.push(h);
+            }
+        }
+
+        if (quietHours.length === 0) return [];
+
+        // Pick top product that could use a boost during these hours
+        const bestSeller = [...products].sort((a,b) => b.stockQuantity - a.stockQuantity)[0];
+        if (!bestSeller) return [];
+
+        return quietHours.slice(0, 2).map(h => ({
+            type: 'FLASH',
+            hour: `${h}h - ${h+1}h`,
+            product: bestSeller,
+            suggestedDiscount: '-10%',
+            reason: `Heure creuse détectée (${hourCounts[h]} transactions moyennes)`
+        }));
+    }, [sales, products]);
 
     const behaviorData = useMemo(() => {
         const hourCounts = Array(24).fill(0);
@@ -558,7 +655,14 @@ const AIAnalytics = () => {
 
     const handleApplyPromotion = async (product) => {
         const discountNum = Math.abs(parseInt(product.suggestedDiscount));
+        const price = parseFloat(product.price);
+        const purchasePrice = parseFloat(product.purchasePrice || 0);
         
+        // Safety check
+        if (purchasePrice > 0 && (price * (1 - discountNum / 100)) < purchasePrice) {
+            toast.error(`Impossible d'appliquer cette remise car le prix de vente deviendrait inférieur au prix d'achat (${purchasePrice} TND).`);
+            return;
+        }
         try {
             const formData = new FormData();
             formData.append('remise', discountNum);
@@ -584,14 +688,76 @@ const AIAnalytics = () => {
             }, 3500);
         } catch (err) {
             console.error('Failed to apply promo', err);
-            alert("Erreur lors de l'application de la promotion.");
+            toast.error("Erreur lors de l'application de la promotion.");
         }
     };
 
     
     const handleOrderProduct = (product) => {
         setOrderSuccess(prev => ({ ...prev, [product.id]: true }));
-        setTimeout(() => setOrderSuccess(prev => ({ ...prev, [product.id]: false })), 4000);
+        setTimeout(() => setOrderSuccess(prev => ({ ...prev, [product.id]: false })), 3000);
+    };
+
+    const handleActivateBundle = async (bundle) => {
+        try {
+            // Update both products with the 20% remise
+            const updateProd = async (p) => {
+                const formData = new FormData();
+                formData.append('remise', 20); // Bundle discount
+                formData.append('name', p.name);
+                formData.append('price', p.price);
+                formData.append('stockQuantity', p.stockQuantity);
+                if (p.categoryId) formData.append('categoryId', p.categoryId);
+                if (p.subcategoryId) formData.append('subcategoryId', p.subcategoryId);
+                
+                return api.put(`/products/${p.id}`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+            };
+
+            await Promise.all([updateProd(bundle.productA), updateProd(bundle.productB)]);
+            
+            setPromoSuccess(prev => ({ ...prev, [`bundle-${bundle.productA.id}-${bundle.productB.id}`]: true }));
+            setTimeout(() => setPromoSuccess(prev => ({ ...prev, [`bundle-${bundle.productA.id}-${bundle.productB.id}`]: false })), 4000);
+            
+            // Refresh data
+            const res = await api.get('/products');
+            setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
+            
+            toast.success(`Offre Duo Activée ! Une remise de 20% a été appliquée sur ${bundle.productA.name} et ${bundle.productB.name}.`);
+        } catch (err) {
+            console.error(err);
+            toast.error("Erreur lors de l'activation du bundle.");
+        }
+    };
+
+    const handlePlanFlashSale = async (flash) => {
+        try {
+            const p = flash.product;
+            const discountNum = Math.abs(parseInt(flash.suggestedDiscount));
+            
+            const formData = new FormData();
+            formData.append('remise', discountNum);
+            formData.append('name', p.name);
+            formData.append('price', p.price);
+            formData.append('stockQuantity', p.stockQuantity);
+            
+            await api.put(`/products/${p.id}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            setPromoSuccess(prev => ({ ...prev, [`flash-${flash.hour}`]: true }));
+            setTimeout(() => setPromoSuccess(prev => ({ ...prev, [`flash-${flash.hour}`]: false })), 4000);
+            
+            // Refresh data
+            const res = await api.get('/products');
+            setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
+
+            toast.success(`Vente Flash Activée pour ${flash.hour} sur ${p.name}.`);
+        } catch (err) {
+            console.error(err);
+            toast.error("Erreur lors de la planification de la vente flash.");
+        }
     };
 
 
@@ -707,43 +873,67 @@ const AIAnalytics = () => {
                                 )}
                             </div>
                         </div>
-
-                        <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><FiActivity className="text-orange-500" /> {t('adaptedPromotions', 'Promotions Adaptées')}</h3>
-                            <p className="text-sm text-gray-500 mb-6">{t('analyticsPromoDesc', 'Suggestions IA pour écouler les stocks dormants et maximiser la rotation.')}</p>
+                              <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                            <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><FiActivity className="text-orange-500" /> {t('adaptedPromotions', 'Stratégies Promotionnelles IA')}</h3>
+                            <p className="text-sm text-gray-500 mb-6">{t('analyticsPromoDesc', 'Suggestions intelligentes basées sur le stock, les ventes croisées et l\'activité temporelle.')}</p>
                             
-                            <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2">
-                                {slowProds.map((p, i) => (
-                                    <div key={i} className="p-4 border border-orange-100 dark:border-orange-900 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl">
-                                        <div className="flex items-start gap-3 mb-3">
-                                            <div className="w-14 h-14 rounded-xl bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 flex items-center justify-center overflow-hidden shrink-0">
-                                                {p.imageUrl ? (
-                                                    <img src={`${API_URL}${p.imageUrl}`} alt={p.name} className="w-full h-full object-contain" />
-                                                ) : (
-                                                    <span className="text-sm font-black text-orange-400">{p.name.substring(0, 2).toUpperCase()}</span>
-                                                )}
+                            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+                                {/* Section 1: Clearance */}
+                                <div className="space-y-4">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div> Déstockage (Mort)
+                                    </h4>
+                                    {slowProductsWithPromos.slice(0, 2).map((p, i) => (
+                                        <div key={i} className="p-4 border border-red-50 dark:border-red-900/20 bg-red-50/30 dark:bg-red-900/5 rounded-xl">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-red-100 bg-white">
+                                                    <img src={getImageUrl(p.imageUrl)} alt={p.name} className="w-full h-full object-contain" onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=fee2e2&color=ef4444`; }} />
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="font-bold text-xs truncate">{p.name}</div>
+                                                    <div className="text-[10px] text-red-600 font-bold">{p.suggestedDiscount} IA</div>
+                                                </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-bold dark:text-white truncate">{p.name}</div>
-                                                <div className="text-xs text-gray-500">{t('stockCount', { count: p.stockQuantity })}</div>
-                                                <div className="bg-orange-500 text-white font-black px-2 py-0.5 rounded-md text-[10px] uppercase tracking-wider inline-block mt-1">{t('remiseAi', 'Remise IA')}: {p.suggestedDiscount}</div>
-                                            </div>
-                                        </div>
-                                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">{p.actionReason}</p>
-                                        {promoSuccess[p.id] ? (
-                                            <div className="w-full py-2 bg-green-100 dark:bg-green-900/30 border border-green-300 text-green-700 dark:text-green-400 rounded-lg text-sm font-bold text-center">
-                                                ✅ {t('promotionApplied', 'Promotion appliquée !')}
-                                            </div>
-                                        ) : (
-                                            <button 
-                                                onClick={() => handleApplyPromotion(p)}
-                                                className="w-full py-2 bg-white dark:bg-gray-800 border border-orange-200 dark:border-orange-800 text-orange-600 dark:text-orange-400 rounded-lg text-sm font-medium hover:bg-orange-100 transition-colors">
-                                                {t('applyPromotion', 'Appliquer la promotion')}
+                                            <button onClick={() => handleApplyPromotion(p)} className="w-full py-1.5 bg-white dark:bg-gray-800 border border-red-200 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-50 transition-colors uppercase tracking-wider">
+                                                {promoSuccess[p.id] ? '✓' : 'Liquider'}
                                             </button>
-                                        )}
-                                    </div>
-                                ))}
-                                {slowProds.length === 0 && <p className="text-gray-500 italic">{t('noDormantStock', 'Aucun stock dormant détecté.')}</p>}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Section 2: Bundles */}
+                                <div className="space-y-4">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div> Ventes Croisées (Bundles)
+                                    </h4>
+                                    {bundleSuggestions.map((b, i) => (
+                                        <div key={i} className="p-4 border border-indigo-50 dark:border-indigo-900/20 bg-indigo-50/30 dark:bg-indigo-900/5 rounded-xl">
+                                            <div className="flex items-center justify-between gap-2 mb-3">
+                                                <div className="flex -space-x-3">
+                                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-white overflow-hidden shadow-sm">
+                                                        <img src={getImageUrl(b.productA.imageUrl)} alt="" className="w-full h-full object-contain" />
+                                                    </div>
+                                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-white overflow-hidden shadow-sm">
+                                                        <img src={getImageUrl(b.productB.imageUrl)} alt="" className="w-full h-full object-contain" />
+                                                    </div>
+                                                </div>
+                                                <div className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">Duo Gagnant</div>
+                                            </div>
+                                            <div className="text-[10px] font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                                Achetés ensemble <span className="font-bold text-indigo-600">{b.strength} fois</span>.
+                                            </div>
+                                            <div className="text-xs font-bold mb-3">{b.suggestedPromo}</div>
+                                            <button 
+                                                onClick={() => handleActivateBundle(b)} 
+                                                className="w-full py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-700 transition-colors uppercase tracking-wider"
+                                            >
+                                                {promoSuccess[`bundle-${b.productA.id}-${b.productB.id}`] ? '✓ Activé' : 'Activer Offre'}
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {bundleSuggestions.length === 0 && <div className="text-[10px] italic text-gray-400">Pas assez de données d'association.</div>}
+                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -752,25 +942,6 @@ const AIAnalytics = () => {
                 const aiMetrics = getAIPerformanceMetrics;
                 return (
                     <div className="space-y-8">
-                        {/* Forecast Summary Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 lg:gap-6">
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
-                                <div className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-2">{t('estimatedGrowth', 'Croissance Estimée')}</div>
-                                <div className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white">{aiMetrics.growth > 0 ? '+' : ''}{aiMetrics.growth}%</div>
-                                <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('projectionQ2', 'Projection Q2 2026')}</div>
-                            </div>
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
-                                <div className="text-indigo-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('supplyUrgency', 'Urgence Approvisionnement')}</div>
-                                <div className="text-2xl lg:text-3xl font-black text-indigo-600">{aiMetrics.supplyUrgency}%</div>
-                                <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('optimalStockCapacity', 'Capacité de stockage optimale')}</div>
-                            </div>
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
-                                <div className="text-teal-500 font-black text-[10px] uppercase tracking-widest mb-2 font-bold">{t('marketTrend', 'Tendance Marché')}</div>
-                                <div className="text-2xl lg:text-3xl font-black text-teal-600">{aiMetrics.trend}</div>
-                                <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('favorableSeasonality', 'Saisonnalité favorable')}</div>
-                            </div>
-                        </div>
-
                         {/* Chart Area */}
                         <div className="bg-white dark:bg-gray-800 p-4 lg:p-8 rounded-2xl lg:rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 flex flex-col min-h-[400px] h-[50vh] lg:h-[500px]">
                             <div className="mb-4 lg:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 lg:gap-4">
@@ -798,8 +969,8 @@ const AIAnalytics = () => {
                                         <ComposedChart data={aiForecastData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                                             <defs>
                                                 <linearGradient id="predictionGradient" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
-                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1}/>
+                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25}/>
+                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
@@ -807,50 +978,36 @@ const AIAnalytics = () => {
                                                 dataKey="month" 
                                                 axisLine={false} 
                                                 tickLine={false} 
-                                                tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                                                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
                                                 dy={10}
                                             />
                                             <YAxis 
                                                 axisLine={false} 
                                                 tickLine={false} 
-                                                tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                                                tick={{ fill: '#64748b', fontSize: 11, fontWeight: 700 }}
                                                 tickFormatter={(val) => formatCurrency(val)}
+                                                width={90}
                                             />
                                             <Tooltip 
                                                 contentStyle={{ 
-                                                    backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                                                    borderRadius: '16px', 
-                                                    border: 'none', 
-                                                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
-                                                    padding: '12px'
+                                                    backgroundColor: 'rgba(255,255,255,0.97)', 
+                                                    borderRadius: '14px', 
+                                                    border: '1px solid #e2e8f0', 
+                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                                                    padding: '12px 16px'
                                                 }}
-                                                formatter={(val) => [formatCurrency(val), t('prediction', 'Prédiction')]}
+                                                formatter={(val) => [formatCurrency(val), t('forecastedRevenue', 'Revenu Prévu')]}
+                                                labelStyle={{ fontWeight: 800, fontSize: 12, marginBottom: 4 }}
                                             />
-                                            <Legend verticalAlign="top" height={36} iconType="circle" />
                                             <Area 
                                                 type="monotone" 
                                                 dataKey="prediction" 
                                                 fill="url(#predictionGradient)" 
                                                 stroke="#6366f1" 
                                                 strokeWidth={3}
-                                                name={t('predictionArea', 'Zone de Croissance')}
-                                            />
-                                            <Bar 
-                                                dataKey="prediction" 
-                                                name={t('monthlyPrediction', 'Prédiction Mensuelle')} 
-                                                fill="#6366f1" 
-                                                radius={[6, 6, 0, 0]} 
-                                                barSize={30}
-                                                opacity={0.3}
-                                            />
-                                            <Line 
-                                                type="monotone" 
-                                                dataKey="prediction" 
-                                                name={t('trendLine', 'Ligne de Tendance')}
-                                                stroke="#f43f5e" 
-                                                strokeWidth={3} 
-                                                dot={{ fill: '#f43f5e', r: 4, strokeWidth: 2, stroke: '#fff' }}
-                                                activeDot={{ r: 6, strokeWidth: 0 }}
+                                                dot={{ fill: '#6366f1', r: 5, strokeWidth: 2, stroke: '#fff' }}
+                                                activeDot={{ r: 7, strokeWidth: 0, fill: '#6366f1' }}
+                                                name={t('forecastedRevenue', 'Revenu Prévu')}
                                             />
                                         </ComposedChart>
                                     </ResponsiveContainer>

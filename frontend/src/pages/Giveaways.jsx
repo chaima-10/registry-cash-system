@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
+import toast from 'react-hot-toast';
 
 const Giveaways = () => {
     const { t } = useTranslation();
@@ -24,6 +25,7 @@ const Giveaways = () => {
     const [participating, setParticipating] = useState({});
     const [processing, setProcessing] = useState(false);
     const [isDrawing, setIsDrawing] = useState(null);
+    const [error, setError] = useState(null);
     
     
     const [showRegistrationForm, setShowRegistrationForm] = useState(false);
@@ -41,17 +43,23 @@ const Giveaways = () => {
     const [drawWinners, setDrawWinners] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
 
+    const fetchGiveaways = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await api.get('/giveaways');
+            // Ensure we always have an array
+            const data = Array.isArray(response.data) ? response.data : (response.data?.giveaways || []);
+            setGiveaways(data);
+        } catch (error) {
+            console.error('Error fetching giveaways:', error);
+            setError(t('errorFetchingGiveaways', 'Could not load giveaways. Please check your connection.'));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchGiveaways = async () => {
-            try {
-                const response = await api.get('/giveaways');
-                setGiveaways(response.data || []);
-            } catch (error) {
-                console.error('Error fetching giveaways:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchGiveaways();
     }, []);
 
@@ -65,9 +73,10 @@ const Giveaways = () => {
             setFormData({
                 title: '', description: '', startDate: '', endDate: '', winnerCount: 1
             });
+            toast.success(t('giveawayCreated', 'Tirage au sort créé !'));
         } catch (error) {
             console.error('Error creating giveaway:', error);
-            alert(error.response?.data?.message || 'Error creating giveaway');
+            toast.error(error.response?.data?.message || 'Error creating giveaway');
         } finally {
             setProcessing(false);
         }
@@ -89,11 +98,11 @@ const Giveaways = () => {
             const phoneRegex = /^\+?[0-9]+$/;
 
             if (!nameRegex.test(clientData.clientName)) {
-                alert(t('nameLetterOnly', 'First Name must contain only letters.'));
+                toast.error(t('nameLetterOnly', 'First Name must contain only letters.'));
                 return;
             }
             if (!nameRegex.test(clientData.clientSurname)) {
-                alert(t('surnameLetterOnly', 'Surname must contain only letters.'));
+                toast.error(t('surnameLetterOnly', 'Surname must contain only letters.'));
                 return;
             }
 
@@ -102,20 +111,20 @@ const Giveaways = () => {
             if (phone.startsWith('+216')) {
                 const numberPart = phone.substring(4);
                 if (numberPart.length !== 8 || !/^\d+$/.test(numberPart)) {
-                    alert(t('invalidTunisianPhone', 'Tunisian phone numbers must contain exactly 8 digits after +216.'));
+                    toast.error(t('invalidTunisianPhone', 'Tunisian phone numbers must contain exactly 8 digits after +216.'));
                     return;
                 }
             } else {
             
                 const localPhone = phone.startsWith('0') ? phone.substring(1) : phone;
                 if (localPhone.length !== 8 || !/^\d+$/.test(localPhone)) {
-                    alert(t('invalidLocalPhone', 'Local Tunisian phone numbers must contain exactly 8 digits.'));
+                    toast.error(t('invalidLocalPhone', 'Local Tunisian phone numbers must contain exactly 8 digits.'));
                     return;
                 }
             }
 
             if (!phoneRegex.test(phone)) {
-                alert(t('phoneDigitsOnly', 'Phone number must contain only digits and optional +.'));
+                toast.error(t('phoneDigitsOnly', 'Phone number must contain only digits and optional +.'));
                 return;
             }
         }
@@ -124,12 +133,10 @@ const Giveaways = () => {
         try {
             await api.post(`/giveaways/${giveawayId}/participate`, clientData);
             const response = await api.get('/giveaways');
-            setGiveaways(response.data || []);
-            setShowRegistrationForm(false);
-            setRegistrationData({ clientName: '', clientSurname: '', clientPhone: '' });
+            toast.success(t('participationSuccess', 'Inscription réussie !'));
         } catch (error) {
             console.error('Error participating in giveaway:', error);
-            alert(error.response?.data?.message || 'Error participating in giveaway');
+            toast.error(error.response?.data?.message || 'Error participating in giveaway');
             setParticipating({ ...participating, [giveawayId]: false });
         } finally {
             setParticipating(prev => ({ ...prev, [giveawayId]: false }));
@@ -320,15 +327,22 @@ const Giveaways = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[1,2,3].map((_, i) => (
                         <div key={i} className="p-6 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse">
-                        
                             <div className="h-6 w-1/2 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
-                            
                             <div className="h-4 w-full bg-gray-300 dark:bg-gray-700 rounded mb-2"></div>
                             <div className="h-4 w-3/4 bg-gray-300 dark:bg-gray-700 rounded mb-4"></div>
-                            
                             <div className="h-3 w-full bg-gray-300 dark:bg-gray-700 rounded"></div>
                         </div>
                     ))}
+                </div>
+            ) : error ? (
+                <div className="flex flex-col items-center justify-center py-20 bg-red-50 dark:bg-red-900/10 rounded-[3rem] border border-red-100 dark:border-red-900/20">
+                    <div className="text-red-500 mb-4 font-bold text-lg">{error}</div>
+                    <button 
+                        onClick={fetchGiveaways}
+                        className="px-6 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
+                    >
+                        {t('retry', 'Retry')}
+                    </button>
                 </div>
             ) : giveaways.length === 0 ? (
                 /* 4. EMPTY STATE */

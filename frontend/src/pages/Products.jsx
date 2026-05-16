@@ -8,6 +8,7 @@ import Barcode from 'react-barcode';
 
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const Products = () => {
     const { t } = useTranslation();
@@ -86,14 +87,14 @@ const Products = () => {
                 setFilterCategory(res.id.toString());
                 setFilterSubcategory('');
             } catch (error) {
-                alert(t('failedToCreate'));
+                toast.error(t('failedToCreate'));
             }
         }
     };
 
     const handleCreateSubcategory = async () => {
         if (!filterCategory) {
-            alert(t('selectCategoryFirst', "Sélectionnez d'abord une catégorie principale."));
+            toast.error(t('selectCategoryFirst', "Sélectionnez d'abord une catégorie principale."));
             return;
         }
         const name = window.prompt(t('newSubcategory'));
@@ -103,7 +104,7 @@ const Products = () => {
                 await fetchData();
                 setFilterSubcategory(res.id.toString());
             } catch (error) {
-                alert(t('failedToCreate'));
+                toast.error(t('failedToCreate'));
             }
         }
     };
@@ -161,9 +162,10 @@ const Products = () => {
                 await createProduct(data);
             }
             setIsModalOpen(false);
-            fetchData(); // Refresh list
+            fetchData();
+            toast.success(t(isEditing ? 'productUpdated' : 'productCreated', 'Opération réussie !'));
         } catch (error) {
-            alert(`Failed to ${isEditing ? 'update' : 'create'} product: ` + (error.response?.data?.error || error.response?.data?.message || error.message));
+            toast.error(`Failed to ${isEditing ? 'update' : 'create'} product: ` + (error.response?.data?.error || error.response?.data?.message || error.message));
         }
     };
 
@@ -171,9 +173,10 @@ const Products = () => {
         if (window.confirm(`Are you sure you want to delete "${name}"?`)) {
             try {
                 await deleteProduct(id);
-                fetchData();
+                await fetchData();
+                toast.success(t('productDeleted', 'Produit supprimé !'));
             } catch (error) {
-                alert("Failed to delete product: " + (error.response?.data?.message || error.message));
+                toast.error("Failed to delete product: " + (error.response?.data?.message || error.message));
             }
         }
     };
