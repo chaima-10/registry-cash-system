@@ -65,16 +65,26 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
             isScanningRef.current = true;
             setIsScannerStarted(false);
 
-            // 1. Get High-Resolution Stream
-            const constraints = {
-                video: { 
-                    facingMode: "environment", 
-                    width: { ideal: 1920, min: 1280 }, 
-                    height: { ideal: 1080, min: 720 }
+            // 1. Try High-Resolution Stream first, fallback to standard, then basic
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "environment", width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 } }
+                });
+            } catch (highResError) {
+                console.warn("[Scanner] High-res failed, falling back to standard resolution...", highResError);
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+                    });
+                } catch (stdResError) {
+                    console.warn("[Scanner] Standard-res failed, falling back to basic...", stdResError);
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: "environment" }
+                    });
                 }
-            };
-
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            }
+            
             streamRef.current = stream;
 
             // 2. Initialize ZXing Brain
@@ -101,8 +111,8 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
             setIsScannerStarted(true);
 
         } catch (err) {
-            console.error("[Scanner] Start Failed:", err);
-            setError(t('cameraAccessError', 'Camera initialization failed.'));
+            console.error("[Scanner] Start Failed completely:", err);
+            setError(t('cameraAccessError', 'Could not access camera. Please check permissions and device connectivity.'));
         }
     };
 
