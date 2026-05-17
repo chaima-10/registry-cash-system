@@ -173,7 +173,22 @@ class UserRepository {
     async getAllSalaryPayments(userId) {
         return await prisma.salarypayment.findMany({
             where: { userId },
-            orderBy: { paidAt: 'desc' }
+            orderBy: { paidAt: 'desc' },
+            include: { user: { select: { fullName: true, username: true } } }
+        });
+    }
+
+    async getSalaryPaymentsSince(date) {
+        return await prisma.salarypayment.findMany({
+            where: { paidAt: { gte: date } },
+            select: { userId: true, amount: true, month: true, paidAt: true }
+        });
+    }
+
+    async getAllGlobalSalaryHistory() {
+        return await prisma.salarypayment.findMany({
+            orderBy: { paidAt: 'desc' },
+            include: { user: { select: { fullName: true, username: true } } }
         });
     }
 }

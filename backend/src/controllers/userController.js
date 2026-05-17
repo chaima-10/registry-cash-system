@@ -59,6 +59,17 @@ exports.distributeSalary = async (req, res) => {
     }
 };
 
+// Get salary distribution history
+exports.getSalaryHistory = async (req, res) => {
+    try {
+        const history = await userService.getSalaryHistory(req.user.id);
+        res.json(history);
+    } catch (error) {
+        console.error("Get Salary History Error:", error);
+        res.status(500).json({ message: 'Erreur lors de la récupération de l\'historique.', error: error.message });
+    }
+};
+
 // Update current user profile
 exports.updateProfile = async (req, res) => {
     try {

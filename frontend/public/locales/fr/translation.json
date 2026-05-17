@@ -647,5 +647,12 @@
   "workAndPerformance": "Travail & Performance",
   "role": "Rôle",
   "date": "Date",
-  "status": "Statut"
+  "status": "Statut",
+  "camera": "DIRECT",
+  "upload": "TÉLÉVERSER",
+  "scannerTip": "Placez le code-barres au centre de la boîte. Assurez-vous d'être à 20cm minimum pour la mise au point.",
+  "uploadTip": "Utilisez l'onglet Téléverser pour les produits très réfléchissants ou courbés.",
+  "confirmAndAdd": "AJOUTER AU PANIER",
+  "clickToChoose": "CHOISIR UN FICHIER",
+  "cameraAccessError": "Impossible d'accéder à la caméra. Vérifiez les permissions et la connectivité."
 }

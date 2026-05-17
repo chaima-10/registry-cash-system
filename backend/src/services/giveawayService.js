@@ -47,8 +47,8 @@ class GiveawayService {
     async participateInGiveaway(giveawayId, userId, userRole, clientData) {
         const { clientName, clientSurname, clientPhone } = clientData;
 
-        if (userRole !== 'cashier') {
-            throw new Error('Only cashiers can register participants for giveaways');
+        if (userRole !== 'cashier' && userRole !== 'admin') {
+            throw new Error('Only cashiers or admins can register participants for giveaways');
         }
 
         if (!clientName || !clientSurname || !clientPhone) {
@@ -88,9 +88,10 @@ class GiveawayService {
             throw new Error('Giveaway has ended');
         }
 
+        const isStaff = userRole === 'cashier' || userRole === 'admin';
         const existingParticipation = await giveawayRepository.getGiveawayParticipation({
             giveawayId,
-            userId: userRole === 'cashier' ? undefined : userId,
+            userId: isStaff ? undefined : userId,
             clientPhone: clientPhone || undefined
         });
 
@@ -104,7 +105,7 @@ class GiveawayService {
 
         return await giveawayRepository.createParticipation({
             giveawayId,
-            userId: userRole === 'cashier' ? null : userId,
+            userId: isStaff ? null : userId,
             clientName: clientName || null,
             clientSurname: clientSurname || null,
             clientPhone: clientPhone || null

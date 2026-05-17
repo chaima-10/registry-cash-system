@@ -83,8 +83,9 @@ const Giveaways = () => {
     };
 
     const handleParticipate = (giveawayId) => {
-        if (user?.role === 'cashier') {
+        if (user?.role === 'cashier' || user?.role === 'admin') {
             setSelectedGiveawayId(giveawayId);
+            setRegistrationData({ clientName: '', clientSurname: '', clientPhone: '' });
             setShowRegistrationForm(true);
         } else {
             submitParticipation(giveawayId);
@@ -93,7 +94,7 @@ const Giveaways = () => {
 
     const submitParticipation = async (giveawayId, clientData = {}) => {
         
-        if (user?.role === 'cashier') {
+        if (user?.role === 'cashier' || user?.role === 'admin') {
             const nameRegex = /^[a-zA-Z\sÀ-ÿ]+$/;
             const phoneRegex = /^\+?[0-9]+$/;
 
@@ -243,8 +244,8 @@ const Giveaways = () => {
     };
 
     const canParticipate = (giveaway) => {
-        return isGiveawayActive(giveaway) && !participating[giveaway.id] && user?.role === 'cashier' &&
-           user?.role !== 'admin';
+        return isGiveawayActive(giveaway) && !participating[giveaway.id] &&
+            (user?.role === 'cashier' || user?.role === 'admin');
     };
 
     const getTimeLeft = (endDate) => {

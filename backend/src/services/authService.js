@@ -36,7 +36,7 @@ class AuthService {
             salary: salary ? parseFloat(salary) : 0.00,
             emailVerificationToken: verificationToken,
             isEmailVerified: false,
-            shiftSchedule: shiftSchedule || ''
+            shiftSchedule: shiftSchedule ? (typeof shiftSchedule === 'object' ? JSON.stringify(shiftSchedule) : shiftSchedule) : ''
         });
 
         // Send verification email if email is provided

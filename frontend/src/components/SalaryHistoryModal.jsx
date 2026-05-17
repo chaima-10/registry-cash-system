@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiCalendar, FiUser, FiDollarSign, FiPrinter, FiSearch, FiFileText } from 'react-icons/fi';
-import axios from 'axios';
+import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Payslip from './Payslip';
 
@@ -15,10 +15,7 @@ const SalaryHistoryModal = ({ isOpen, onClose }) => {
     const fetchHistory = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/users/salary/history', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const res = await api.get('/users/salary/history');
             setHistory(res.data);
         } catch (error) {
             console.error("Error fetching salary history:", error);

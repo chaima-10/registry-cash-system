@@ -45,6 +45,7 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
         
         if (codeReaderRef.current) {
             codeReaderRef.current.reset();
+            codeReaderRef.current = null; // Fix 1: nullify so a fresh reader is created on re-open
         }
 
         if (streamRef.current) {
@@ -62,8 +63,18 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
             console.log("[Scanner] Starting Clean ZXing Pro Scanner...");
             setError(null);
             setSuccess(null);
+
+            // Fix 2: Secure context guard — getUserMedia is undefined on HTTP non-localhost
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setError('Camera requires a secure connection (HTTPS or localhost).');
+                return;
+            }
+
             isScanningRef.current = true;
             setIsScannerStarted(false);
+
+            // Fix 3: Allow OS to fully release camera from previous session
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             // 1. Try High-Resolution Stream first, fallback to standard, then basic, then ANY camera
             let stream;
@@ -94,6 +105,13 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
             
             streamRef.current = stream;
 
+            // Fix 4: Guard — if component was unmounted or scanning cancelled while getUserMedia was pending
+            if (!isScanningRef.current || !videoRef.current) {
+                stream.getTracks().forEach(t => t.stop());
+                streamRef.current = null;
+                return;
+            }
+
             // 2. Initialize ZXing Brain
             if (!codeReaderRef.current) {
                 const hints = new Map();
@@ -102,7 +120,11 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                 codeReaderRef.current = new BrowserMultiFormatReader(hints);
             }
 
-            // 3. Start Continuous Decoding using the Stream directly
+            // 3. Show scanner UI only once video is actually playing (not before srcObject is set)
+            const onPlaying = () => setIsScannerStarted(true);
+            videoRef.current.addEventListener('playing', onPlaying, { once: true });
+
+            // 4. Start Continuous Decoding using the Stream directly
             codeReaderRef.current.decodeFromStream(stream, videoRef.current, (result, err) => {
                 if (!isScanningRef.current) return;
                 
@@ -114,8 +136,6 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                     }
                 }
             });
-
-            setIsScannerStarted(true);
 
         } catch (err) {
             console.error("[Scanner] Start Failed completely:", err);

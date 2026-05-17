@@ -27,10 +27,19 @@ const ShiftScheduleSelector = ({ value, onChange, disabled = false }) => {
 
     useEffect(() => {
         if (value) {
-            setShiftType(value.shiftType || 'MORNING');
-            setShiftStartTime(value.shiftStartTime || '08:00');
-            setShiftEndTime(value.shiftEndTime || '16:00');
-            setWorkingDays(value.shiftWorkingDays ? value.shiftWorkingDays.split(',') : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+            let parsedValue = value;
+            if (typeof value === 'string') {
+                try {
+                    parsedValue = JSON.parse(value);
+                } catch (e) {
+                    console.error("Failed to parse shift schedule JSON string:", e);
+                }
+            }
+            
+            setShiftType(parsedValue.shiftType || 'MORNING');
+            setShiftStartTime(parsedValue.shiftStartTime || '08:00');
+            setShiftEndTime(parsedValue.shiftEndTime || '16:00');
+            setWorkingDays(parsedValue.shiftWorkingDays ? parsedValue.shiftWorkingDays.split(',') : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
         }
     }, [value]);
 

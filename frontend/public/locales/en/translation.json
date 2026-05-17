@@ -588,5 +588,11 @@
   "workAndPerformance": "Work & Performance",
   "role": "Role",
   "date": "Date",
-  "status": "Status"
+  "status": "Status",
+  "camera": "LIVE",
+  "upload": "UPLOAD",
+  "scannerTip": "Place the barcode center in the box. Ensure the camera is at least 20cm away for focus.",
+  "uploadTip": "Use the Upload tab for highly reflective or curved products.",
+  "confirmAndAdd": "ADD TO CART",
+  "clickToChoose": "CHOOSE FROM FILE"
 }

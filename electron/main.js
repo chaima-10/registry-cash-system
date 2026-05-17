@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, session } = require('electron');
 const path = require('path');
 
 function createWindow() {
@@ -10,7 +10,7 @@ function createWindow() {
         title: 'Registry Cash System',
         webPreferences: {
             nodeIntegration: true,
-            contextIsolation: false, // For easier prototyping, refine for security later
+            contextIsolation: false,
             preload: path.join(__dirname, 'preload.js'),
         },
     });
@@ -30,6 +30,17 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+    // Grant camera/microphone permissions BEFORE creating window
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+        const allowed = ['media', 'camera', 'microphone', 'video', 'getUserMedia'];
+        callback(allowed.includes(permission));
+    });
+
+    session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin) => {
+        const allowed = ['media', 'camera', 'microphone', 'video', 'getUserMedia'];
+        return allowed.includes(permission);
+    });
+
     createWindow();
 
     app.on('activate', () => {
