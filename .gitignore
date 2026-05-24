@@ -48,3 +48,6 @@ Thumbs.db
 *.txt
 *.md
 !README.md
+
+# Electron Builder output
+dist-desktop/

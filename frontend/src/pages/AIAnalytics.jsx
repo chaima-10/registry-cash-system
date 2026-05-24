@@ -1,73 +1,58 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-    FiTrendingUp, FiBox, FiCalendar, FiAlertCircle, FiPieChart, 
-    FiSend, FiMessageCircle, FiRefreshCw, FiActivity, FiArrowUpRight, FiArrowDownRight, FiArrowRight, FiShoppingBag, FiTrash2, FiZap
-} from 'react-icons/fi';
-import { 
-    BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
-    Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart
+import { motion } from 'framer-motion';
+import { FiTrendingUp, FiSend, FiRefreshCw, FiTrash2, FiZap } from 'react-icons/fi';
+import {
+    Tooltip, ResponsiveContainer, Area, ComposedChart,
+    CartesianGrid, XAxis, YAxis
 } from 'recharts';
 import api from '../api/axios';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import toast from 'react-hot-toast';
 
 const AIAnalytics = () => {
     const { t, i18n } = useTranslation();
     const { formatCurrency } = useAuth();
-    const [activeTab, setActiveTab] = useState('products');
-    
+
+    // ─── Data State ───────────────────────────────────────────────────────────
     const [products, setProducts] = useState([]);
     const [sales, setSales] = useState([]);
-    const [users, setUsers] = useState([]);
-    const [categories, setCategories] = useState([]);
     const [loadingData, setLoadingData] = useState(true);
-    const [promoSuccess, setPromoSuccess] = useState({});
-    const [orderSuccess, setOrderSuccess] = useState({});
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const getImageUrl = (path) => {
-        if (!path) return null;
-        if (path.startsWith('http')) return path;
-        const cleanPath = path.startsWith('/') ? path : `/${path}`;
-        return `${API_URL}${cleanPath}`;
-    };
 
-    const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
+    // ─── AI Forecast State ────────────────────────────────────────────────────
     const [aiForecastData, setAiForecastData] = useState(null);
+    const [isGeneratingForecast, setIsGeneratingForecast] = useState(false);
+
+    // ─── AI Insights State ────────────────────────────────────────────────────
     const [aiInsights, setAiInsights] = useState(null);
     const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
     const [insightsCacheKey, setInsightsCacheKey] = useState('');
-    
-    // AI Chat State
+
+    // ─── AI Chat State ────────────────────────────────────────────────────────
     const [chatMessages, setChatMessages] = useState([]);
     const [chatInput, setChatInput] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
     const chatEndRef = useRef(null);
 
-    // Initialize chat welcome message when translations are available
+    // Initialize chat welcome message
     useEffect(() => {
         setChatMessages([
             { role: 'ai', content: t('aiChatWelcome', 'Hello! I am your Analytics AI Assistant. I can help you analyze your sales, inventory, and customer behavior. Ask me anything!') }
         ]);
     }, [t]);
 
+    // ─── Fetch Data ───────────────────────────────────────────────────────────
     useEffect(() => {
-        const fetchDashboardData = async () => {
+        const fetchData = async () => {
             try {
                 setLoadingData(true);
-                const [prodRes, salesRes, usersRes, catRes] = await Promise.all([
-                    api.get('/products').catch(e => ({ data: [] })),
-                    api.get('/sales').catch(e => ({ data: [] })),
-                    api.get('/users').catch(e => ({ data: [] })),
-                    api.get('/categories').catch(e => ({ data: [] }))
+                const [prodRes, salesRes] = await Promise.all([
+                    api.get('/products').catch(() => ({ data: [] })),
+                    api.get('/sales').catch(() => ({ data: [] })),
                 ]);
                 setProducts(Array.isArray(prodRes.data) ? prodRes.data : prodRes.data?.products || []);
                 setSales(Array.isArray(salesRes.data) ? salesRes.data : salesRes.data?.sales || []);
-                setUsers(Array.isArray(usersRes.data) ? usersRes.data : usersRes.data?.users || []);
-                setCategories(Array.isArray(catRes.data) ? catRes.data : catRes.data?.categories || []);
 
-                // Load cached insights
+                // Restore cached insights
                 const cachedInsights = localStorage.getItem('aiInsights');
                 const cachedCacheKey = localStorage.getItem('aiInsightsCacheKey');
                 if (cachedInsights && cachedCacheKey) {
@@ -75,418 +60,118 @@ const AIAnalytics = () => {
                     setInsightsCacheKey(cachedCacheKey);
                 }
             } catch (error) {
-                console.error("Erreur de chargement des données", error);
+                console.error('Erreur de chargement des données', error);
             } finally {
                 setLoadingData(false);
             }
         };
-        fetchDashboardData();
+        fetchData();
     }, []);
-    // Generate cache key based on current data state and language
-    const newCacheKey = useMemo(() => 
+
+    // ─── Cache Key (for insights invalidation) ────────────────────────────────
+    const newCacheKey = useMemo(() =>
         `${products.length}-${sales.length}-${products[0]?.stockQuantity ?? 0}-${sales[0]?.totalAmount ?? 0}-${i18n.language}`,
         [products, sales, i18n.language]
     );
 
-    const isToday = (dateStr) => {
-        const d = new Date(dateStr);
-        const today = new Date();
-        return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-    };
-    const isYesterday = (dateStr) => {
-        const d = new Date(dateStr);
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        return d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
-    };
+    // ─── Shared JSON cleaner ──────────────────────────────────────────────────
+    const cleanJsonText = (str) =>
+        str
+            .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+            .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
+            .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+            .trim();
 
-    const getDailySummary = useMemo(() => {
-        let todayRevenue = 0;
-        let yesterdayRevenue = 0;
-        let todayCount = 0;
-
-        sales.forEach(s => {
-            if (isToday(s.createdAt)) {
-                todayRevenue += parseFloat(s.totalAmount || 0);
-                todayCount++;
-            } else if (isYesterday(s.createdAt)) {
-                yesterdayRevenue += parseFloat(s.totalAmount || 0);
-            }
-        });
-
-        const diff = yesterdayRevenue > 0 ? ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100 : 0;
-        
-        return {
-            todayRevenue,
-            yesterdayRevenue,
-            diff: diff.toFixed(1),
-            isPositive: diff >= 0,
-            todayCount
-        };
-    }, [sales]);
-    const slowProductsWithPromos = useMemo(() => {
-        const salesMap = {};
-        sales.forEach(sale => {
-            if (sale.items) {
-                sale.items.forEach(item => {
-                    salesMap[item.productId] = (salesMap[item.productId] || 0) + item.quantity;
-                });
-            }
-        });
-
-        const slow = products
-            .filter(p => !salesMap[p.id] || salesMap[p.id] < 5) // Very low sales
-            .filter(p => p.stockQuantity > 20) // High stock
-            .filter(p => !p.remise || parseFloat(p.remise) === 0) // No active discount yet
-            .sort((a, b) => b.stockQuantity - a.stockQuantity)
-            .slice(0, 5);
-
-        return slow.map(p => {
-            const price = parseFloat(p.price);
-            const purchasePrice = parseFloat(p.purchasePrice || 0);
-            
-            let discount = 15;
-            if (p.stockQuantity > 300) discount = 40;
-            else if (p.stockQuantity > 150) discount = 30;
-            else if (p.stockQuantity > 80) discount = 20;
-
-            // Safety check: ensure selling price > purchase price (keep at least 2% margin)
-            if (purchasePrice > 0 && (price * (1 - discount/100)) < purchasePrice * 1.02) {
-                discount = Math.floor((1 - (purchasePrice * 1.02 / price)) * 100);
-                if (discount < 0) discount = 0;
-            }
-            
-            return {
-                ...p,
-                type: 'CLEARANCE',
-                suggestedDiscount: discount > 0 ? `-${discount}%` : 'PROMO MIN.',
-                salesCount: salesMap[p.id] || 0,
-                actionReason: t('actionReasonSlow', { stock: p.stockQuantity, sales: salesMap[p.id] || 0 })
-            };
-        });
-    }, [products, sales, t]);
-
-    const bundleSuggestions = useMemo(() => {
-        const associations = {};
-        sales.forEach(sale => {
-            const itemIds = sale.items?.map(i => i.productId) || [];
-            for (let i = 0; i < itemIds.length; i++) {
-                for (let j = i + 1; j < itemIds.length; j++) {
-                    const p1 = itemIds[i];
-                    const p2 = itemIds[j];
-                    if (!associations[p1]) associations[p1] = {};
-                    if (!associations[p2]) associations[p2] = {};
-                    associations[p1][p2] = (associations[p1][p2] || 0) + 1;
-                    associations[p2][p1] = (associations[p2][p1] || 0) + 1;
-                }
-            }
-        });
-
-        const suggestions = [];
-        const seen = new Set();
-        Object.keys(associations).forEach(p1Id => {
-            const related = associations[p1Id];
-            const topRelatedId = Object.keys(related).sort((a, b) => related[b] - related[a])[0];
-            
-            if (topRelatedId) {
-                const pairId = [p1Id, topRelatedId].sort().join('-');
-                if (seen.has(pairId)) return;
-                seen.add(pairId);
-
-                const prod1 = products.find(p => p.id === parseInt(p1Id));
-                const prod2 = products.find(p => p.id === parseInt(topRelatedId));
-                
-                if (prod1 && prod2) {
-                    suggestions.push({
-                        type: 'BUNDLE',
-                        productA: prod1,
-                        productB: prod2,
-                        strength: related[topRelatedId],
-                        suggestedPromo: '-20% sur le duo'
-                    });
-                }
-            }
-        });
-        return suggestions.sort((a,b) => b.strength - a.strength).slice(0, 3);
-    }, [sales, products]);
-
-    const flashSaleSuggestions = useMemo(() => {
-        const hourCounts = Array(24).fill(0);
-        sales.forEach(s => {
-            const h = new Date(s.createdAt).getHours();
-            if (!isNaN(h)) hourCounts[h]++;
-        });
-
-        // Find quietest hours between 9h and 20h
-        const quietHours = [];
-        for (let h = 9; h <= 20; h++) {
-            if (hourCounts[h] < (sales.length / (24 * 7))) { // Very low relative to average
-                quietHours.push(h);
-            }
+    // ─── Parse array from AI text ─────────────────────────────────────────────
+    const parseAiJsonArray = (replyText) => {
+        // Attempt 1: top-level JSON array
+        const startIdx = replyText.indexOf('[');
+        const endIdx = replyText.lastIndexOf(']');
+        if (startIdx !== -1 && endIdx > startIdx) {
+            try {
+                const parsed = JSON.parse(cleanJsonText(replyText.substring(startIdx, endIdx + 1)));
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (_) { /* fall through */ }
         }
+        // Attempt 2: object wrapping an array
+        const objStart = replyText.indexOf('{');
+        const objEnd = replyText.lastIndexOf('}');
+        if (objStart !== -1 && objEnd > objStart) {
+            try {
+                const fullObj = JSON.parse(cleanJsonText(replyText.substring(objStart, objEnd + 1)));
+                const nested = Object.values(fullObj).find(v => Array.isArray(v) && v.length > 0);
+                if (nested) return nested;
+            } catch (_) { /* fall through */ }
+        }
+        return null;
+    };
 
-        if (quietHours.length === 0) return [];
-
-        // Pick top product that could use a boost during these hours
-        const bestSeller = [...products].sort((a,b) => b.stockQuantity - a.stockQuantity)[0];
-        if (!bestSeller) return [];
-
-        return quietHours.slice(0, 2).map(h => ({
-            type: 'FLASH',
-            hour: `${h}h - ${h+1}h`,
-            product: bestSeller,
-            suggestedDiscount: '-10%',
-            reason: `Heure creuse détectée (${hourCounts[h]} transactions moyennes)`
-        }));
-    }, [sales, products]);
-
-    const behaviorData = useMemo(() => {
-        const hourCounts = Array(24).fill(0);
-        let totalRevenue = 0;
-
-        sales.forEach(s => {
-            const h = new Date(s.createdAt).getHours();
-            if (!isNaN(h)) hourCounts[h]++;
-            totalRevenue += parseFloat(s.totalAmount || 0);
-        });
-
-        // Calculate peak hour
-        let peakH = 16; // default fallback
-        let maxC = 0;
-        hourCounts.forEach((count, h) => {
-            if (count > maxC) {
-                maxC = count;
-                peakH = h;
-            }
-        });
-
-        const heatmapData = hourCounts.map((count, h) => ({ heure: `${h}h`, Transactions: count })).filter((d, i) => i > 7 && i < 22);
-        const panierMoyen = sales.length > 0 ? (totalRevenue / sales.length).toFixed(2) : 0;
-        
-        const todaySalesCount = sales.filter(s => isToday(s.createdAt)).length;
-        const flow = todaySalesCount > 10 ? 'High' : todaySalesCount > 3 ? 'Moderate' : 'Stable';
-
-        return { heatmapData, panierMoyen, totalClients: sales.length, peakHour: `${peakH}:00`, flow };
-    }, [sales]);
-
-    const getAnomalies = useMemo(() => {
-        const anomaliesList = [];
-        const salesMap = {};
-        sales.forEach(sale => {
-            if (sale.items) {
-                sale.items.forEach(item => {
-                    salesMap[item.productId] = (salesMap[item.productId] || 0) + item.quantity;
-                });
-            }
-        });
-
-        // Dead stock anomaly
-        products.forEach(p => {
-            if (p.stockQuantity > 100 && (!salesMap[p.id] || salesMap[p.id] === 0)) {
-                anomaliesList.push({ type: t('stockMort', 'Stock Mort'), product: p, desc: t('stockMortDesc', 'Stock bloqué > 100 unités avec 0 vente récente.') });
-            }
-        });
-
-        // Pricing / margin anomaly (if price is somehow lower than purchase default assumption)
-        products.forEach(p => {
-            const achat = p.purchasePrice ? parseFloat(p.purchasePrice) : 0;
-            const vente = parseFloat(p.price);
-            if (achat > 0 && vente <= achat) {
-                anomaliesList.push({ type: t('margeNegative', 'Marge Négative'), product: p, desc: t('margeNegativeDesc', "Le prix de vente est inférieur ou égal au prix d'achat.") });
-            }
-        });
-
-        return anomaliesList.slice(0, 6);
-    }, [products, sales, t]);
-
-    const smartAlerts = useMemo(() => {
-        const salesMap = {};
-        sales.forEach(sale => {
-            if (sale.items) {
-                sale.items.forEach(item => {
-                    salesMap[item.productId] = (salesMap[item.productId] || 0) + item.quantity;
-                });
-            }
-        });
-
-        
-        const now = new Date();
-        const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        
-        const alerts = [];
-        products.forEach(p => {
-            const reorderLevel = Number(p.reorderLevel || 5);
-            const totalSold = salesMap[p.id] || 0;
-            const dailyVelocity = totalSold / daysInMonth; 
-            const daysRemaining = dailyVelocity > 0 ? p.stockQuantity / dailyVelocity : 999;
-            
-            if (p.stockQuantity <= reorderLevel) {
-                const urgency = p.stockQuantity <= (reorderLevel / 2) ? 'high' : 'medium';
-                alerts.push({ 
-                    p, 
-                    days: daysRemaining.toFixed(1), 
-                    urgency, 
-                    reason: t('lowStock') + ` (${p.stockQuantity}/${reorderLevel.toFixed(0)})` 
-                });
-            }
-        });
-        return alerts.sort((a,b) => a.days - b.days).slice(0, 8);
-    }, [products, sales]);
-
-    const getAIPerformanceMetrics = useMemo(() => {
-        const now = new Date();
-        const thisMonth = now.getMonth();
-        const thisYear = now.getFullYear();
-        
-        let thisMonthRev = 0;
-        let lastMonthRev = 0;
-        
-        sales.forEach(s => {
-            const d = new Date(s.createdAt);
-            if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) {
-                thisMonthRev += parseFloat(s.totalAmount || 0);
-            } else if (d.getFullYear() === (thisMonth === 0 ? thisYear - 1 : thisYear) && d.getMonth() === (thisMonth === 0 ? 11 : thisMonth - 1)) {
-                lastMonthRev += parseFloat(s.totalAmount || 0);
-            }
-        });
-        
-        const growth = lastMonthRev > 0 ? ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100 : 12.5;
-        const lowStockCount = products.filter(p => p.stockQuantity <= Number(p.reorderLevel || 5)).length;
-        
-        const supplyUrgency = products.length > 0 ? (lowStockCount / products.length) * 100 : 0;
-        const trend = growth > 2 ? t('uptrend', 'HAUSSE') : growth < -2 ? t('downtrend', 'BAISSE') : t('stable', 'STABLE');
-        
-        return {
-            growth: growth.toFixed(1),
-            supplyUrgency: Math.max(15, Math.min(95, (supplyUrgency * 10) + 15)).toFixed(0), // Scale for visual impact
-            trend
-        };
-    }, [sales, products, t]);
-
+    // ─── Generate AI Sales Forecast ───────────────────────────────────────────
     const generateAiForecast = useCallback(async () => {
         setIsGeneratingForecast(true);
         try {
-            if (sales.length < 5) {
-                throw new Error('Données insuffisantes pour une prévision IA fiable (min. 5 transactions)');
-            }
+            if (sales.length < 5) throw new Error('Données insuffisantes (min. 5 transactions).');
 
             const salesData = sales.slice(-40).map(s => ({
                 date: s.createdAt,
                 amount: parseFloat(s.totalAmount || 0),
                 items: s.items?.length || 0
             }));
-            
             const productData = products.slice(0, 15).map(p => ({
-                name: p.name,
-                stock: p.stockQuantity,
-                price: p.price
+                name: p.name, stock: p.stockQuantity, price: p.price
             }));
 
-            const prompt = `Analyze this retail sales data and provide 6-month sales forecast. Return ONLY JSON format: [{"month": "M+1", "prediction": number, "confidence": "high/medium/low", "insight": "brief reason"}]. 
-            If data is sparse, provide realistic projections based on the few transactions available.
-            Sales data: ${JSON.stringify(salesData)}. 
-            Products: ${JSON.stringify(productData)}. 
-            Current month revenue: ${salesData.reduce((sum, s) => sum + s.amount, 0)}.`;
+            const prompt = `Analyze this retail sales data and provide a 6-month sales forecast. Return ONLY a JSON array: [{"month":"M+1","prediction":number,"confidence":"high/medium/low","insight":"brief reason"}].
+Sales data: ${JSON.stringify(salesData)}.
+Products: ${JSON.stringify(productData)}.
+Current month revenue: ${salesData.reduce((s, r) => s + r.amount, 0)}.`;
 
             const response = await api.post('/ai/chat', {
                 messages: [{ role: 'user', content: prompt }],
-                systemContext: 'Retail Analytics Expert. Return ONLY a valid JSON array of objects. No markdown, no triple backticks, no preamble.'
+                systemContext: 'Retail Analytics Expert. Return ONLY a valid JSON array. No markdown, no preamble.'
             });
 
             const replyText = response.data.reply;
-            if (!replyText) throw new Error('Empty AI response');
+            if (!replyText || replyText.startsWith('ERROR_AI:')) throw new Error(replyText || 'Empty AI response');
 
-            console.log('Raw AI Forecast Response:', replyText);
+            const parsed = parseAiJsonArray(replyText);
+            if (parsed) { setAiForecastData(parsed); return; }
 
-            if (replyText.startsWith('ERROR_AI:')) {
-                throw new Error(replyText);
-            }
-
-            // Deep clean the string: remove smart quotes, control characters, and hidden whitespace
-            const cleanText = (str) => {
-                return str
-                    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"') // All types of double quotes
-                    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'") // All types of single quotes
-                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "") // Control characters
-                    .trim();
-            };
-
-            // Attempt 1: Standard Array
-            const startIdx = replyText.indexOf('[');
-            const endIdx = replyText.lastIndexOf(']');
-            
-            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-                const jsonPart = cleanText(replyText.substring(startIdx, endIdx + 1));
-                try {
-                    const forecastData = JSON.parse(jsonPart);
-                    if (Array.isArray(forecastData) && forecastData.length > 0) {
-                        setAiForecastData(forecastData);
-                        return;
-                    }
-                } catch (e) {
-                    console.warn('Forecast parsing attempt 1 failed:', e.message, 'Data:', jsonPart.substring(0, 50));
-                }
-            }
-
-            // Attempt 2: Object Discovery
-            const objStart = replyText.indexOf('{');
-            const objEnd = replyText.lastIndexOf('}');
-            if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
-                try {
-                    const sanitizedObj = cleanText(replyText.substring(objStart, objEnd + 1));
-                    const fullObj = JSON.parse(sanitizedObj);
-                    const possibleArray = Object.values(fullObj).find(val => Array.isArray(val) && val.length > 0);
-                    if (possibleArray) {
-                        setAiForecastData(possibleArray);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Forecast parsing attempt 2 failed:', e.message);
-                }
-            }
-            
-            throw new Error('Format de réponse IA non reconnu ou corrompu');
+            throw new Error('Format de réponse IA non reconnu.');
         } catch (error) {
-            console.error('AI Forecast error details:', error);
-            // Fallback: Generate a simple linear forecast
-            const currentRev = sales.slice(-30).reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0);
-            const fallbackData = [
-                { month: 'M+1', prediction: currentRev * 1.05, confidence: 'medium', insight: 'Croissance linéaire estimée basées sur les dernières ventes.' },
-                { month: 'M+2', prediction: currentRev * 1.10, confidence: 'low', insight: 'Tendance saisonnière projetée.' }
-            ];
-            setAiForecastData(fallbackData);
+            console.error('AI Forecast error:', error);
+            // Statistical fallback
+            const currentRev = sales.slice(-30).reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
+            setAiForecastData([
+                { month: 'M+1', prediction: currentRev * 1.05, confidence: 'medium', insight: 'Croissance linéaire estimée.' },
+                { month: 'M+2', prediction: currentRev * 1.10, confidence: 'low',    insight: 'Tendance saisonnière projetée.' }
+            ]);
         } finally {
             setIsGeneratingForecast(false);
         }
     }, [sales, products]);
 
+    // ─── Generate AI Insights ─────────────────────────────────────────────────
     const generateAiInsights = useCallback(async () => {
         setIsGeneratingInsights(true);
         try {
-            if (products.length === 0) {
-                throw new Error('Aucun produit disponible pour l\'analyse.');
-            }
+            if (products.length === 0) throw new Error('Aucun produit disponible.');
 
             const inventoryData = products.slice(0, 30).map(p => ({
-                name: p.name,
-                stock: p.stockQuantity,
-                price: p.price,
-                purchasePrice: p.purchasePrice
+                name: p.name, stock: p.stockQuantity, price: p.price, purchasePrice: p.purchasePrice
             }));
 
             const salesByProduct = {};
             sales.slice(-100).forEach(s => {
                 s.items?.forEach(item => {
-                    const productId = item.product?.id || item.productId;
-                    if (productId) {
-                        salesByProduct[productId] = (salesByProduct[productId] || 0) + (item.quantity || 1);
-                    }
+                    const id = item.product?.id || item.productId;
+                    if (id) salesByProduct[id] = (salesByProduct[id] || 0) + (item.quantity || 1);
                 });
             });
 
-            const prompt = `Analyze this retail inventory and provide 3-5 specific, actionable recommendations. Return ONLY JSON format: [{"type": "restock/alert/discount/promotion/price_adjust/remove", "product": "exact product name", "reason": "specific problem", "action": "exact next step", "priority": "high/medium/low"}].
-            Inventory: ${JSON.stringify(inventoryData)}
-            Sales velocity: ${JSON.stringify(salesByProduct)}`;
+            const prompt = `Analyze this retail inventory and provide 3-5 actionable recommendations. Return ONLY a JSON array: [{"type":"restock/alert/discount/promotion/price_adjust/remove","product":"name","reason":"problem","action":"next step","priority":"high/medium/low"}].
+Inventory: ${JSON.stringify(inventoryData)}
+Sales velocity: ${JSON.stringify(salesByProduct)}`;
 
             const response = await api.post('/ai/chat', {
                 messages: [{ role: 'user', content: prompt }],
@@ -494,122 +179,74 @@ const AIAnalytics = () => {
             });
 
             const replyText = response.data.reply;
-            if (!replyText) throw new Error('Empty AI response');
+            if (!replyText || replyText.startsWith('ERROR_AI:')) throw new Error(replyText || 'Empty AI response');
 
-            console.log('Raw AI Insights Response:', replyText);
-
-            if (replyText.startsWith('ERROR_AI:')) {
-                throw new Error(replyText);
+            const parsed = parseAiJsonArray(replyText);
+            if (parsed) {
+                setAiInsights(parsed);
+                localStorage.setItem('aiInsights', JSON.stringify(parsed));
+                localStorage.setItem('aiInsightsCacheKey', `v1-${products.length}-${sales.length}`);
+                return;
             }
-
-            // Deep clean
-            const cleanText = (str) => {
-                return str
-                    .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
-                    .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")
-                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
-                    .trim();
-            };
-
-            const startIdx = replyText.indexOf('[');
-            const endIdx = replyText.lastIndexOf(']');
-            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-                const jsonPart = cleanText(replyText.substring(startIdx, endIdx + 1));
-                try {
-                    const insightsData = JSON.parse(jsonPart);
-                    if (Array.isArray(insightsData)) {
-                        setAiInsights(insightsData);
-                        localStorage.setItem('aiInsights', JSON.stringify(insightsData));
-                        localStorage.setItem('aiInsightsCacheKey', `v1-${products.length}-${sales.length}`);
-                        return;
-                    }
-                } catch (e) {
-                    console.warn('Insights parsing attempt 1 failed:', e.message);
-                }
-            }
-
-            // Object search
-            const objStart = replyText.indexOf('{');
-            const objEnd = replyText.lastIndexOf('}');
-            if (objStart !== -1 && objEnd !== -1 && objEnd > objStart) {
-                try {
-                    const sanitizedObj = cleanText(replyText.substring(objStart, objEnd + 1));
-                    const fullObj = JSON.parse(sanitizedObj);
-                    const possibleArray = Object.values(fullObj).find(val => Array.isArray(val) && val.length > 0);
-                    if (possibleArray) {
-                        setAiInsights(possibleArray);
-                        localStorage.setItem('aiInsights', JSON.stringify(possibleArray));
-                        localStorage.setItem('aiInsightsCacheKey', `v1-${products.length}-${sales.length}`);
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Insights parsing attempt 2 failed:', e.message);
-                }
-            }
-            
-            throw new Error('Format de réponse IA Insights non reconnu');
+            throw new Error('Format de réponse IA Insights non reconnu.');
         } catch (error) {
-            console.error('AI Insights error details:', error);
-            // Overstocked with no sales - specific discount
-            products.filter(p => p.stockQuantity > 50 && (!salesMap[p.id] || salesMap[p.id] === 0)).slice(0, 2).forEach(p => {
-                const discount = p.stockQuantity > 100 ? 40 : 25;
-                fallbackInsights.push({
-                    type: 'discount',
-                    product: p.name,
+            console.error('AI Insights error:', error);
+            // Rules-based fallback
+            const salesByProduct = {};
+            sales.slice(-100).forEach(s => {
+                s.items?.forEach(item => {
+                    const id = item.product?.id || item.productId;
+                    if (id) salesByProduct[id] = (salesByProduct[id] || 0) + (item.quantity || 1);
+                });
+            });
+            const fallback = [];
+
+            products.filter(p => p.stockQuantity > 50 && !salesByProduct[p.id]).slice(0, 2).forEach(p => {
+                fallback.push({
+                    type: 'discount', product: p.name,
                     reason: t('overstockNoSales', { stock: p.stockQuantity }),
-                    action: t('applyDiscountToClear', { discount }),
+                    action: t('applyDiscountToClear', { discount: p.stockQuantity > 100 ? 40 : 25 }),
                     priority: 'high'
                 });
             });
-            
-            // Slow moving stock
-            products.filter(p => p.stockQuantity > 20 && salesMap[p.id] > 0 && salesMap[p.id] < 5).slice(0, 2).forEach(p => {
-                fallbackInsights.push({
-                    type: 'discount',
-                    product: p.name,
-                    reason: t('slowMovingStock', { sold: salesMap[p.id], stock: p.stockQuantity }),
+            products.filter(p => p.stockQuantity > 20 && salesByProduct[p.id] > 0 && salesByProduct[p.id] < 5).slice(0, 2).forEach(p => {
+                fallback.push({
+                    type: 'discount', product: p.name,
+                    reason: t('slowMovingStock', { sold: salesByProduct[p.id], stock: p.stockQuantity }),
                     action: t('apply15PercentDiscount'),
                     priority: 'medium'
                 });
             });
-            
-            // Low margin products
             products.filter(p => p.purchasePrice && parseFloat(p.price) <= parseFloat(p.purchasePrice) * 1.2).slice(0, 1).forEach(p => {
                 const margin = ((parseFloat(p.price) - parseFloat(p.purchasePrice)) / parseFloat(p.purchasePrice) * 100).toFixed(0);
-                fallbackInsights.push({
-                    type: 'price_adjust',
-                    product: p.name,
+                fallback.push({
+                    type: 'price_adjust', product: p.name,
                     reason: t('lowMargin', { margin }),
                     action: t('increasePrice15Percent'),
                     priority: 'medium'
                 });
             });
-            
-            // If still no insights, provide general analysis
-            if (fallbackInsights.length === 0) {
-                const totalStock = products.reduce((sum, p) => sum + p.stockQuantity, 0);
-                const avgStock = products.length > 0 ? Math.round(totalStock / products.length) : 0;
-                fallbackInsights.push({
-                    type: 'info',
-                    product: t('globalInventory'),
+            if (fallback.length === 0) {
+                const avgStock = products.length > 0 ? Math.round(products.reduce((s, p) => s + p.stockQuantity, 0) / products.length) : 0;
+                fallback.push({
+                    type: 'info', product: t('globalInventory'),
                     reason: t('inventoryAnalysis', { count: products.length, avgStock }),
                     action: t('analyzeTopSellingProducts'),
                     priority: 'low'
                 });
             }
-            
-            setAiInsights(fallbackInsights);
-            localStorage.setItem('aiInsights', JSON.stringify(fallbackInsights));
+
+            setAiInsights(fallback);
+            localStorage.setItem('aiInsights', JSON.stringify(fallback));
             localStorage.setItem('aiInsightsCacheKey', newCacheKey);
         } finally {
             setIsGeneratingInsights(false);
         }
     }, [sales, products, t, newCacheKey]);
 
+    // ─── Auto-trigger Forecast & Insights ────────────────────────────────────
     useEffect(() => {
-        if (sales.length > 0 && products.length > 0) {
-            generateAiForecast();
-        }
+        if (sales.length > 0 && products.length > 0) generateAiForecast();
     }, [generateAiForecast]);
 
     useEffect(() => {
@@ -619,148 +256,35 @@ const AIAnalytics = () => {
         }
     }, [newCacheKey, generateAiInsights, insightsCacheKey]);
 
-    const forecastData = useMemo(() => {
+    // ─── Forecast Chart Data ──────────────────────────────────────────────────
+    const forecastChartData = useMemo(() => {
         if (aiForecastData && aiForecastData.length > 0) {
+            const monthlyAvg = sales.length > 0
+                ? Math.round(sales.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0) / Math.max(1, sales.length / 30))
+                : 0;
             return aiForecastData.map(f => ({
                 name: f.month,
-                Prédiction: f.prediction,
-                Historique: sales.length > 0 ? Math.round(sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0) / Math.max(1, sales.length / 30)) : 0,
+                prediction: f.prediction,
+                Historique: monthlyAvg,
                 Approvisionnement: Math.round(f.prediction * 0.7),
                 confidence: f.confidence,
                 insight: f.insight
             }));
         }
-
+        // Statistical fallback chart
         const now = new Date();
         const currentMonthSales = sales.filter(s => new Date(s.createdAt).getMonth() === now.getMonth());
-        const monthlyAvg = currentMonthSales.length > 0 
-            ? currentMonthSales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0) 
-            : (sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0) / Math.max(1, sales.length / 30) || 5000);
-            
-        const months = ['M+1', 'M+2', 'M+3', 'M+4', 'M+5', 'M+6'];
-        const growthRate = 0.05; // 5% projected growth
+        const monthlyAvg = currentMonthSales.length > 0
+            ? currentMonthSales.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0)
+            : (sales.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0) / Math.max(1, sales.length / 30) || 5000);
 
-        return months.map((m, i) => {
-            const pred = monthlyAvg * Math.pow(1 + growthRate, i + 1);
-            return {
-                name: m,
-                Prédiction: Math.round(pred),
-                Historique: Math.round(monthlyAvg),
-                Approvisionnement: Math.round(pred * 0.7),
-                confidence: 'medium',
-                insight: 'Projected based on historical data'
-            };
+        return ['M+1', 'M+2', 'M+3', 'M+4', 'M+5', 'M+6'].map((m, i) => {
+            const pred = monthlyAvg * Math.pow(1.05, i + 1);
+            return { name: m, prediction: Math.round(pred), Historique: Math.round(monthlyAvg), Approvisionnement: Math.round(pred * 0.7), confidence: 'medium' };
         });
     }, [aiForecastData, sales]);
 
-    const handleApplyPromotion = async (product) => {
-        const discountNum = Math.abs(parseInt(product.suggestedDiscount));
-        const price = parseFloat(product.price);
-        const purchasePrice = parseFloat(product.purchasePrice || 0);
-        
-        // Safety check
-        if (purchasePrice > 0 && (price * (1 - discountNum / 100)) < purchasePrice) {
-            toast.error(`Impossible d'appliquer cette remise car le prix de vente deviendrait inférieur au prix d'achat (${purchasePrice} TND).`);
-            return;
-        }
-        try {
-            const formData = new FormData();
-            formData.append('remise', discountNum);
-            formData.append('name', product.name);
-            formData.append('price', product.price);
-            formData.append('stockQuantity', product.stockQuantity);
-    
-            if (product.categoryId) formData.append('categoryId', product.categoryId);
-            if (product.subcategoryId) formData.append('subcategoryId', product.subcategoryId);
-            if (product.tva !== undefined && product.tva !== null) formData.append('tva', product.tva);
-            if (product.purchasePrice !== undefined && product.purchasePrice !== null) formData.append('purchasePrice', product.purchasePrice);
-            
-            await api.put(`/products/${product.id}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            
-            setPromoSuccess(prev => ({ ...prev, [product.id]: true }));
-            setTimeout(() => setPromoSuccess(prev => ({ ...prev, [product.id]: false })), 3000);
-            // Re-fetch products after success tick is shown
-            setTimeout(async () => {
-                const res = await api.get('/products');
-                setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
-            }, 3500);
-        } catch (err) {
-            console.error('Failed to apply promo', err);
-            toast.error("Erreur lors de l'application de la promotion.");
-        }
-    };
-
-    
-    const handleOrderProduct = (product) => {
-        setOrderSuccess(prev => ({ ...prev, [product.id]: true }));
-        setTimeout(() => setOrderSuccess(prev => ({ ...prev, [product.id]: false })), 3000);
-    };
-
-    const handleActivateBundle = async (bundle) => {
-        try {
-            // Update both products with the 20% remise
-            const updateProd = async (p) => {
-                const formData = new FormData();
-                formData.append('remise', 20); // Bundle discount
-                formData.append('name', p.name);
-                formData.append('price', p.price);
-                formData.append('stockQuantity', p.stockQuantity);
-                if (p.categoryId) formData.append('categoryId', p.categoryId);
-                if (p.subcategoryId) formData.append('subcategoryId', p.subcategoryId);
-                
-                return api.put(`/products/${p.id}`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
-            };
-
-            await Promise.all([updateProd(bundle.productA), updateProd(bundle.productB)]);
-            
-            setPromoSuccess(prev => ({ ...prev, [`bundle-${bundle.productA.id}-${bundle.productB.id}`]: true }));
-            setTimeout(() => setPromoSuccess(prev => ({ ...prev, [`bundle-${bundle.productA.id}-${bundle.productB.id}`]: false })), 4000);
-            
-            // Refresh data
-            const res = await api.get('/products');
-            setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
-            
-            toast.success(`Offre Duo Activée ! Une remise de 20% a été appliquée sur ${bundle.productA.name} et ${bundle.productB.name}.`);
-        } catch (err) {
-            console.error(err);
-            toast.error("Erreur lors de l'activation du bundle.");
-        }
-    };
-
-    const handlePlanFlashSale = async (flash) => {
-        try {
-            const p = flash.product;
-            const discountNum = Math.abs(parseInt(flash.suggestedDiscount));
-            
-            const formData = new FormData();
-            formData.append('remise', discountNum);
-            formData.append('name', p.name);
-            formData.append('price', p.price);
-            formData.append('stockQuantity', p.stockQuantity);
-            
-            await api.put(`/products/${p.id}`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-
-            setPromoSuccess(prev => ({ ...prev, [`flash-${flash.hour}`]: true }));
-            setTimeout(() => setPromoSuccess(prev => ({ ...prev, [`flash-${flash.hour}`]: false })), 4000);
-            
-            // Refresh data
-            const res = await api.get('/products');
-            setProducts(Array.isArray(res.data) ? res.data : res.data?.products || []);
-
-            toast.success(`Vente Flash Activée pour ${flash.hour} sur ${p.name}.`);
-        } catch (err) {
-            console.error(err);
-            toast.error("Erreur lors de la planification de la vente flash.");
-        }
-    };
-
-
+    // ─── AI Chat Submit ───────────────────────────────────────────────────────
     const handleChatSubmit = async (e) => {
         e.preventDefault();
         if (!chatInput.trim()) return;
@@ -771,15 +295,13 @@ const AIAnalytics = () => {
         setIsAiTyping(true);
 
         try {
-            // Prepare context data for AI
             const contextData = {
                 totalSales: sales.length,
-                totalRevenue: sales.reduce((sum, s) => sum + parseFloat(s.totalAmount || 0), 0),
+                totalRevenue: sales.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0),
                 totalProducts: products.length,
                 lowStockCount: products.filter(p => p.stockQuantity <= Number(p.reorderLevel || 5)).length,
                 topSellingProduct: products.length > 0 ? products[0].name : 'N/A'
             };
-
             const systemContext = `You are a Retail Analytics Expert. Answer questions about sales, inventory, and business performance. Use this data: ${JSON.stringify(contextData)}. Be concise and actionable.`;
             const apiMessages = chatMessages
                 .slice(-10)
@@ -789,19 +311,13 @@ const AIAnalytics = () => {
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
             let reply = response.data.reply;
 
-            // Handle specific AI error codes from backend
             if (reply.includes('ERROR_AI:')) {
-                if (reply.includes('QUOTA_EXCEEDED')) {
-                    reply = t('aiErrorQuota', 'Quota d\'IA épuisé.');
-                } else if (reply.includes('AUTH_LEAKED') || reply.includes('AUTH_ERROR')) {
-                    reply = t('aiErrorAuth', 'Erreur d\'authentification IA (Clé invalide).');
-                } else {
-                    reply = t('aiErrorGeneral', 'Erreur technique IA.');
-                }
+                if (reply.includes('QUOTA_EXCEEDED'))      reply = t('aiErrorQuota', "Quota d'IA épuisé.");
+                else if (reply.includes('AUTH_ERROR'))      reply = t('aiErrorAuth', "Erreur d'authentification IA.");
+                else                                         reply = t('aiErrorGeneral', 'Erreur technique IA.');
             }
-
             setChatMessages(prev => [...prev, { role: 'ai', content: reply }]);
-        } catch (error) {
+        } catch {
             setChatMessages(prev => [...prev, { role: 'ai', content: t('aiErrorGeneral', 'Désolé, une erreur est survenue.') }]);
         } finally {
             setIsAiTyping(false);
@@ -810,203 +326,103 @@ const AIAnalytics = () => {
 
     const clearChatHistory = () => {
         setChatMessages([
-            { role: 'ai', content: t('aiChatWelcome', 'Hello! I am your Analytics AI Assistant. I can help you analyze your sales, inventory, and customer behavior. Ask me anything!') }
+            { role: 'ai', content: t('aiChatWelcome', 'Hello! I am your Analytics AI Assistant. Ask me anything!') }
         ]);
     };
 
-    
+    // Auto-scroll chat to bottom
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [chatMessages, isAiTyping]);
 
-    const renderTabContent = () => {
-        if (loadingData) {
-            return <div className="flex h-64 items-center justify-center"><FiRefreshCw className="animate-spin text-4xl text-blue-500" /></div>;
-        }
+    // ─── Render ───────────────────────────────────────────────────────────────
+    return (
+        <div className="flex flex-col h-full gap-4 lg:gap-6 p-1">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+                <div>
+                    <h1 className="text-3xl font-black tracking-tighter text-slate-800 dark:text-white uppercase flex items-center gap-3">
+                        <FiZap className="text-blue-600 animate-pulse" />
+                        {t('aiAnalyticsSuite', 'Suite Décisionnelle IA')}
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
+                        {t('aiSuiteSubtitle', 'Prévisions de ventes, recommandations stratégiques et assistant intelligent réunis.')}
+                    </p>
+                </div>
+            </div>
 
-        switch (activeTab) {
+            {loadingData ? (
+                <div className="flex h-96 items-center justify-center">
+                    <FiRefreshCw className="animate-spin text-4xl text-blue-500" />
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
 
-            case 'products':
-                const slowProds = slowProductsWithPromos;
-                return (
-                    <div className="space-y-6">
-                    
-                        <div className="bg-gradient-to-br  from-blue-200 to-indigo-200 p-6 rounded-2xl shadow-xl text-gray-800">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold flex items-center gap-2 text-blue-900"><FiZap /> {t('aiInsights', 'Insights IA')}</h3>
-                                <button 
-                                    onClick={generateAiInsights}
-                                    disabled={isGeneratingInsights}
-                                    className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
-                                >
-                                    {isGeneratingInsights ? <FiRefreshCw className="animate-spin" /> : t('refresh', 'Actualiser')}
-                                </button>
-                            </div>
-                            <div className="grid gap-3">
-                                {aiInsights && aiInsights.length > 0 ? (
-                                    aiInsights.map((insight, i) => (
-                                        <div key={i} className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-200 shadow-sm">
-                                            <div className="flex items-start gap-3">
-                                                <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
-                                                    insight.priority === 'high' ? 'bg-red-500' : 
-                                                    insight.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-                                                }`} />
-                                                <div className="flex-1">
-                                                    <div className="font-bold text-sm mb-1 text-gray-800">{insight.product}</div>
-                                                    <div className="text-xs text-gray-600 mb-2">{insight.reason}</div>
-                                                    <div className="text-xs font-medium bg-blue-100 text-blue-800 inline-block px-2 py-1 rounded-md">
-                                                        {insight.action}
-                                                    </div>
-                                                </div>
-                                                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                                                    {insight.type}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-blue-200 shadow-sm">
-                                        <div className="text-sm text-gray-600">
-                                            {isGeneratingInsights ? t('aiThinking', 'L\'IA réfléchit...') : t('noAlerts', 'Aucune alerte.')}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                              <div className="bg-white dark:bg-gray-800 p-4 lg:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h3 className="text-lg font-bold mb-2 flex items-center gap-2"><FiActivity className="text-orange-500" /> {t('adaptedPromotions', 'Stratégies Promotionnelles IA')}</h3>
-                            <p className="text-sm text-gray-500 mb-6">{t('analyticsPromoDesc', 'Suggestions intelligentes basées sur le stock, les ventes croisées et l\'activité temporelle.')}</p>
-                            
-                            <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-                                {/* Section 1: Clearance */}
-                                <div className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div> Déstockage (Mort)
-                                    </h4>
-                                    {slowProductsWithPromos.slice(0, 2).map((p, i) => (
-                                        <div key={i} className="p-4 border border-red-50 dark:border-red-900/20 bg-red-50/30 dark:bg-red-900/5 rounded-xl">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-red-100 bg-white">
-                                                    <img src={getImageUrl(p.imageUrl)} alt={p.name} className="w-full h-full object-contain" onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=fee2e2&color=ef4444`; }} />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="font-bold text-xs truncate">{p.name}</div>
-                                                    <div className="text-[10px] text-red-600 font-bold">{p.suggestedDiscount} IA</div>
-                                                </div>
-                                            </div>
-                                            <button onClick={() => handleApplyPromotion(p)} className="w-full py-1.5 bg-white dark:bg-gray-800 border border-red-200 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-50 transition-colors uppercase tracking-wider">
-                                                {promoSuccess[p.id] ? '✓' : 'Liquider'}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
+                    {/* Left Column: Forecast + Insights */}
+                    <div className="xl:col-span-7 flex flex-col gap-6">
 
-                                {/* Section 2: Bundles */}
-                                <div className="space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div> Ventes Croisées (Bundles)
-                                    </h4>
-                                    {bundleSuggestions.map((b, i) => (
-                                        <div key={i} className="p-4 border border-indigo-50 dark:border-indigo-900/20 bg-indigo-50/30 dark:bg-indigo-900/5 rounded-xl">
-                                            <div className="flex items-center justify-between gap-2 mb-3">
-                                                <div className="flex -space-x-3">
-                                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-white overflow-hidden shadow-sm">
-                                                        <img src={getImageUrl(b.productA.imageUrl)} alt="" className="w-full h-full object-contain" />
-                                                    </div>
-                                                    <div className="w-8 h-8 rounded-full border-2 border-white bg-white overflow-hidden shadow-sm">
-                                                        <img src={getImageUrl(b.productB.imageUrl)} alt="" className="w-full h-full object-contain" />
-                                                    </div>
-                                                </div>
-                                                <div className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">Duo Gagnant</div>
-                                            </div>
-                                            <div className="text-[10px] font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                                Achetés ensemble <span className="font-bold text-indigo-600">{b.strength} fois</span>.
-                                            </div>
-                                            <div className="text-xs font-bold mb-3">{b.suggestedPromo}</div>
-                                            <button 
-                                                onClick={() => handleActivateBundle(b)} 
-                                                className="w-full py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-bold hover:bg-indigo-700 transition-colors uppercase tracking-wider"
-                                            >
-                                                {promoSuccess[`bundle-${b.productA.id}-${b.productB.id}`] ? '✓ Activé' : 'Activer Offre'}
-                                            </button>
-                                        </div>
-                                    ))}
-                                    {bundleSuggestions.length === 0 && <div className="text-[10px] italic text-gray-400">Pas assez de données d'association.</div>}
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                );
-            case 'forecasts':
-                const aiMetrics = getAIPerformanceMetrics;
-                return (
-                    <div className="space-y-8">
-                        {/* Chart Area */}
-                        <div className="bg-white dark:bg-gray-800 p-4 lg:p-8 rounded-2xl lg:rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 flex flex-col min-h-[400px] h-[50vh] lg:h-[500px]">
-                            <div className="mb-4 lg:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 lg:gap-4">
+                        {/* Sales Forecast Card */}
+                        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-xl flex flex-col h-[400px]">
+                            <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 shrink-0">
                                 <div>
-                                    <h3 className="text-lg lg:text-2xl font-black tracking-tighter uppercase leading-none mb-1 lg:mb-2">{t('salesForecasts', 'Prévisions Stratégiques')}</h3>
-                                    <p className="text-slate-400 text-[10px] lg:text-sm font-medium">{t('forecastDesc', 'Anticipation des flux de vente et optimisation des achats.')}</p>
+                                    <h3 className="text-lg font-black tracking-tighter uppercase text-slate-800 dark:text-white flex items-center gap-2">
+                                        <FiTrendingUp className="text-blue-500" />
+                                        {t('salesForecasts', 'Prévisions de Ventes Stratégiques')}
+                                    </h3>
+                                    <p className="text-slate-400 text-xs font-medium">
+                                        {t('forecastDesc', 'Anticipation des flux de vente et optimisation des achats.')}
+                                    </p>
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                        <div className="w-2 h-2 lg:w-3 lg:h-3 bg-blue-500 rounded-full"></div> {t('supply', 'Appro.') }
+                                        <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" /> {t('supply', 'Appro.')}
                                     </div>
                                     <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                        <div className="w-2 h-[2px] lg:w-3 lg:h-[2px] bg-indigo-500"></div> {t('forecast', 'Prévision') }
+                                        <div className="w-2.5 h-[2px] bg-indigo-500" /> {t('forecast', 'Prévision')}
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex-1 min-h-[400px]">
-                                {!aiForecastData ? (
+
+                            <div className="flex-1 min-h-0">
+                                {isGeneratingForecast ? (
                                     <div className="h-full flex flex-col items-center justify-center space-y-4">
-                                        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                                         <p className="text-slate-400 font-medium">{t('generatingForecast', 'Génération des prévisions IA...')}</p>
                                     </div>
                                 ) : (
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <ComposedChart data={aiForecastData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                        <ComposedChart data={forecastChartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
                                             <defs>
                                                 <linearGradient id="predictionGradient" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25}/>
-                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                                    <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.25} />
+                                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                                            <XAxis 
-                                                dataKey="month" 
-                                                axisLine={false} 
-                                                tickLine={false} 
-                                                tick={{ fill: '#64748b', fontSize: 12, fontWeight: 700 }}
-                                                dy={10}
-                                            />
-                                            <YAxis 
-                                                axisLine={false} 
-                                                tickLine={false} 
+                                            <XAxis
+                                                dataKey="name"
+                                                axisLine={false} tickLine={false}
                                                 tick={{ fill: '#64748b', fontSize: 11, fontWeight: 700 }}
-                                                tickFormatter={(val) => formatCurrency(val)}
-                                                width={90}
                                             />
-                                            <Tooltip 
-                                                contentStyle={{ 
-                                                    backgroundColor: 'rgba(255,255,255,0.97)', 
-                                                    borderRadius: '14px', 
-                                                    border: '1px solid #e2e8f0', 
-                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                                                    padding: '12px 16px'
-                                                }}
-                                                formatter={(val) => [formatCurrency(val), t('forecastedRevenue', 'Revenu Prévu')]}
-                                                labelStyle={{ fontWeight: 800, fontSize: 12, marginBottom: 4 }}
+                                            <YAxis
+                                                axisLine={false} tickLine={false}
+                                                tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }}
+                                                tickFormatter={val => formatCurrency(val)}
+                                                width={70}
                                             />
-                                            <Area 
-                                                type="monotone" 
-                                                dataKey="prediction" 
-                                                fill="url(#predictionGradient)" 
-                                                stroke="#6366f1" 
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: 'rgba(255,255,255,0.97)', borderRadius: '14px', border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', padding: '10px 14px' }}
+                                                formatter={val => [formatCurrency(val), t('forecastedRevenue', 'Revenu Prévu')]}
+                                                labelStyle={{ fontWeight: 800, fontSize: 11, marginBottom: 4 }}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="prediction"
+                                                fill="url(#predictionGradient)"
+                                                stroke="#6366f1"
                                                 strokeWidth={3}
-                                                dot={{ fill: '#6366f1', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                                                activeDot={{ r: 7, strokeWidth: 0, fill: '#6366f1' }}
+                                                dot={{ fill: '#6366f1', r: 4, strokeWidth: 1.5, stroke: '#fff' }}
+                                                activeDot={{ r: 6, strokeWidth: 0, fill: '#6366f1' }}
                                                 name={t('forecastedRevenue', 'Revenu Prévu')}
                                             />
                                         </ComposedChart>
@@ -1014,211 +430,148 @@ const AIAnalytics = () => {
                                 )}
                             </div>
                         </div>
-                    </div>
-                );
-            case 'behavior':
-                const behavior = behaviorData;
-                return (
-                    <div className="space-y-8">
-                        {/* Behavior Insights Grid */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 lg:p-8 rounded-2xl lg:rounded-3xl shadow-xl text-white flex flex-col justify-between relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full -mr-16 -mt-16"></div>
-                                 <div>
-                                    <div className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">{t('peakActivity', 'Heure de Pointe')}</div>
-                                    <div className="text-3xl lg:text-4xl font-black">{behavior.peakHour}</div>
-                                </div>
-                                <div className="text-[10px] lg:text-xs font-bold opacity-70 mt-4">{t('basedOnRealTransactions', 'Basé sur vos transactions réelles.')}</div>
-                            </div>
 
-                            <div className="bg-white dark:bg-gray-800 p-6 lg:p-7 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center">
-                                <div className="text-slate-400 font-black text-[9px] lg:text-[10px] uppercase tracking-widest mb-2">{t('customerFlow', 'Flux Clients')}</div>
-                                <div className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white">{t(`flow${behavior.flow}`, behavior.flow)}</div>
-                                <div className="text-[10px] lg:text-xs text-green-500 mt-1 font-bold">{t('stableLastHours', 'Stable sur les dernières heures')}</div>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 p-6 lg:p-7 rounded-2xl lg:rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col justify-center sm:col-span-2 lg:col-span-1">
-                                <div className="text-slate-400 font-black text-[9px] lg:text-[10px] uppercase tracking-widest mb-2">{t('averageBasket', 'Panier Moyen')}</div>
-                                <div className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white">{formatCurrency(behavior.panierMoyen)}</div>
-                                <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('avgSpendPerClient', 'Dépense moyenne par client')}</div>
-                            </div>
-                        </div>
-
-                        {/* Customer Traffic Area */}
-                        <div className="bg-white dark:bg-gray-800 p-4 lg:p-8 rounded-2xl lg:rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 min-h-[350px] h-[40vh] lg:h-[400px] flex flex-col">
-                            <div className="mb-4 lg:mb-8 flex justify-between items-center">
-                                <div>
-                                    <h3 className="text-lg lg:text-2xl font-black tracking-tighter uppercase leading-none mb-1">{t('activityByHour', 'Trafic Intraday')}</h3>
-                                    <p className="text-slate-400 text-[10px] lg:text-sm font-medium">{t('heatmapDesc', 'Visualisation des pics de transactions par tranche horaire.')}</p>
-                                </div>
-                                <div className="text-[9px] lg:text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-3 lg:px-4 py-1.5 lg:py-2 rounded-full uppercase tracking-widest">
-                                    {t('directUpdate', 'Mise à jour directe')}
-                                </div>
-                            </div>
-                            <div className="flex-1">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={behavior.heatmapData}>
-                                        <defs>
-                                            <linearGradient id="colorTraffic" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                                        <XAxis 
-                                            dataKey="heure" 
-                                            axisLine={false} 
-                                            tickLine={false} 
-                                            tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
-                                        />
-                                        <Tooltip 
-                                            contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '16px' }}
-                                        />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="Transactions" 
-                                            stroke="#6366f1" 
-                                            fillOpacity={1} 
-                                            fill="url(#colorTraffic)" 
-                                            strokeWidth={4}
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    </div>
-                );
-            case 'chat':
-                return (
-                    <div className="flex flex-col h-full bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-                        {/* Chat Header */}
-                        <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white">
-                                    <FiZap size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-black tracking-tighter"> AI Analytics Assistant</h3>
-                                    <p className="text-xs text-gray-500 font-medium">{t('AIIntro','Ask questions about your sales, inventory, and performance')}</p>
-                                </div>
-                            </div>
-                            <button 
-                                onClick={clearChatHistory}
-                                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 transition-colors flex items-center gap-2"
-                            >
-                                <FiTrash2 size={16} />
-                                {t('clearHistory', 'Clear')}
-                            </button>
-                        </div>
-
-                        {/* Chat Messages */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                            {chatMessages.map((msg, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                >
-                                    <div className={`max-w-[80%] rounded-2xl px-5 py-3 ${
-                                        msg.role === 'user' 
-                                        ? 'bg-blue-600 text-white rounded-br-md' 
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-md'
-                                    }`}>
-                                        <p className="text-sm font-medium whitespace-pre-wrap">{msg.content}</p>
-                                    </div>
-                                </motion.div>
-                            ))}
-                            {isAiTyping && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="flex justify-start"
-                                >
-                                    <div className="bg-gray-100 dark:bg-gray-700 rounded-2xl rounded-bl-md px-5 py-3">
-                                        <div className="flex gap-1">
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                        </div>
-                                    </div>
-                                </motion.div>
-                            )}
-                            <div ref={chatEndRef} />
-                        </div>
-
-                        {/* Chat Input */}
-                        <form onSubmit={handleChatSubmit} className="p-6 border-t border-gray-100 dark:border-gray-700">
-                            <div className="flex gap-3">
-                                <input
-                                    type="text"
-                                    value={chatInput}
-                                    onChange={(e) => setChatInput(e.target.value)}
-                                    placeholder={t('askAiPlaceholder', 'Ask about your analytics...')}
-                                    className="flex-1 px-5 py-3 bg-gray-100 dark:bg-gray-700 rounded-xl border-0 focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-gray-200 placeholder-gray-400"
-                                    disabled={isAiTyping}
-                                />
+                        {/* AI Insights Card */}
+                        <div className="bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-slate-900/5 dark:from-indigo-950/30 dark:via-slate-900/30 dark:to-slate-900/50 p-6 rounded-3xl border border-blue-100 dark:border-slate-800 shadow-xl flex flex-col flex-1 min-h-[350px]">
+                            <div className="flex items-center justify-between mb-4 shrink-0">
+                                <h3 className="text-lg font-black tracking-tighter uppercase text-slate-800 dark:text-white flex items-center gap-2">
+                                    <FiZap className="text-yellow-500" />
+                                    {t('aiInsights', 'Recommandations IA')}
+                                </h3>
                                 <button
-                                    type="submit"
-                                    disabled={isAiTyping || !chatInput.trim()}
-                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-xl font-bold transition-colors flex items-center gap-2"
+                                    onClick={generateAiInsights}
+                                    disabled={isGeneratingInsights}
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 shadow-md shadow-blue-500/10"
                                 >
-                                    <FiSend size={18} />
-                                    {t('send', 'Send')}
+                                    {isGeneratingInsights
+                                        ? <FiRefreshCw className="animate-spin" />
+                                        : <><FiRefreshCw /> {t('refresh', 'Actualiser')}</>
+                                    }
                                 </button>
                             </div>
-                        </form>
+
+                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-3 max-h-[320px]">
+                                {aiInsights && aiInsights.length > 0 ? (
+                                    aiInsights.map((insight, i) => (
+                                        <div key={i} className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-4 border border-blue-100/50 dark:border-slate-700/80 shadow-sm flex items-start gap-4 hover:border-indigo-200 dark:hover:border-indigo-950 transition-all">
+                                            <div className={`w-3 h-3 rounded-full mt-1.5 shrink-0 shadow-sm ${
+                                                insight.priority === 'high'   ? 'bg-red-500' :
+                                                insight.priority === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
+                                            }`} />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between gap-2 mb-1">
+                                                    <span className="font-black text-sm text-slate-800 dark:text-white truncate uppercase tracking-tight">{insight.product}</span>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-md border border-slate-200/50 dark:border-slate-600/50">
+                                                        {insight.type}
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-3 leading-relaxed">{insight.reason}</p>
+                                                <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg border border-indigo-100/50 dark:border-indigo-900/50 inline-block">
+                                                    {insight.action}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-100/50 dark:border-slate-700/80 shadow-sm text-center">
+                                        <p className="text-sm font-bold text-slate-400">
+                                            {isGeneratingInsights
+                                                ? t('aiThinking', "L'IA formule ses recommandations...")
+                                                : t('noAlerts', 'Aucune recommandation disponible.')}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                );
-            default:
-                return null;
-        }
-    };
 
-    return (
-        <div className="flex flex-col h-full gap-4 lg:gap-6">
-            <div className="flex-1 flex flex-col min-w-0">
-                <div className="flex space-x-2 mb-4 lg:mb-6 overflow-x-auto pb-2 custom-scrollbar hide-scrollbar">
-                    {[
-                        { id: 'products', label: t('tabProductsPromos', 'Produits & Promos'), icon: FiBox },
-                        { id: 'forecasts', label: t('tabForecasts', 'Prévisions'), icon: FiTrendingUp },
-                        { id: 'behavior', label: t('tabBehavior', 'Comportement'), icon: FiCalendar },
-                        { id: 'chat', label: t('tabChat', 'AI Chat'), icon: FiMessageCircle }
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all duration-300 whitespace-nowrap ${
-                                activeTab === tab.id 
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
-                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
-                            }`}
-                        >
-                            <tab.icon className={activeTab === tab.id ? "text-white" : "text-gray-400"} />
-                            {tab.label}
-                        </button>
-                    ))}
+                    {/* Right Column: AI Chat Assistant */}
+                    <div className="xl:col-span-5 flex flex-col h-[774px]">
+                        <div className="flex flex-col h-full bg-white dark:bg-gray-800 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                            {/* Chat Header */}
+                            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                                        <FiZap size={20} className="animate-pulse" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-base font-black tracking-tight uppercase text-slate-800 dark:text-white">
+                                            {t('integratedAIAssistant', 'Assistant IA Intégré')}
+                                        </h3>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                                            {t('AIIntro', 'Posez vos questions sur les ventes ou les stocks')}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={clearChatHistory}
+                                    className="p-2.5 bg-slate-50 dark:bg-gray-700 hover:bg-red-50 dark:hover:bg-red-950/20 text-slate-400 hover:text-red-500 rounded-xl transition-all border border-slate-100 dark:border-slate-800"
+                                    title={t('clearHistory', "Effacer l'historique")}
+                                >
+                                    <FiTrash2 size={16} />
+                                </button>
+                            </div>
+
+                            {/* Chat Messages */}
+                            <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                                {chatMessages.map((msg, i) => (
+                                    <motion.div
+                                        key={i}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
+                                            msg.role === 'user'
+                                                ? 'bg-blue-600 text-white rounded-br-none font-semibold text-xs leading-relaxed'
+                                                : 'bg-slate-50 dark:bg-gray-700 text-slate-700 dark:text-slate-200 rounded-bl-none font-medium text-xs border border-slate-100 dark:border-slate-800/80 leading-relaxed'
+                                        }`}>
+                                            <p className="whitespace-pre-wrap">{msg.content}</p>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                                {isAiTyping && (
+                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                                        <div className="bg-slate-50 dark:bg-gray-700 rounded-2xl rounded-bl-none px-4 py-3 border border-slate-100 dark:border-slate-800/80">
+                                            <div className="flex gap-1.5 py-1">
+                                                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                                <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                                <div ref={chatEndRef} />
+                            </div>
+
+                            {/* Chat Input */}
+                            <form onSubmit={handleChatSubmit} className="p-4 border-t border-gray-100 dark:border-gray-700 shrink-0 bg-slate-50/50 dark:bg-gray-900/50">
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        value={chatInput}
+                                        onChange={e => setChatInput(e.target.value)}
+                                        placeholder={t('askAiPlaceholder', 'Posez votre question...')}
+                                        className="flex-1 px-4 py-2.5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-semibold text-slate-800 dark:text-slate-100 placeholder-slate-400"
+                                        disabled={isAiTyping}
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={isAiTyping || !chatInput.trim()}
+                                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-gray-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 shadow-md shadow-blue-500/10"
+                                    >
+                                        <FiSend size={14} />
+                                        {t('send', 'Envoyer')}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
                 </div>
-
-                {/* Tab Content */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-4">
-                    <AnimatePresence mode="wait">
-                        <motion.div
-                            key={activeTab}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            {renderTabContent()}
-                        </motion.div>
-                    </AnimatePresence>
-                </div>
-
-            </div>
+            )}
         </div>
     );
 };
-
 
 export default AIAnalytics;

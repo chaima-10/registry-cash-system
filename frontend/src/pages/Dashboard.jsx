@@ -273,6 +273,36 @@ const Dashboard = () => {
         });
     }, [products, sales, period]);
 
+    const behaviorData = useMemo(() => {
+        const hourCounts = Array(24).fill(0);
+        let totalRevenue = 0;
+
+        sales.forEach(s => {
+            const d = new Date(s.createdAt);
+            const h = d.getHours();
+            if (!isNaN(h)) hourCounts[h]++;
+            totalRevenue += parseFloat(s.totalAmount || 0);
+        });
+
+        // Calculate peak hour
+        let peakH = 16; // default fallback
+        let maxC = 0;
+        hourCounts.forEach((count, h) => {
+            if (count > maxC) {
+                maxC = count;
+                peakH = h;
+            }
+        });
+
+        const heatmapData = hourCounts.map((count, h) => ({ heure: `${h}h`, Transactions: count })).filter((d, i) => i > 7 && i < 22);
+        const panierMoyen = sales.length > 0 ? (totalRevenue / sales.length).toFixed(2) : 0;
+        
+        const todaySalesCount = sales.filter(s => isToday(new Date(s.createdAt))).length;
+        const flow = todaySalesCount > 10 ? 'High' : todaySalesCount > 3 ? 'Moderate' : 'Stable';
+
+        return { heatmapData, panierMoyen, totalClients: sales.length, peakHour: `${peakH}:00`, flow };
+    }, [sales]);
+
     const filteredInventory = useMemo(() => {
         if (inventoryFilter === 'ALL') return inventoryData;
         return inventoryData.filter(row => row.status === inventoryFilter);
@@ -508,6 +538,86 @@ const Dashboard = () => {
                         {alerts.length === 0 ? <p className="text-slate-400 text-sm font-bold text-center py-6">{t('noAlerts', 'Aucune alerte.')}</p> : alerts.map((a, i) => (
                             <div key={i} className={`flex items-center justify-between p-4 border rounded-2xl relative overflow-hidden ${a.urgency === 'high' ? 'bg-red-50 border-red-100 dark:bg-red-900/10' : 'bg-orange-50 border-orange-100 dark:bg-orange-900/10'}`}><div className={`absolute left-0 top-0 bottom-0 w-1 ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}></div><div className="flex items-center gap-3"><div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center overflow-hidden shrink-0 ml-2">{a.p.imageUrl ? <img src={getImageUrl(a.p.imageUrl)} alt={a.p.name} className="w-full h-full object-contain" /> : <span className="text-[10px] font-black text-gray-400">{a.p.name.substring(0, 2).toUpperCase()}</span>}</div><div><p className={`font-bold text-xs ${a.urgency === 'high' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'}`}>{a.p.name}</p><p className={`text-[10px] mt-0.5 font-bold ${a.urgency === 'high' ? 'text-red-600' : 'text-orange-600'}`}>{a.reason}</p></div></div><span className={`px-3 py-1 text-white font-black rounded-lg text-[10px] ${a.urgency === 'high' ? 'bg-red-500' : 'bg-orange-500'}`}>{a.p.stockQuantity} {t('units', 'unités')}</span></div>
                         ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Behavior & Intraday Traffic Section */}
+            <div className="space-y-8 mt-12">
+                <hr className="border-slate-100 dark:border-slate-800 my-12" />
+                <div>
+                    <h2 className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">
+                        {t('customerBehavior', 'Comportement Clients')}
+                    </h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">
+                        {t('behaviorSubtitle', 'Visualisation de l\'activité intraday et des habitudes d\'achat.')}
+                    </p>
+                </div>
+
+                {/* Behavior Insights Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 lg:p-8 rounded-xl md:rounded-[2rem] shadow-xl text-white flex flex-col justify-between relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full -mr-16 -mt-16"></div>
+                        <div>
+                            <div className="text-[9px] lg:text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2">{t('peakActivity', 'Heure de Pointe')}</div>
+                            <div className="text-3xl lg:text-4xl font-black">{behaviorData.peakHour}</div>
+                        </div>
+                        <div className="text-[10px] lg:text-xs font-bold opacity-70 mt-4">{t('basedOnRealTransactions', 'Basé sur vos transactions réelles.')}</div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 p-6 lg:p-7 rounded-xl md:rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl flex flex-col justify-center">
+                        <div className="text-slate-400 font-black text-[9px] lg:text-[10px] uppercase tracking-widest mb-2">{t('customerFlow', 'Flux Clients')}</div>
+                        <div className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white">{t(`flow${behaviorData.flow}`, behaviorData.flow)}</div>
+                        <div className="text-[10px] lg:text-xs text-green-500 mt-1 font-bold">{t('stableLastHours', 'Stable sur les dernières heures')}</div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 p-6 lg:p-7 rounded-xl md:rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-xl flex flex-col justify-center sm:col-span-2 lg:col-span-1">
+                        <div className="text-slate-400 font-black text-[9px] lg:text-[10px] uppercase tracking-widest mb-2">{t('averageBasket', 'Panier Moyen')}</div>
+                        <div className="text-2xl lg:text-3xl font-black text-slate-800 dark:text-white">{formatCurrency(behaviorData.panierMoyen)}</div>
+                        <div className="text-[10px] lg:text-xs text-slate-400 mt-1 font-bold">{t('avgSpendPerClient', 'Dépense moyenne par client')}</div>
+                    </div>
+                </div>
+
+                {/* Customer Traffic Area */}
+                <div className="bg-white dark:bg-slate-900 p-4 lg:p-8 rounded-xl md:rounded-[2.5rem] shadow-xl border border-slate-100 dark:border-slate-800 min-h-[350px] h-[40vh] lg:h-[400px] flex flex-col">
+                    <div className="mb-4 lg:mb-8 flex justify-between items-center">
+                        <div>
+                            <h3 className="text-lg lg:text-2xl font-black tracking-tighter uppercase leading-none mb-1">{t('activityByHour', 'Trafic Intraday')}</h3>
+                            <p className="text-slate-400 text-[10px] lg:text-sm font-medium">{t('heatmapDesc', 'Visualisation des pics de transactions par tranche horaire.')}</p>
+                        </div>
+                        <div className="text-[9px] lg:text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-900/40 px-3 lg:px-4 py-1.5 lg:py-2 rounded-full uppercase tracking-widest">
+                            {t('directUpdate', 'Mise à jour directe')}
+                        </div>
+                    </div>
+                    <div className="flex-1">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={behaviorData.heatmapData}>
+                                <defs>
+                                    <linearGradient id="colorTraffic" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.1} />
+                                <XAxis 
+                                    dataKey="heure" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{fill: '#94a3b8', fontSize: 10, fontWeight: 700}}
+                                />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '16px' }}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="Transactions" 
+                                    stroke="#6366f1" 
+                                    fillOpacity={1} 
+                                    fill="url(#colorTraffic)" 
+                                    strokeWidth={4}
+                                />
+                            </AreaChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
             </div>

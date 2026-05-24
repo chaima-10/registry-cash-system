@@ -1,6 +1,10 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+
+// Dynamically check if running inside Electron
+const isElectron = typeof window !== 'undefined' && (!!window.process?.versions?.electron || navigator.userAgent.toLowerCase().includes('electron'));
+const Router = isElectron ? HashRouter : BrowserRouter;
 import { Toaster } from 'react-hot-toast';
 
 // Lazy Load Components

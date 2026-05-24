@@ -8,6 +8,8 @@
         "dev:frontend": "cd frontend && npm run dev",
         "dev:backend": "cd backend && npm run dev",
         "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"wait-on http://localhost:5173 && npm start\"",
+        "build:frontend": "cd frontend && npm run build",
+        "package": "npm run build:frontend && electron-builder",
         "test": "cd backend && npm test"
     },
     "keywords": [],
@@ -16,11 +18,31 @@
     "devDependencies": {
         "concurrently": "^8.2.2",
         "electron": "^31.0.0",
+        "electron-builder": "^26.8.1",
         "wait-on": "^7.2.0"
     },
-    "dependencies": {
-        "@prisma/client": "^7.8.0",
-        "bcrypt": "^6.0.0",
-        "quagga": "^0.12.1"
+    "dependencies": {},
+    "build": {
+        "appId": "com.registry.cashsystem",
+        "productName": "RegistryCashSystem",
+        "directories": {
+            "output": "dist-desktop"
+        },
+        "files": [
+            "electron/**/*",
+            "frontend/dist/**/*",
+            "package.json"
+        ],
+        "win": {
+            "target": "nsis",
+            "icon": "electron/assets/icon.png"
+        },
+        "mac": {
+            "target": "dmg",
+            "icon": "electron/assets/icon.png"
+        },
+        "linux": {
+            "target": "AppImage"
+        }
     }
 }
