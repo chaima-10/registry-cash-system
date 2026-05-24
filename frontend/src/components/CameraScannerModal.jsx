@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
+import { Html5Qrcode } from 'html5-qrcode';
 import Quagga from 'quagga';
 import { FiX, FiCamera, FiUpload, FiRefreshCw, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
@@ -15,10 +15,8 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
     const [pendingCode, setPendingCode] = useState(null);
     const [detectedFormat, setDetectedFormat] = useState('');
     
-    const videoRef = useRef(null);
-    const codeReaderRef = useRef(null); 
+    const scannerRef = useRef(null); 
     const isScanningRef = useRef(false);
-    const streamRef = useRef(null);
 
     const isValidBarcode = (code) => {
         if (!/^\d{8,13}$/.test(code)) return false;
@@ -39,32 +37,27 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
         }
     }, []);
 
-    const stopScanner = useCallback(() => {
+    const stopScanner = useCallback(async () => {
         setIsScannerStarted(false);
         isScanningRef.current = false;
         
-        if (codeReaderRef.current) {
-            codeReaderRef.current.reset();
-            codeReaderRef.current = null; // Fix 1: nullify so a fresh reader is created on re-open
-        }
-
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
-
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
+        if (scannerRef.current) {
+            try {
+                await scannerRef.current.stop();
+            } catch (err) {
+                // Ignore stop errors
+            }
+            scannerRef.current.clear();
+            scannerRef.current = null;
         }
     }, []);
 
     const startScanner = async () => {
         try {
-            console.log("[Scanner] Starting Clean ZXing Pro Scanner...");
+            console.log("[Scanner] Starting Html5Qrcode...");
             setError(null);
             setSuccess(null);
 
-            // Fix 2: Secure context guard — getUserMedia is undefined on HTTP non-localhost
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 setError('Camera requires a secure connection (HTTPS or localhost).');
                 return;
@@ -73,72 +66,36 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
             isScanningRef.current = true;
             setIsScannerStarted(false);
 
-            // Fix 3: Allow OS to fully release camera from previous session
             await new Promise(resolve => setTimeout(resolve, 300));
 
-            // 1. Try High-Resolution Stream first, fallback to standard, then basic, then ANY camera
-            let stream;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "environment", width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 } }
-                });
-            } catch (highResError) {
-                console.warn("[Scanner] High-res failed, falling back to standard resolution...", highResError);
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-                    });
-                } catch (stdResError) {
-                    console.warn("[Scanner] Standard-res failed, falling back to basic environment...", stdResError);
-                    try {
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            video: { facingMode: "environment" }
-                        });
-                    } catch (envResError) {
-                        console.warn("[Scanner] Environment camera failed, falling back to ANY camera...", envResError);
-                        stream = await navigator.mediaDevices.getUserMedia({
-                            video: true
-                        });
+            if (!scannerRef.current) {
+                scannerRef.current = new Html5Qrcode("reader-container");
+            }
+
+            await scannerRef.current.start(
+                { facingMode: "environment" },
+                {
+                    fps: 10,
+                    // We don't set qrbox here so it scans the full feed and doesn't draw a default UI box,
+                    // allowing our custom CSS overlay to look perfect.
+                },
+                (decodedText, decodedResult) => {
+                    if (!isScanningRef.current) return;
+                    if (isValidBarcode(decodedText)) {
+                        console.log(`[Scanner] SUCCESS: ${decodedText}`);
+                        handleSuccess(decodedText, decodedResult?.result?.format?.formatName || "BARCODE");
                     }
+                },
+                (errorMessage) => {
+                    // Ignore decode errors; they fire constantly when no barcode is found
                 }
+            );
+
+            if (isScanningRef.current) {
+                setIsScannerStarted(true);
             }
-            
-            streamRef.current = stream;
-
-            // Fix 4: Guard — if component was unmounted or scanning cancelled while getUserMedia was pending
-            if (!isScanningRef.current || !videoRef.current) {
-                stream.getTracks().forEach(t => t.stop());
-                streamRef.current = null;
-                return;
-            }
-
-            // 2. Initialize ZXing Brain
-            if (!codeReaderRef.current) {
-                const hints = new Map();
-                hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E]);
-                hints.set(DecodeHintType.TRY_HARDER, true);
-                codeReaderRef.current = new BrowserMultiFormatReader(hints);
-            }
-
-            // 3. Show scanner UI only once video is actually playing (not before srcObject is set)
-            const onPlaying = () => setIsScannerStarted(true);
-            videoRef.current.addEventListener('playing', onPlaying, { once: true });
-
-            // 4. Start Continuous Decoding using the Stream directly
-            codeReaderRef.current.decodeFromStream(stream, videoRef.current, (result, err) => {
-                if (!isScanningRef.current) return;
-                
-                if (result) {
-                    const code = result.getText();
-                    if (isValidBarcode(code)) {
-                        console.log(`[Scanner] SUCCESS: ${code}`);
-                        handleSuccess(code, result.getBarcodeFormat().toString());
-                    }
-                }
-            });
-
         } catch (err) {
-            console.error("[Scanner] Start Failed completely:", err);
+            console.error("[Scanner] Start Failed:", err);
             setError(t('cameraAccessError', 'Could not access camera. Please check permissions and device connectivity.'));
         }
     };
@@ -182,7 +139,9 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
         if (isOpen && mode === 'camera') {
             startScanner();
         }
-        return () => stopScanner();
+        return () => {
+            stopScanner();
+        };
     }, [isOpen, mode]);
 
     if (!isOpen) return null;
@@ -224,7 +183,9 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                     {/* Mode Toggle */}
                     <div className="px-6 py-4 flex gap-2">
                         <button 
-                            onClick={() => setMode('camera')}
+                            onClick={() => {
+                                stopScanner().then(() => setMode('camera'));
+                            }}
                             className={`flex-1 py-3 rounded-2xl flex items-center justify-center gap-2 transition-all ${
                                 mode === 'camera' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
                             }`}
@@ -232,7 +193,9 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                             <FiCamera /> {t('camera', 'LIVE')}
                         </button>
                         <button 
-                            onClick={() => setMode('upload')}
+                            onClick={() => {
+                                stopScanner().then(() => setMode('upload'));
+                            }}
                             className={`flex-1 py-3 rounded-2xl flex items-center justify-center gap-2 transition-all ${
                                 mode === 'upload' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
                             }`}
@@ -246,13 +209,12 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
                         <div className="relative aspect-video bg-slate-950 rounded-3xl overflow-hidden group shadow-inner">
                             {mode === 'camera' ? (
                                 <>
-                                    <video 
-                                        ref={videoRef}
-                                        className="w-full h-full object-cover"
-                                        autoPlay
-                                        muted
-                                        playsInline
+                                    {/* Html5Qrcode injects the video here */}
+                                    <div 
+                                        id="reader-container" 
+                                        className="w-full h-full [&>video]:w-full [&>video]:h-full [&>video]:object-cover [&>canvas]:hidden"
                                     />
+                                    
                                     {/* Professional Overlay */}
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
                                         <div className="w-3/4 h-1/2 border-2 border-white/20 rounded-3xl relative overflow-hidden">
@@ -363,3 +325,4 @@ const CameraScannerModal = ({ isOpen, onClose, onScan }) => {
 };
 
 export default CameraScannerModal;
+
