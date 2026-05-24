@@ -55,8 +55,7 @@ const POS = () => {
 
     const handleBarcodeSubmit = async (e) => {
         if (e) e.preventDefault();
-        const scannedCode = barcodeInput.trim();
-        await processBarcodeScanned(scannedCode);
+        await processBarcodeScanned(searchTerm.trim());
     };
 
     const processBarcodeScanned = async (scannedCode) => {
@@ -65,6 +64,7 @@ const POS = () => {
 
         if (foundProduct) {
             await handleAddToCart(foundProduct);
+            setSearchTerm(''); // Clear search field after successful scan
         } else {
             toast.error(t('productNotFound', 'Product not found for barcode: ') + scannedCode);
         }
@@ -191,6 +191,7 @@ const POS = () => {
                                     className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 border-2 border-blue-100 dark:border-blue-900 focus:border-blue-500 rounded-xl outline-none transition-all text-gray-900 dark:text-white shadow-sm text-sm"
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleBarcodeSubmit(e); }}
                                     autoFocus
                                 />
                             </div>
