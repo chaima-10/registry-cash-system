@@ -9,6 +9,7 @@ import PaymentModal from '../components/PaymentModal';
 import Receipt from '../components/Receipt';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const POS = () => {
     const { t } = useTranslation();
@@ -48,7 +49,7 @@ const POS = () => {
             const updatedCart = await addToCart(product.id, 1);
             setCart(updatedCart);
         } catch (error) {
-            alert(error.response?.data?.message || t('failedAddToCart'));
+            toast.error(error.response?.data?.message || t('failedAddToCart'));
         }
     };
 
@@ -65,7 +66,7 @@ const POS = () => {
             await handleAddToCart(foundProduct);
             setSearchTerm(''); // Clear search field after successful scan
         } else {
-            alert(t('productNotFound', 'Product not found for barcode: ') + scannedCode);
+            toast.error(t('productNotFound', 'Product not found for barcode: ') + scannedCode);
         }
     };
 
@@ -79,7 +80,7 @@ const POS = () => {
             const updatedCart = await updateCartItem(itemId, newQuantity);
             setCart(updatedCart);
         } catch (error) {
-            alert(error.response?.data?.message || t('failedUpdateQuantity'));
+            toast.error(error.response?.data?.message || t('failedUpdateQuantity'));
         }
     };
 
@@ -95,7 +96,7 @@ const POS = () => {
             const updatedCart = await removeFromCart(itemId);
             setCart(updatedCart);
         } catch (error) {
-            alert(error.response?.data?.message || t('failedRemoveItem'));
+            toast.error(error.response?.data?.message || t('failedRemoveItem'));
         }
     };
 
@@ -105,14 +106,14 @@ const POS = () => {
                 await clearCart();
                 setCart({ items: [], totalAmount: 0 });
             } catch (error) {
-                alert(error.response?.data?.message || t('failedClearCart'));
+                toast.error(error.response?.data?.message || t('failedClearCart'));
             }
         }
     };
 
     const handleCheckout = () => {
         if (!cart.items || cart.items.length === 0) {
-            alert(t('cartIsEmpty'));
+            toast.error(t('cartIsEmpty'));
             return;
         }
         setShowPaymentModal(true);
@@ -121,7 +122,7 @@ const POS = () => {
     const handlePaymentConfirm = async (method, paymentData) => {
         try {
             const rate = (exchangeRates && exchangeRates[currency]) ? exchangeRates[currency] : 1;
-            const response = await processCheckout({
+            const checkoutPromise = processCheckout({
                 paymentMethod: method,
                 currency,
                 exchangeRate: rate,
@@ -129,12 +130,18 @@ const POS = () => {
                 changeAmount: paymentData.change,
                 voucherQR: paymentData.voucherQR
             });
+
+            const response = await toast.promise(checkoutPromise, {
+                loading: t('processingPayment', 'Traitement du paiement...'),
+                success: t('paymentSuccessful', 'Paiement réussi !'),
+                error: (err) => err.response?.data?.message || t('paymentFailed', 'Paiement échoué')
+            });
+
             setShowPaymentModal(false);
             setCompletedSale(response.sale);
-            alert(t('paymentSuccessful'));
             await fetchData();
         } catch (error) {
-            alert(error.response?.data?.message || t('paymentFailed'));
+            console.error("Checkout failed:", error);
         }
     };
 
@@ -266,8 +273,8 @@ const POS = () => {
             </div>
 
             {/* Cart Section */}
-            <div className={`w-full lg:w-[400px] bg-white dark:bg-gray-900 flex flex-col shadow-2xl z-10 border-l border-gray-200 dark:border-gray-800 transition-colors ${activeTab === 'products' ? 'hidden lg:flex' : 'flex'}`}>
-                <div className="p-4 lg:p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 backdrop-blur transition-colors flex items-center justify-between">
+            <div className={`w-full lg:w-[400px] bg-white dark:bg-gray-900 flex flex-col shadow-2xl z-10 border-l border-gray-200 dark:border-gray-800 transition-colors h-full ${activeTab === 'products' ? 'hidden lg:flex' : 'flex'}`}>
+                <div className="p-3 lg:p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/50 backdrop-blur transition-colors flex items-center justify-between">
                     <div>
                         <h2 className="text-lg lg:text-xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
                             <FiShoppingCart className="text-blue-600 dark:text-blue-400" /> {t('currentOrder')}
@@ -282,7 +289,7 @@ const POS = () => {
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-2 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-2 lg:p-3 space-y-2 custom-scrollbar">
                     {cart.items?.map(item => (
                         <div key={item.id} className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded-xl flex justify-between items-center border border-gray-100 dark:border-gray-700 transition-colors gap-2">
                             <div className="w-10 h-10 rounded-lg overflow-hidden bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center shrink-0">
@@ -362,31 +369,31 @@ const POS = () => {
                     )}
                 </div>
 
-                <div className="p-4 lg:p-6 bg-gray-50 dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 transition-colors">
-                    <div className="space-y-1 mb-4">
-                        <div className="flex justify-between items-center text-gray-500 dark:text-gray-400 font-medium text-[10px] lg:text-xs uppercase tracking-wider">
+                <div className="p-3 lg:p-4 bg-gray-50 dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 transition-colors">
+                    <div className="space-y-1 mb-3">
+                        <div className="flex justify-between items-center text-gray-500 dark:text-gray-400 font-medium text-[10px] uppercase tracking-wider">
                             <span>{t('subtotal')} (HT)</span>
                             <span>{formatCurrency(cart.items?.length > 0 ? Number(cart.subtotalHT || 0) : 0)}</span>
                         </div>
-                        <div className="flex justify-between items-center text-gray-500 dark:text-gray-400 font-medium text-[10px] lg:text-xs uppercase tracking-wider">
+                        <div className="flex justify-between items-center text-gray-500 dark:text-gray-400 font-medium text-[10px] uppercase tracking-wider">
                             <span>{t('TVA')}</span>
                             <span>{formatCurrency(cart.items?.length > 0 ? Number(cart.tvaAmount || 0) : 0)}</span>
                         </div>
                     </div>
-                    <div className="flex justify-between items-center mb-6 text-xl lg:text-2xl font-black text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-800 pt-4">
+                    <div className="flex justify-between items-center mb-4 text-lg lg:text-xl font-black text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-800 pt-3">
                         <span>{t('total')}</span>
                         <span>{formatCurrency(cart.items?.length > 0 ? Number(cart.totalAmount || 0) : 0)}</span>
                     </div>
 
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3 lg:gap-4">
+                    <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={handleClearCart}
-                                className="py-3 lg:py-4 rounded-xl bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600 dark:text-red-400 font-bold transition-all border border-gray-200 dark:border-gray-700 shadow-sm text-sm"
+                                className="py-2.5 rounded-xl bg-white dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600 dark:text-red-400 font-bold transition-all border border-gray-200 dark:border-gray-700 shadow-sm text-xs"
                             >
                                 {t('clear')}
                             </button>
-                            <button className="py-3 lg:py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all text-sm" onClick={handleCheckout}>
+                            <button className="py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold shadow-lg shadow-purple-500/20 hover:scale-[1.02] active:scale-95 transition-all text-xs" onClick={handleCheckout}>
                                 {t('payNow')}
                             </button>
                         </div>
@@ -394,9 +401,9 @@ const POS = () => {
                         {completedSale && (
                             <button
                                 onClick={handlePrintTicket}
-                                className="w-full py-3 lg:py-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg shadow-green-500/30 transition-all flex items-center justify-center gap-2 text-sm"
+                                className="w-full py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg shadow-green-500/30 transition-all flex items-center justify-center gap-2 text-xs"
                             >
-                                <FiPrinter size={18} />
+                                <FiPrinter size={16} />
                                 {t('printTicket')}
                             </button>
                         )}

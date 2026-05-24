@@ -7,7 +7,10 @@ import UserTable from '../components/UserTable';
 import EditUserModal from '../components/EditUserModal';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { FiActivity, FiDollarSign } from 'react-icons/fi';
+import { FiActivity, FiDollarSign, FiClock, FiFileText } from 'react-icons/fi';
+import SalaryHistoryModal from '../components/SalaryHistoryModal';
+import ShiftScheduleSelector from '../components/ShiftScheduleSelector';
+import toast from 'react-hot-toast';
 
 // Lazy load AttendanceTracker to isolate errors
 import React, { Suspense } from 'react';
@@ -44,7 +47,7 @@ class AttendanceBoundary extends Component {
 
 const Users = () => {
     const { t } = useTranslation();
-    const [formData, setFormData] = useState({ username: '', password: '', role: 'cashier', fullName: '', salary: '', workingDays: '' });
+    const [formData, setFormData] = useState({ username: '', password: '', role: 'cashier', fullName: '', salary: '', workingDays: '', shiftSchedule: '' });
     const [message, setMessage] = useState(null);
     const [users, setUsers] = useState([]);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -55,10 +58,12 @@ const Users = () => {
     const [isDistributing, setIsDistributing] = useState(false);
     const [salaryMonth, setSalaryMonth] = useState('');
     const [isDistributingSalary, setIsDistributingSalary] = useState(false);
+    const [isSalaryHistoryOpen, setIsSalaryHistoryOpen] = useState(false);
 
     const handleDistributePrime = async () => {
         if (!primeData.amount || isNaN(primeData.amount) || parseFloat(primeData.amount) <= 0) {
-            return alert(t('pleaseEnterValidAmount', 'Veuillez saisir un montant valide.'));
+            toast.error(t('pleaseEnterValidAmount', 'Veuillez saisir un montant valide.'));
+            return;
         }
         setIsDistributing(true);
         try {
@@ -67,12 +72,12 @@ const Users = () => {
                 reason: primeData.reason 
             });
             
-            alert(res.message);
+            toast.success(res.message);
             fetchUsers();
             setPrimeData({ amount: '', reason: '' });
         } catch (error) {
             const errorMsg = error.response?.data?.message || t('failedToDistributePrime', 'Échec de la distribution.');
-            alert(`Erreur: ${errorMsg}`);
+            toast.error(`Erreur: ${errorMsg}`);
             console.error("Distribution Error:", error);
         } finally {
             setIsDistributing(false);
@@ -83,12 +88,12 @@ const Users = () => {
         setIsDistributingSalary(true);
         try {
             const res = await distributeSalaries({ month: salaryMonth });
-            alert(res.message);
+            toast.success(res.message);
             fetchUsers();
             setSalaryMonth('');
         } catch (error) {
             const errorMsg = error.response?.data?.message || t('failedToDistributeSalary', 'Échec de la distribution des salaires.');
-            alert(`Erreur: ${errorMsg}`);
+            toast.error(`Erreur: ${errorMsg}`);
             console.error("Salary Distribution Error:", error);
         } finally {
             setIsDistributingSalary(false);
@@ -118,7 +123,7 @@ const Users = () => {
         try {
             await register(formData);
             setMessage({ type: 'success', text: t('userRegisteredSuccess') });
-            setFormData({ username: '', password: '', role: 'cashier', fullName: '', salary: '', workingDays: '' });
+            setFormData({ username: '', password: '', role: 'cashier', fullName: '', salary: '', workingDays: '', shiftSchedule: '' });
             fetchUsers(); 
         } catch (error) {
             setMessage({ type: 'error', text: error.response?.data?.message || t('registrationFailed') });
@@ -206,8 +211,16 @@ const Users = () => {
                             <div className="relative">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 font-black text-[10px]">TND</span>
                                 <input required type="number" step="0.001" className="w-full pl-12 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-all font-black text-sm"
-                                    value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} />
+                                    value={formData.salary} onChange={e => setFormData({ ...formData, salary: e.target.value })} onWheel={(e) => e.target.blur()} />
                             </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 ml-1 mb-2">{t('workingSchedule', 'Working Schedule')}</label>
+                            <ShiftScheduleSelector 
+                                value={formData.shiftSchedule}
+                                onChange={(val) => setFormData({ ...formData, shiftSchedule: val })}
+                            />
                         </div>
 
                         <div className="space-y-1.5">
@@ -313,13 +326,21 @@ const Users = () => {
 
                     {/* Salary Distribution */}
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl lg:rounded-[2.5rem] p-6 lg:p-8 shadow-sm transition-colors">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400">
-                                <FiDollarSign size={24} />
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600 dark:text-emerald-400">
+                                    <FiDollarSign size={24} />
+                                </div>
+                                <h3 className="text-lg lg:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
+                                    {t('salaryDistribution', 'Salary Distribution')}
+                                </h3>
                             </div>
-                            <h3 className="text-lg lg:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
-                                {t('salaryDistribution', 'Salary Distribution')}
-                            </h3>
+                            <button 
+                                onClick={() => setIsSalaryHistoryOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors border border-emerald-100 dark:border-emerald-500/20"
+                            >
+                                <FiFileText /> Fiche de Paie
+                            </button>
                         </div>
 
                         <div className="space-y-6">
@@ -337,7 +358,7 @@ const Users = () => {
                             <div className="p-4 bg-emerald-50/50 dark:bg-emerald-500/5 rounded-2xl border border-emerald-100 dark:border-emerald-500/10">
                                 <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-2">
                                     <FiDollarSign size={14} />
-                                    {t('salaryNote', 'Chaque employé recevra son salaire journalier défini dans son profil.')}
+                                    {t('salaryNote', 'Chaque employé recevra son salaire net mensuel basé sur sa présence (Salaire Journalier × Jours Travaillés).')}
                                 </p>
                             </div>
 
@@ -369,6 +390,11 @@ const Users = () => {
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
                 onUpdate={handleUpdate}
+            />
+
+            <SalaryHistoryModal
+                isOpen={isSalaryHistoryOpen}
+                onClose={() => setIsSalaryHistoryOpen(false)}
             />
         </div>
     );

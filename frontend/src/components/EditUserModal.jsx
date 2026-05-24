@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { FiX, FiSave, FiInfo } from 'react-icons/fi';
 import { useTranslation } from 'react-i18next';
+import ShiftScheduleSelector from './ShiftScheduleSelector';
 
 const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
     const { t } = useTranslation();
     const [formData, setFormData] = useState({
         fullName: '',
         salary: '',
-        workingDays: ''
+        workingDays: '',
+        shiftSchedule: ''
     });
 
     useEffect(() => {
@@ -15,7 +17,8 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
             setFormData({
                 fullName: user.fullName || '',
                 salary: user.salary || '',
-                workingDays: user.workingDays || ''
+                workingDays: user.workingDays || '',
+                shiftSchedule: user.shiftSchedule || ''
             });
         }
     }, [user]);
@@ -67,10 +70,19 @@ const EditUserModal = ({ user, isOpen, onClose, onUpdate }) => {
                                 placeholder="0.00"
                                 value={formData.salary}
                                 onChange={handleChange}
+                                onWheel={(e) => e.target.blur()}
                                 className="w-full px-5 py-4 bg-gray-50/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white outline-none focus:border-blue-500 dark:focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/5 transition-all font-medium pr-14"
                             />
                             <div className="absolute right-5 top-1/2 -translate-y-1/2 text-xs font-black text-blue-500/50 dark:text-blue-400/30">TND</div>
                         </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="block text-[11px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 ml-1">{t('workingSchedule', 'Working Schedule')}</label>
+                        <ShiftScheduleSelector 
+                            value={formData.shiftSchedule}
+                            onChange={(val) => setFormData(prev => ({ ...prev, shiftSchedule: val }))}
+                        />
                     </div>
 
                     <div className="flex gap-4 mt-12">

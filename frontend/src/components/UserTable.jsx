@@ -89,8 +89,13 @@ const UserTable = ({ users, title, onEdit, onDelete }) => {
                                                     </div>
                                                 );
                                             })()}
-                                            <span className="text-[9px] text-gray-400 uppercase font-black tracking-tighter opacity-70 mt-0.5">
-                                                {new Date().toLocaleString('default', { month: 'long' })}
+                                            <span className="text-[9px] text-gray-400 uppercase font-black tracking-tighter opacity-70 mt-0.5 flex items-center gap-2">
+                                                {new Date().toLocaleString('default', { month: 'short' })}
+                                                {user.isPaid && (
+                                                    <span className="text-[8px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-md shadow-lg shadow-emerald-500/20">
+                                                        PAID
+                                                    </span>
+                                                )}
                                             </span>
                                         </div>
                                     </td>
@@ -179,9 +184,16 @@ const UserTable = ({ users, title, onEdit, onDelete }) => {
                                             <span className="text-xs font-black text-red-600 dark:text-red-400">{user.absences || 0}d</span>
                                         </div>
                                     </div>
-                                    <span className="text-[9px] text-gray-400 uppercase font-black tracking-tighter opacity-70">
-                                        {new Date().toLocaleString('default', { month: 'long' })}
-                                    </span>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span className="text-[9px] text-gray-400 uppercase font-black tracking-tighter opacity-70">
+                                            {new Date().toLocaleString('default', { month: 'short' })}
+                                        </span>
+                                        {user.isPaid && (
+                                            <span className="text-[8px] font-black uppercase bg-emerald-500 text-white px-1.5 py-0.5 rounded-md shadow-lg shadow-emerald-500/20">
+                                                PAID
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             </motion.div>
                         );

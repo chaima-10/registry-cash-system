@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { FiUser, FiMail, FiPhone, FiCalendar, FiClock, FiShield, FiLock, FiEdit2, FiActivity, FiX, FiXCircle, FiSend, FiCamera, FiPlay, FiSquare, FiCheckCircle } from 'react-icons/fi';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { updateProfile, changePassword, getProfile } from '../api/auth';
 import { calculateNetSalary } from '../utils/salaryCalculator';
 import api from '../api/axios';
@@ -57,10 +58,10 @@ const ProfilePage = () => {
             setImageFile(null);
             setImagePreview(null);
             setRemoveProfilePicture(false);
-            alert(res.message || t('profileUpdatedSuccess'));
+            toast.success(res.message || t('profileUpdatedSuccess'));
         } catch (error) {
             const errorMsg = error.response?.data?.errors?.join('\n') || error.response?.data?.message || t('failedToUpdateProfile');
-            alert(errorMsg);
+            toast.error(errorMsg);
         }
     };
 
@@ -86,7 +87,8 @@ const ProfilePage = () => {
     const handlePasswordSubmit = async (e) => {
         e.preventDefault();
         if (passwordFormData.newPassword !== passwordFormData.confirmPassword) {
-            return alert(t('passwordsDoNotMatch'));
+            toast.error(t('passwordsDoNotMatch'));
+            return;
         }
         try {
             await changePassword({
@@ -95,9 +97,9 @@ const ProfilePage = () => {
             });
             setIsPasswordModalOpen(false);
             setPasswordFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-            alert(t('passwordChangedSuccess'));
+            toast.success(t('passwordChangedSuccess'));
         } catch (error) {
-            alert(error.response?.data?.message || t('failedToChangePassword'));
+            toast.error(error.response?.data?.message || t('failedToChangePassword'));
         }
     };
 
@@ -132,9 +134,9 @@ const ProfilePage = () => {
             setAttendanceLoading(true);
             const response = await api.post('/attendance/clock-in');
             setTodayAttendance(response.data);
-            alert(t('clockInSuccess', 'Pointage d\'entrée réussi !'));
+            toast.success(t('clockInSuccess', 'Pointage d\'entrée réussi !'));
         } catch (error) {
-            alert(error.response?.data?.message || t('clockInError', 'Erreur lors du pointage d\'entrée.'));
+            toast.error(error.response?.data?.message || t('clockInError', 'Erreur lors du pointage d\'entrée.'));
         } finally {
             setAttendanceLoading(false);
         }
@@ -146,9 +148,9 @@ const ProfilePage = () => {
             setAttendanceLoading(true);
             const response = await api.post('/attendance/clock-out');
             setTodayAttendance(response.data);
-            alert(t('clockOutSuccess', 'Pointage de sortie réussi !'));
+            toast.success(t('clockOutSuccess', 'Pointage de sortie réussi !'));
         } catch (error) {
-            alert(error.response?.data?.message || t('clockOutError', 'Erreur lors du pointage de sortie.'));
+            toast.error(error.response?.data?.message || t('clockOutError', 'Erreur lors du pointage de sortie.'));
         } finally {
             setAttendanceLoading(false);
         }
@@ -349,6 +351,9 @@ const ProfilePage = () => {
                                 )}
                             </div>
                         </div>
+
+
+
                     </div>
 
                     
@@ -408,27 +413,69 @@ const ProfilePage = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 block mb-2">{t('monthlySalary')}</label>
-                                        <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
-                                            <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white text-xl">
-                                                💰
-                                            </div>
-                                            <span className="text-gray-900 dark:text-white font-black text-2xl">
-                                                {formatCurrency(user?.stats?.monthlySalary || 0, null, false)}
-                                            </span>
-                                        </div>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 block mb-2">{t('netSalaryThisMonth', 'Net Salary This Month')}</label>
+                                        {(() => {
+                                            const salaryData = calculateNetSalary(
+                                                user?.stats?.monthlySalary,
+                                                user?.stats?.absences,
+                                                user?.workingDays,
+                                                user?.stats?.workedDays
+                                            );
+                                            return (
+                                                <div className="flex flex-col gap-3">
+                                                    <div className="flex items-center gap-3 bg-green-50 dark:bg-green-500/10 p-4 rounded-2xl border border-green-100 dark:border-green-500/20">
+                                                        <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center text-white text-xl shadow-lg shadow-green-500/20">
+                                                            💰
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className="text-gray-900 dark:text-white font-black text-2xl leading-none">
+                                                                {formatCurrency(salaryData.netSalary, null, false)}
+                                                            </div>
+                                                            <div className="text-[9px] font-bold text-green-600 uppercase tracking-widest mt-1">Calculated Net</div>
+                                                        </div>
+                                                        <FiLock className="text-gray-400" size={14} title="Auto-calculated" />
+                                                    </div>
+                                                    <div className="text-[10px] font-bold text-gray-500 dark:text-gray-400 space-y-2 px-1">
+                                                        <div className="flex justify-between border-b border-gray-50 dark:border-gray-800/50 pb-1.5">
+                                                            <span>{t('expectedMonthlySalary', 'Base Salary')}:</span>
+                                                            <span className="text-gray-400 line-through">{formatCurrency(salaryData.expectedMonthlySalary, null, false)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between border-b border-gray-50 dark:border-gray-800/50 pb-1.5">
+                                                            <span>{t('dailySalary', 'Rate Per Day')}:</span>
+                                                            <span className="text-gray-700 dark:text-gray-200">{formatCurrency(salaryData.dailySalary, null, false)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>{t('workedDays')}:</span>
+                                                            <span className="text-blue-600 dark:text-blue-400">{user?.stats?.workedDays || 0} {t('days')}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </>
                                 )}
                             </div>
 
-                            {user?.role === 'cashier' && (
+                            {user?.shiftSchedule && (
                                 <div>
                                     <label className="text-sm text-gray-500 dark:text-gray-400 block mb-1">{t('shiftSchedule')}</label>
                                     <div className="flex items-center gap-3 text-gray-900 dark:text-white font-medium">
                                         <div className="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500">
                                             <FiClock />
                                         </div>
-                                        {user.shiftSchedule || t('notSpecified', 'Non spécifié')}
+                                        {(() => {
+                                            if (!user.shiftSchedule) return t('notSpecified', 'Non spécifié');
+                                            try {
+                                                const parsed = typeof user.shiftSchedule === 'string' ? JSON.parse(user.shiftSchedule) : user.shiftSchedule;
+                                                const daysArr = parsed.shiftWorkingDays ? parsed.shiftWorkingDays.split(',') : [];
+                                                const daysDisplay = daysArr.length === 7 ? 'All days' :
+                                                    daysArr.length === 5 && !parsed.shiftWorkingDays.includes('Sat') && !parsed.shiftWorkingDays.includes('Sun') ? 'Mon to Fri' :
+                                                    parsed.shiftWorkingDays;
+                                                return `${parsed.shiftType || ''} — ${daysDisplay} / ${parsed.shiftStartTime || ''} to ${parsed.shiftEndTime || ''}`;
+                                            } catch (e) {
+                                                return user.shiftSchedule;
+                                            }
+                                        })()}
                                         <FiLock className="text-gray-400 ml-auto" size={14} title="Editable by admin only" />
                                     </div>
                                 </div>
@@ -479,8 +526,8 @@ const ProfilePage = () => {
                             </div>
                         </div>
 
-                        {/* Primes Received Section (Cashiers Only) */}
-                        {user?.role === 'cashier' && (
+                        {/* Primes Received Section (All roles) */}
+                        {user?.stats?.lastPrime !== undefined && (
                             <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
                                 <h4 className="text-sm font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-6 flex items-center gap-2">
                                     <FiActivity size={14} /> {t('primesReceived')}
@@ -509,7 +556,7 @@ const ProfilePage = () => {
                         )}
 
                         {/* Charts Section */}
-                        {user?.role === 'cashier' && user?.stats?.dailySalesTrend && (
+                        {user?.stats?.dailySalesTrend && (
                             <div className="mt-10 pt-8 border-t border-gray-100 dark:border-gray-800">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                     {/* Daily Revenue Trend */}

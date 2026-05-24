@@ -185,13 +185,22 @@ const AIMarketing = () => {
 
             const response = await api.post('/ai/chat', { messages: apiMessages, systemContext });
             let reply = response.data.reply;
+            const provider = response.data.provider || 'AI';
             
-            // If backend returned a known error code, show localized friendly message
-            if (reply.includes('ERROR_AI:') || reply.includes('QUOTA_EXCEEDED')) {
-                reply = t('aiErrorQuota', 'Quota d\'intelligence artificielle épuisé pour aujourd\'hui. Veuillez réessayer demain.');
+            // Handle specific AI error codes from backend
+            if (reply.includes('ERROR_AI:')) {
+                if (reply.includes('QUOTA_EXCEEDED')) {
+                    reply = t('aiErrorQuota', 'Quota d\'intelligence artificielle épuisé pour aujourd\'hui. Veuillez réessayer demain.');
+                } else if (reply.includes('AUTH_LEAKED') || reply.includes('AUTH_ERROR')) {
+                    reply = t('aiErrorAuth', 'Erreur d\'authentification IA : La clé API est invalide ou désactivée. Contactez l\'administrateur.');
+                } else if (reply.includes('SAFETY_BLOCK')) {
+                    reply = t('aiErrorSafety', 'Désolé, cette requête a été bloquée pour des raisons de sécurité par l\'IA.');
+                } else {
+                    reply = t('aiErrorGeneral', 'Désolé, j\'ai rencontré une erreur technique. Veuillez réessayer plus tard.');
+                }
             }
             
-            setChatMessages(prev => [...prev, { role: 'ai', content: reply }]);
+            setChatMessages(prev => [...prev, { role: 'ai', content: reply, provider }]);
         } catch (error) {
             setChatMessages(prev => [...prev, { role: 'ai', content: t('aiErrorQuota') }]);
         } finally {
@@ -202,42 +211,151 @@ const AIMarketing = () => {
     const handleDownloadPoster = async () => {
         if (!posterRef.current) return;
         setIsDownloading(true);
+        setDownloadError(false);
+        
         try {
-            // Preload all images before capturing
+            console.log("Starting pixel-perfect poster capture...");
+            
+            // 1. ASSET PRE-LOADING
+            // Ensure all images in the poster are fully loaded
             const images = posterRef.current.querySelectorAll('img');
             const imagePromises = Array.from(images).map(img => {
                 if (img.complete) return Promise.resolve();
-                return new Promise((resolve, reject) => {
+                return new Promise(resolve => {
                     img.onload = resolve;
-                    img.onerror = resolve; // Continue even if image fails
-                    setTimeout(resolve, 3000); // Timeout after 3s
+                    img.onerror = resolve; // Continue anyway to avoid hanging
                 });
             });
-            await Promise.all(imagePromises);
+            
+            // Ensure fonts are loaded for clear text
+            const fontPromise = document.fonts ? document.fonts.ready : Promise.resolve();
+            
+            await Promise.all([...imagePromises, fontPromise]);
+            // Buffer to allow final browser layout/paint
+            await new Promise(resolve => setTimeout(resolve, 800));
 
+            // 2. CAPTURE CONFIGURATION
             const canvas = await html2canvas(posterRef.current, {
                 useCORS: true,
-                allowTaint: true,
-                scale: 2,
-                logging: true,
+                allowTaint: false,
+                scale: 3, // High resolution for professional output
+                logging: false,
                 backgroundColor: '#ffffff',
                 imageTimeout: 30000,
+                // Force a consistent window width for layout calculation
+                windowWidth: 1400,
                 onclone: (clonedDoc) => {
-                    const clonedImages = clonedDoc.querySelectorAll('img');
-                    clonedImages.forEach(img => {
-                        img.crossOrigin = 'anonymous';
-                    });
+                    const clonedEl = clonedDoc.getElementById('marketing-poster-capture');
+                    if (!clonedEl) return;
+
+                    // A. FORCE OPTIMAL EXPORT LAYOUT
+                    // We force desktop proportions (row layout) for the poster export
+                    clonedEl.style.display = 'flex';
+                    clonedEl.style.flexDirection = 'row';
+                    clonedEl.style.width = '1400px';
+                    clonedEl.style.height = 'auto'; // Auto-fit height to content
+                    clonedEl.style.minHeight = '800px';
+                    clonedEl.style.position = 'relative';
+                    clonedEl.style.overflow = 'visible';
+
+                    // B. ROBUST STYLE BAKING (The layout fix)
+                    // We must capture all layout-critical properties because we remove external CSS
+                    const camelize = (str) => str.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+                    
+                    const colorToRgba = (color) => {
+                        if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') return color;
+                        try {
+                            const cvs = document.createElement('canvas');
+                            cvs.width = 1; cvs.height = 1;
+                            const ctx = cvs.getContext('2d');
+                            ctx.fillStyle = color;
+                            ctx.fillRect(0, 0, 1, 1);
+                            const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+                            return `rgba(${r}, ${g}, ${b}, ${a/255})`;
+                        } catch (e) { return color; }
+                    };
+
+                    const criticalProps = [
+                        'display', 'flex-direction', 'flex-wrap', 'flex-grow', 'flex-shrink', 'flex-basis',
+                        'justify-content', 'align-items', 'gap', 'column-gap', 'row-gap',
+                        'position', 'top', 'right', 'bottom', 'left', 'z-index',
+                        'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+                        'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+                        'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+                        'box-sizing', 'overflow', 'visibility', 'opacity',
+                        'background-color', 'color', 'border-radius', 
+                        'border-width', 'border-style', 'border-color',
+                        'font-size', 'font-weight', 'font-family', 'line-height', 
+                        'text-align', 'text-transform', 'letter-spacing',
+                        'box-shadow', 'object-fit', 'object-position', 'clip-path'
+                    ];
+
+                    const bakeStyles = (source, target) => {
+                        const computed = window.getComputedStyle(source);
+                        
+                        criticalProps.forEach(prop => {
+                            const value = computed.getPropertyValue(prop);
+                            const camelProp = camelize(prop);
+                            
+                            // Convert colors to safe RGBA
+                            if (prop.includes('color')) {
+                                target.style[camelProp] = colorToRgba(value);
+                            } 
+                            // Sanitize shadows to prevent OKLCH crashes
+                            else if (prop === 'box-shadow' && value.includes('oklch')) {
+                                target.style.boxShadow = '0 15px 40px rgba(0,0,0,0.15)';
+                            }
+                            else if (value && value !== 'none' && value !== 'normal') {
+                                target.style[camelProp] = value;
+                            }
+                        });
+
+                        // Ensure images are cross-origin ready and fit correctly
+                        if (source.tagName === 'IMG') {
+                            target.crossOrigin = "anonymous";
+                            target.style.objectFit = computed.objectFit || 'contain';
+                        }
+
+                        // Recursively bake children
+                        for (let i = 0; i < source.children.length; i++) {
+                            if (target.children[i]) {
+                                bakeStyles(source.children[i], target.children[i]);
+                            }
+                        }
+                    };
+
+                    bakeStyles(posterRef.current, clonedEl);
+
+                    // C. FINAL ISOLATION
+                    // Remove all external stylesheets to prevent rendering engine crashes
+                    const styles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
+                    styles.forEach(s => s.remove());
+                    
+                    // Inject a minimal reset for the capture context
+                    const reset = clonedDoc.createElement('style');
+                    reset.innerHTML = `
+                        * { box-sizing: border-box !important; -webkit-print-color-adjust: exact; }
+                        img { display: block !important; max-width: 100% !important; height: auto !important; }
+                        #marketing-poster-capture { height: auto !important; min-height: 800px !important; }
+                    `;
+                    clonedDoc.head.appendChild(reset);
                 }
             });
-            const imgData = canvas.toDataURL('image/png');
+
+            // 3. GENERATE AND DOWNLOAD
+            const imgData = canvas.toDataURL('image/png', 1.0);
             const link = document.createElement('a');
             link.href = imgData;
-            link.download = `marketing-${selectedPoster?.title || 'promo'}.png`;
+            link.download = `marketing-${selectedPoster?.title?.replace(/\s+/g, '-') || 'promo'}.png`;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
+            
+            console.log("Poster exported successfully.");
         } catch (error) {
-            console.error("Download failed:", error);
+            console.error("Poster download failed:", error);
             setDownloadError(true);
-            setTimeout(() => setDownloadError(false), 3000);
+            setTimeout(() => setDownloadError(false), 5000);
         } finally {
             setIsDownloading(false);
         }
@@ -396,6 +514,12 @@ const AIMarketing = () => {
                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[85%] px-6 py-4 rounded-[2rem] ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-sm'}`}>
                                 <p className="text-sm font-medium">{msg.content}</p>
+                                {msg.role === 'ai' && msg.provider && (
+                                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/50 flex items-center gap-1.5 opacity-50">
+                                        <FiZap className="text-[10px]" />
+                                        <span className="text-[10px] font-bold tracking-wider uppercase">{msg.provider}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -448,87 +572,138 @@ const AIMarketing = () => {
             <AnimatePresence>
                 {selectedPoster && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-20 bg-slate-950/90 backdrop-blur-3xl">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-7xl h-[90vh] md:h-[80vh] bg-white dark:bg-slate-950 rounded-[3rem] md:rounded-[5rem] overflow-hidden flex flex-col md:flex-row shadow-2xl">
-                            {/* Back Button - Top Left */}
-                            <button 
-                                onClick={handleBackToSuggestions}
-                                className="absolute top-4 left-4 md:top-8 md:left-8 z-50 flex items-center gap-2 px-4 py-2 md:px-6 md:py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white font-semibold text-sm transition-all hover:scale-105"
-                                aria-label={t('back')}
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-7xl h-[90vh] md:h-[80vh] bg-white dark:bg-slate-950 rounded-[3rem] md:rounded-[5rem] overflow-hidden flex flex-col shadow-2xl">
+                            {/* Control Buttons (Excluded from Poster) */}
+                            <div className="absolute top-4 left-4 md:top-8 md:left-8 z-50 flex items-center gap-2">
+                                <button 
+                                    onClick={handleBackToSuggestions}
+                                    className="flex items-center gap-2 px-4 py-2 md:px-6 md:py-3 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white font-semibold text-sm transition-all hover:scale-105"
+                                    aria-label={t('back')}
+                                >
+                                    <FiArrowLeft size={18} />
+                                    <span className="hidden sm:inline">{t('back')}</span>
+                                </button>
+                            </div>
+                            
+                            <div className="absolute top-4 right-4 md:top-8 md:right-8 z-50 flex items-center gap-2">
+                                <button 
+                                    onClick={() => setSelectedPoster(null)} 
+                                    className="w-10 h-10 md:w-14 md:h-14 bg-white/10 hover:bg-red-500/20 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-colors" 
+                                    aria-label={t('close') || 'Close'}
+                                >
+                                    <FiTrash2 size={20} />
+                                </button>
+                            </div>
+                            
+                            <div 
+                                id="marketing-poster-capture"
+                                ref={posterRef} 
+                                className="flex-1 flex flex-col md:flex-row overflow-hidden" 
+                                style={{ backgroundColor: '#ffffff', minHeight: '600px' }}
                             >
-                                <FiArrowLeft size={18} />
-                                <span className="hidden sm:inline">{t('back')}</span>
-                            </button>
-                            
-                            {/* FIX 2: Missing i18n keys with fallbacks */}
-                            <button onClick={() => setSelectedPoster(null)} className="absolute top-4 right-4 md:top-12 md:right-12 z-50 w-10 h-10 md:w-16 md:h-16 bg-white/10 hover:bg-red-500/20 rounded-full flex items-center justify-center text-white transition-colors" aria-label={t('close') || 'Close'}><FiTrash2 size={20} /></button>
-                            
-                            <div ref={posterRef} className="w-full md:w-[55%] p-8 md:p-20 flex flex-col justify-between text-white overflow-y-auto" style={{ backgroundColor: selectedPoster.theme || '#2563eb' }}>
-                                <div>
-                                    <div className="inline-flex items-center gap-2 md:gap-4 px-4 md:px-8 py-2 md:py-3 bg-white/10 rounded-full mb-6 md:mb-12 border border-white/20">
-                                        <span className="text-2xl md:text-3xl">{selectedPoster.emoji}</span>
-                                        <span className="text-[10px] md:text-xs font-black uppercase tracking-widest">{selectedPoster.timing}</span>
+                                {/* Left Side: Branding & Main Offer */}
+                                <div className="w-[60%] p-12 md:p-16 flex flex-col justify-between" style={{ backgroundColor: selectedPoster.theme || '#2563eb', color: '#ffffff', position: 'relative' }}>
+                                    <div style={{ position: 'absolute', top: 0, right: 0, width: '100%', height: '100%', backgroundColor: 'rgba(255, 255, 255, 0.03)', clipPath: 'circle(40% at 90% 10%)' }}></div>
+                                    
+                                    <div style={{ position: 'relative', zIndex: 10 }}>
+                                        <div className="inline-flex items-center gap-3 px-6 py-2 rounded-full mb-8 border" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', borderColor: 'rgba(255, 255, 255, 0.2)' }}>
+                                            <span className="text-xl">{selectedPoster.emoji}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest">{selectedPoster.timing}</span>
+                                        </div>
+                                        <h2 className="text-6xl md:text-8xl font-black uppercase tracking-tight leading-[0.9] mb-8">
+                                            {(selectedPoster.title || '').split(' ').map((w, i) => (
+                                                <span key={i} className="block first:opacity-100 last:opacity-50">{w}</span>
+                                            ))}
+                                        </h2>
+                                        <div style={{ width: '50px', height: '4px', backgroundColor: '#ffffff', marginBottom: '24px', opacity: 0.5 }}></div>
+                                        <p className="text-xl md:text-3xl font-bold opacity-90 max-w-sm leading-tight">{selectedPoster.description}</p>
                                     </div>
-                                    <h2 className="text-4xl md:text-8xl font-black uppercase tracking-tighter leading-[0.8] mb-6 md:mb-10 overflow-hidden">
-                                        {(selectedPoster.title || '').split(' ').map((w, i) => <span key={i} className="block last:opacity-70">{w}</span>)}
-                                    </h2>
-                                    <p className="text-lg md:text-3xl font-bold opacity-90 border-l-4 md:border-l-8 border-white pl-4 md:pl-8">{selectedPoster.description}</p>
+
+                                    <div className="flex items-center gap-4 mt-8" style={{ position: 'relative', zIndex: 10 }}>
+                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg" style={{ backgroundColor: '#ffffff', color: selectedPoster.theme || '#2563eb' }}>
+                                            <FiShoppingBag size={20} />
+                                        </div>
+                                        <div>
+                                            <span className="block font-black text-sm uppercase tracking-tight">Registry Cash</span>
+                                            <span className="block text-[9px] opacity-50 font-mono">EST. 2026</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="mt-6 md:mt-0 bg-black/20 p-4 md:p-8 rounded-[2rem] md:rounded-[3rem] flex justify-between items-center">
-                                    <div className="flex items-center gap-3 md:gap-5">
-                                        <div className="w-10 h-10 md:w-14 md:h-14 bg-white rounded-xl flex items-center justify-center text-slate-900"><FiShoppingBag size={20} /></div>
-                                        <span className="font-black text-sm md:text-base">Registry Cash</span>
+
+                                {/* Right Side: Product Gallery */}
+                                <div className="w-[40%] p-8 md:p-12 flex flex-col" style={{ backgroundColor: '#ffffff', color: '#1a1a1a', minHeight: '100%' }}>
+                                    <div>
+                                        <div className="flex justify-between items-center mb-10">
+                                            <div>
+                                                <h3 className="text-[10px] font-black uppercase tracking-widest opacity-30 mb-1">{t('featuredProducts')}</h3>
+                                                <span className="text-xs font-bold" style={{ color: selectedPoster.theme || '#2563eb' }}>{selectedPoster.products?.length || 0} ITEMS</span>
+                                            </div>
+                                            <div className="px-4 py-2 text-white font-black text-3xl rounded-xl shadow-lg" style={{ backgroundColor: '#e11d48' }}>
+                                                -{selectedPoster.discountPercent}%
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-5">
+                                            {selectedPoster.products?.map((pName, i) => {
+                                                const prod = getProductByName(pName);
+                                                return (
+                                                    <div key={i} className="flex gap-4 items-center p-3 rounded-2xl" style={{ backgroundColor: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                                        <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: '#ffffff' }}>
+                                                           {prod?.imageUrl ? (
+                                                               <img 
+                                                                    crossOrigin="anonymous" 
+                                                                    src={prod.imageUrl.startsWith('http') 
+                                                                        ? `${API_URL}/api/proxy/image?url=${encodeURIComponent(prod.imageUrl)}&t=${new Date().getTime()}` 
+                                                                        : `${API_URL}${prod.imageUrl}?t=${new Date().getTime()}`} 
+                                                                    className="max-w-[80%] max-h-[80%] object-contain" 
+                                                                    alt={pName}
+                                                                />
+                                                            ) : (
+                                                                <FiShoppingBag className="opacity-10" />
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-black text-[11px] uppercase truncate opacity-80">{pName}</h4>
+                                                            <div className="flex items-baseline gap-2">
+                                                                <span className="font-black text-lg" style={{ color: selectedPoster.theme || '#2563eb' }}>
+                                                                    {formatCurrency(prod?.price * (1 - selectedPoster.discountPercent/100))}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                    <span className="font-mono text-[10px] md:text-xs opacity-50 uppercase">RCS-IA-2026</span>
+
+                                    <div className="mt-8 pt-6 border-t border-slate-100 flex justify-between items-center opacity-30">
+                                        <span className="text-[9px] font-black uppercase">PROMOTIONAL ASSET</span>
+                                        <span className="text-[9px] font-mono">ID: {Math.random().toString(36).substring(7).toUpperCase()}</span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div className="w-full md:w-[45%] p-6 md:p-16 flex flex-col justify-between bg-white dark:bg-slate-900 overflow-y-auto">
-                                <div>
-                                    <div className="flex justify-between items-end mb-6 md:mb-10 text-slate-800 dark:text-white">
-                                        <div>
-                                            <h3 className="text-[10px] font-black uppercase opacity-40 mb-2">{t('featuredProducts')}</h3>
-                                            <span className="px-3 md:px-4 py-1 md:py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-[10px] md:text-xs font-black">{selectedPoster.products?.length || 0} {t('items')}</span>
-                                        </div>
-                                        <div className="px-4 md:px-8 py-2 md:py-3 bg-blue-600 text-white font-black text-2xl md:text-4xl rounded-2xl md:rounded-3xl">-{selectedPoster.discountPercent}%</div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3 md:gap-4">
-                                        {selectedPoster.products?.map((pName, i) => {
-                                            const prod = getProductByName(pName);
-                                            return (
-                                                <div key={i} className="bg-slate-50 dark:bg-slate-800 p-3 md:p-4 rounded-[1.5rem] md:rounded-[2.5rem]">
-                                                    <div className="aspect-square bg-white rounded-2xl overflow-hidden mb-2 md:mb-3">
-                                                       {prod?.imageUrl && (
-                                                           <img 
-                                                                crossOrigin="anonymous" 
-                                                                src={prod.imageUrl.startsWith('http') 
-                                                                    ? `${API_URL}/api/proxy/image?url=${encodeURIComponent(prod.imageUrl)}&cb=${Date.now()}` 
-                                                                    : `${API_URL}${prod.imageUrl}`} 
-                                                                className="w-full h-full object-cover" 
-                                                                alt={pName}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                    <h4 className="font-black text-[9px] md:text-[10px] uppercase truncate">{pName}</h4>
-                                                    <span className="text-blue-600 font-black text-xs md:text-sm">{formatCurrency(prod?.price * (1 - selectedPoster.discountPercent/100))}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                                <div className="mt-6 md:mt-8 pt-4 md:pt-8 border-t border-slate-100 dark:border-slate-800 flex gap-3 md:gap-4 relative">
-                                    <button onClick={handleDownloadPoster} disabled={isDownloading} className="flex-1 py-4 md:py-7 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors" aria-label={t('download')}>
-                                        {isDownloading ? t('downloading') : t('download')}
-                                    </button>
-                                    {/* FIX: Inline error message for download failure */}
-                                    {downloadError && (
-                                        <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded-lg whitespace-nowrap">
-                                            {t('downloadError')}
-                                        </div>
+                            {/* Actions (Outside Poster Capture) */}
+                            <div className="p-6 md:p-12 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex gap-3 md:gap-4 relative">
+                                <button onClick={handleDownloadPoster} disabled={isDownloading} className="flex-1 py-4 md:py-7 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors" aria-label={t('download')}>
+                                    {isDownloading ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <FiClock className="animate-spin" /> {t('downloading')}
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <FiDownload /> {t('download')}
+                                        </span>
                                     )}
-                                    <button onClick={handlePublishNow} className="flex-[2] py-4 md:py-7 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-colors">
-                                        {t('publishNow')}
-                                    </button>
-                                </div>
+                                </button>
+                                {downloadError && (
+                                    <div className="absolute -top-12 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-red-500 text-white text-xs font-bold rounded-lg whitespace-nowrap shadow-xl">
+                                        {t('downloadError')}
+                                    </div>
+                                )}
+                                <button onClick={handlePublishNow} className="flex-[2] py-4 md:py-7 bg-blue-600 hover:bg-blue-700 text-white rounded-[1.5rem] md:rounded-[2rem] font-black uppercase text-[10px] md:text-xs transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
+                                    <FiSend /> {t('publishNow')}
+                                </button>
                             </div>
                         </motion.div>
                     </div>

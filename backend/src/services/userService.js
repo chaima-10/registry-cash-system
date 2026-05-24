@@ -12,6 +12,7 @@ class UserService {
             role: true,
             salary: true,
             workingDays: true,
+            shiftSchedule: true,
             createdAt: true,
             theme: true
         });
@@ -19,7 +20,8 @@ class UserService {
         const now = new Date();
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const daysInMonthSoFar = now.getDate();
+        // Only count up to yesterday for absences to avoid marking someone absent for a day that hasn't finished
+        const pastDaysInMonth = Math.max(0, now.getDate() - 1);
 
         // 1. Daily Revenue (Today)
         const todaySales = await userRepository.getDailyRevenue(startOfToday);
@@ -31,6 +33,14 @@ class UserService {
         const workedDaysMap = {};
         const totalHoursMap = {};
         
+        // 3. Salary Payment status (Current Month)
+        const currentMonthPayments = await userRepository.getSalaryPaymentsSince(startOfMonth);
+        const paymentMap = {};
+        currentMonthPayments.forEach(p => {
+            if (!paymentMap[p.userId]) paymentMap[p.userId] = [];
+            paymentMap[p.userId].push(p);
+        });
+
         // Create a user map for quick lookups
         const userMap = {};
         users.forEach(u => userMap[u.id] = u);
@@ -52,10 +62,31 @@ class UserService {
             let workedDays = (workedDaysMap[user.id] && workedDaysMap[user.id].size) || 0;
             let totalMonthHours = totalHoursMap[user.id] || 0;
 
-            let effectiveDaysToCount = daysInMonthSoFar;
-            if (isCreatedThisMonth) {
-                const userCreationDay = user.createdAt.getDate();
-                effectiveDaysToCount = (daysInMonthSoFar - userCreationDay) + 1;
+            let scheduledWorkingDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']; // Default
+            try {
+                if (user.shiftSchedule) {
+                    const schedule = typeof user.shiftSchedule === 'string' ? JSON.parse(user.shiftSchedule) : user.shiftSchedule;
+                    if (schedule.shiftWorkingDays) {
+                        scheduledWorkingDays = schedule.shiftWorkingDays.split(',');
+                    }
+                }
+            } catch (e) {
+                console.error("Error parsing shiftSchedule for absence calculation:", e);
+            }
+
+            let effectiveDaysToCount = 0;
+            const startDate = isCreatedThisMonth ? user.createdAt : startOfMonth;
+            const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Midnight today (exclude today)
+            
+            let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()); // Midnight of start date
+            const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            
+            while (currentDate < endDate) {
+                const dayName = daysMap[currentDate.getDay()];
+                if (scheduledWorkingDays.includes(dayName)) {
+                    effectiveDaysToCount++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
             }
 
             const absences = Math.max(0, effectiveDaysToCount - workedDays);
@@ -70,8 +101,11 @@ class UserService {
                 workedDays,
                 absences,
                 salary: user.salary,
+                shiftSchedule: user.shiftSchedule,
                 monthlySalary: (Number(user.salary || 0) * workedDays).toFixed(2),
                 totalMonthHours: totalMonthHours.toFixed(2),
+                isPaid: !!paymentMap[user.id],
+                lastPayment: paymentMap[user.id] ? paymentMap[user.id][0] : null,
                 createdAt: user.createdAt
             };
         });
@@ -118,12 +152,36 @@ class UserService {
         const workedDaysCount = attendanceRecords.filter(r => r.status === 'PRESENT').length;
         const totalMonthHours = attendanceRecords.reduce((sum, r) => sum + Number(r.totalHours || 0), 0);
 
-        const isCreatedThisMonth = user.createdAt >= startOfMonth;
-        let effectiveDaysToCount = daysInMonthSoFar;
-        if (isCreatedThisMonth) {
-            const userCreationDay = user.createdAt.getDate();
-            effectiveDaysToCount = (daysInMonthSoFar - userCreationDay) + 1;
+        // Calculate effective working days based on the user's schedule (not all calendar days)
+        let scheduledWorkingDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']; // Default Mon-Fri
+        try {
+            if (user.shiftSchedule) {
+                const schedule = typeof user.shiftSchedule === 'string' ? JSON.parse(user.shiftSchedule) : user.shiftSchedule;
+                if (schedule.shiftWorkingDays) {
+                    scheduledWorkingDays = schedule.shiftWorkingDays.split(',').map(d => d.trim());
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing shiftSchedule for absence calculation:", e);
         }
+
+        const daysMap = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const isCreatedThisMonth = user.createdAt >= startOfMonth;
+        const startDate = isCreatedThisMonth
+            ? new Date(user.createdAt.getFullYear(), user.createdAt.getMonth(), user.createdAt.getDate())
+            : startOfMonth;
+        const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // exclude today
+
+        let effectiveDaysToCount = 0;
+        let currentDate = new Date(startDate);
+        while (currentDate < endDate) {
+            const dayName = daysMap[currentDate.getDay()];
+            if (scheduledWorkingDays.includes(dayName)) {
+                effectiveDaysToCount++;
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+
         const absences = Math.max(0, effectiveDaysToCount - workedDaysCount);
 
         const allPrimes = await userRepository.getAllPrimes(userId);
@@ -228,26 +286,25 @@ class UserService {
             throw new Error('Seul un administrateur peut distribuer les salaires.');
         }
 
-        const targetUsers = await userRepository.getAllUsersWithSelectedFields({
-            id: true, username: true, salary: true
-        });
+        // Get actual stats for all users (worked days, etc.)
+        const usersWithStats = await this.getAllUsersStats();
 
-        if (targetUsers.length === 0) {
+        if (usersWithStats.length === 0) {
             return { message: "Aucun utilisateur trouvé dans la base de données." };
         }
 
         const monthStr = month || new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
-        const payments = targetUsers
-            .filter(user => parseFloat(user.salary) > 0)
+        const payments = usersWithStats
+            .filter(user => parseFloat(user.monthlySalary) > 0)
             .map(user => ({
                 userId: user.id,
-                amount: user.salary.toString(),
+                amount: user.monthlySalary, // Already calculated as dailySalary * workedDays
                 month: monthStr
             }));
 
         if (payments.length === 0) {
-            return { message: "Aucun employé avec un salaire défini." };
+            return { message: "Aucun employé n'a de salaire à distribuer (jours travaillés = 0)." };
         }
 
         await userRepository.createSalaryPayments(payments);
@@ -258,6 +315,15 @@ class UserService {
             totalPaid,
             employeeCount: payments.length
         };
+    }
+
+    async getSalaryHistory(adminId) {
+        const requester = await userRepository.findUserById(adminId);
+        if (requester.role !== 'admin') {
+            // If not admin, return only their own history
+            return await userRepository.getAllSalaryPayments(adminId);
+        }
+        return await userRepository.getAllGlobalSalaryHistory();
     }
 
     async updateProfile(userId, data, file) {
@@ -343,12 +409,13 @@ class UserService {
     }
 
     async updateUser(id, data) {
-        const { fullName, salary, workingDays, password } = data;
+        const { fullName, salary, workingDays, password, shiftSchedule } = data;
 
         const dataToUpdate = {
             fullName,
             salary: salary !== undefined && salary !== "" ? parseFloat(salary) : 0.00,
-            workingDays: workingDays || ""
+            workingDays: workingDays || "",
+            shiftSchedule: shiftSchedule !== undefined ? (typeof shiftSchedule === 'object' ? JSON.stringify(shiftSchedule) : shiftSchedule) : undefined
         };
 
         if (password && password.trim() !== "") {

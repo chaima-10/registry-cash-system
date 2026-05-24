@@ -189,5 +189,6 @@ router.post('/distribute-prime', userController.distributePrime);
  *       - bearerAuth: []
  */
 router.post('/distribute-salary', userController.distributeSalary);
+router.get('/salary/history', userController.getSalaryHistory);
 
 module.exports = router;

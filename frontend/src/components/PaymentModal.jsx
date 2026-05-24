@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import CameraScannerModal from './CameraScannerModal';
+import toast from 'react-hot-toast';
 
 const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
     const { t } = useTranslation();
@@ -34,18 +35,18 @@ const PaymentModal = ({ isOpen, onClose, cart, onConfirm }) => {
 
     const handleConfirm = async () => {
         if (selectedMethod === 'CASH' && change < 0) {
-            alert(t('insufficientCash') || 'Insufficient cash tendered');
+            toast.error(t('insufficientCash') || 'Insufficient cash tendered');
             return;
         }
 
         if (selectedMethod === 'VOUCHER' && !voucherQR) {
-            alert(t('voucherRequired') || 'Please scan QR code');
+            toast.error(t('voucherRequired') || 'Please scan QR code');
             return;
         }
 
         if (selectedMethod === 'CARD') {
             if (!cardPin) {
-                alert(t('pinRequired') || 'Please enter PIN code');
+                toast.error(t('pinRequired') || 'Please enter PIN code');
                 return;
             }
         }

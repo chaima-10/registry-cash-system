@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { Toaster } from 'react-hot-toast';
 
 // Lazy Load Components
 const Login = lazy(() => import('./pages/Login'));
@@ -13,7 +14,6 @@ const Users = lazy(() => import('./pages/Users'));
 const POS = lazy(() => import('./pages/POS'));
 const Giveaways = lazy(() => import('./pages/Giveaways'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AIAnalytics = lazy(() => import('./pages/AIAnalytics'));
 const AIMarketing = lazy(() => import('./pages/AIMarketing'));
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
@@ -60,7 +60,6 @@ function AppRoutes() {
                     <Route path="/pos" element={<POS />} />
                     <Route path="/giveaways" element={<Giveaways />} />
                     <Route path="/profile" element={<ProfilePage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
                 </Route>
             </Routes>
         </Suspense>
@@ -73,6 +72,37 @@ function App() {
     return (
         <GlobalErrorBoundary>
             <AuthProvider>
+                <Toaster 
+                    position="top-right"
+                    toastOptions={{
+                        duration: 4000,
+                        style: {
+                            background: '#fff',
+                            color: '#1e293b',
+                            padding: '16px 24px',
+                            borderRadius: '1.5rem',
+                            fontWeight: '600',
+                            fontSize: '0.9rem',
+                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                            border: '1px solid rgba(226, 232, 240, 0.8)',
+                        },
+                        success: {
+                            iconTheme: {
+                                primary: '#10b981',
+                                secondary: '#fff',
+                            },
+                        },
+                        error: {
+                            iconTheme: {
+                                primary: '#ef4444',
+                                secondary: '#fff',
+                            },
+                            style: {
+                                border: '1px solid #fee2e2',
+                            }
+                        },
+                    }}
+                />
                 <Router>
                     <AppRoutes />
                 </Router>

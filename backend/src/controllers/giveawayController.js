@@ -54,7 +54,7 @@ exports.participateInGiveaway = async (req, res) => {
         if (error.message === 'Giveaway not found') {
             return res.status(404).json({ message: error.message });
         }
-        if (error.message === 'Only cashiers can register participants for giveaways') {
+        if (error.message === 'Only cashiers or admins can register participants for giveaways') {
             return res.status(403).json({ message: error.message });
         }
         res.status(400).json({ message: error.message });

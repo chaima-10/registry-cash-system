@@ -15,30 +15,6 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 
 // Helper components for consistency
-const StatCard = ({ label, value, subValue, icon: Icon, color, i }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: i * 0.1 }}
-        className="bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col justify-between h-full group hover:shadow-xl transition-all duration-500"
-    >
-        <div className="flex justify-between items-start mb-4">
-            <div className={`p-4 rounded-2xl bg-opacity-10 text-opacity-100`} style={{ backgroundColor: `${color}1A` }}>
-                <Icon size={24} style={{ color: color }} />
-            </div>
-            {subValue && (
-                <span className={`text-[10px] font-black px-2 py-1 rounded-full ${subValue.startsWith('+') ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                    {subValue}
-                </span>
-            )}
-        </div>
-        <div>
-            <div className="text-gray-400 dark:text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">{label}</div>
-            <div className="text-2xl lg:text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{value}</div>
-        </div>
-    </motion.div>
-);
-
 const Badge = ({ label, color, bg }) => (
     <span 
         className="px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border"
@@ -188,22 +164,7 @@ const EmployeePerformance = () => {
         return Array.from(groups.values()).sort((a, b) => b.weekStart.localeCompare(a.weekStart));
     }, [users, sales, attendance, roleFilter]);
 
-    const stats = useMemo(() => {
-        const activeCount = users.filter(u => u.status === 'Active').length;
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        
-        const weeklySales = sales.filter(s => new Date(s.createdAt) >= weekAgo);
-        const weeklyRevenue = weeklySales.reduce((sum, s) => sum + Number(s.totalAmount), 0);
-        const pendingApprovals = performanceData.filter(p => p.status === 'En attente').length;
 
-        return [
-            { label: t('activeEmployees', 'Active Employees'), value: activeCount, icon: FiUsers, color: '#6366f1' },
-            { label: t('weeklyTransactions', 'Weekly Transactions'), value: weeklySales.length, icon: FiShoppingCart, color: '#f59e0b', subValue: '+8%' },
-            { label: t('totalRevenueGenerated', 'Total Revenue'), value: formatCurrency(weeklyRevenue), icon: FiDollarSign, color: '#10b981', subValue: '+12%' },
-            { label: t('pendingApprovals', 'Pending Approvals'), value: pendingApprovals, icon: FiBriefcase, color: '#8b5cf6' }
-        ];
-    }, [users, sales, performanceData, formatCurrency, t]);
 
     const selectedGroup = useMemo(() => {
         return performanceData.find(p => p.key === selectedRowKey) || null;
@@ -250,10 +211,7 @@ const EmployeePerformance = () => {
                 </button>
             </div>
 
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {stats.map((s, i) => <StatCard key={s.label} {...s} i={i} />)}
-            </div>
+            {/* Stats removed as requested */}
 
             {/* Filters */}
             <div className="flex flex-wrap gap-3">

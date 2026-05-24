@@ -2,9 +2,9 @@ const prisma = require('../config/prisma');
 
 class StockService {
     /**
-     * Calculates the reorder level for a product based on the last 30 days of sales history.
-     * Logic: (Average Daily Sales * 7) + Safety Stock
-     * Fallback: 5 units if the result is lower.
+     * Calculates the reorder level for a product.
+     * If safetyStock is manually set (> 0), use it directly as the reorder level.
+     * Otherwise: (Average Daily Sales * 7) + safetyStock, minimum 5.
      */
     async calculateReorderLevel(productId) {
         const product = await prisma.product.findUnique({
@@ -14,7 +14,12 @@ class StockService {
 
         if (!product) return 5;
 
-        // Get sales from the last 30 days
+        // If user manually set a safety stock, use it directly as the reorder level
+        if (product.safetyStock && Number(product.safetyStock) > 0) {
+            return Number(product.safetyStock);
+        }
+
+        // Otherwise calculate from sales history
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
